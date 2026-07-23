@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { db, workationRequests } from "@/db";
+import { db, requestHistory, workationRequests } from "@/db";
 import { writeAudit } from "@/lib/audit";
 import { fullName, requireAdmin, requireUser } from "@/lib/auth";
 import { formatDateDE } from "@/lib/dates";
@@ -169,8 +169,10 @@ export async function resubmitWorkationRequest(id: string, formData: FormData) {
   });
   if (!existing || existing.userId !== user.id)
     throw new Error("Antrag nicht gefunden.");
-  if (existing.status !== "beanstandet")
-    throw new Error("Nur beanstandete Anträge können korrigiert werden.");
+  if (existing.status !== "beanstandet" && existing.status !== "zurueckgezogen")
+    throw new Error(
+      "Nur beanstandete oder zurückgezogene Anträge können korrigiert werden."
+    );
 
   const data = parseForm(formData);
   await validateOrThrow(user.id, data, id);
@@ -213,6 +215,80 @@ export async function resubmitWorkationRequest(id: string, formData: FormData) {
 
   revalidatePath("/workation");
   redirect(`/workation/${id}`);
+}
+
+/** Eingereichten oder beanstandeten Antrag zurückziehen. */
+export async function withdrawWorkationRequest(id: string) {
+  const user = await requireUser();
+  const existing = await db.query.workationRequests.findFirst({
+    where: eq(workationRequests.id, id),
+  });
+  if (!existing || existing.userId !== user.id)
+    throw new Error("Antrag nicht gefunden.");
+  if (existing.status !== "eingereicht" && existing.status !== "beanstandet")
+    throw new Error(
+      "Nur eingereichte oder beanstandete Anträge können zurückgezogen werden."
+    );
+
+  await db
+    .update(workationRequests)
+    .set({ status: "zurueckgezogen", updatedAt: new Date() })
+    .where(eq(workationRequests.id, id));
+
+  await writeAudit({
+    objectType: "workation",
+    objectId: id,
+    action: "zurueckgezogen",
+    actorUserId: user.id,
+    actorLabel: fullName(user),
+    source: "web",
+  });
+
+  revalidatePath(`/workation/${id}`);
+  revalidatePath("/workation");
+}
+
+/** Zurückgezogenen Antrag endgültig löschen. */
+export async function deleteWorkationRequest(id: string) {
+  const user = await requireUser();
+  const existing = await db.query.workationRequests.findFirst({
+    where: eq(workationRequests.id, id),
+  });
+  if (!existing || existing.userId !== user.id)
+    throw new Error("Antrag nicht gefunden.");
+  if (existing.status !== "zurueckgezogen")
+    throw new Error(
+      "Nur zurückgezogene Anträge können endgültig gelöscht werden."
+    );
+
+  // Audit vor dem Löschen schreiben (Audit-Log hat keinen Fremdschlüssel)
+  await writeAudit({
+    objectType: "workation",
+    objectId: id,
+    action: "geloescht",
+    actorUserId: user.id,
+    actorLabel: fullName(user),
+    source: "web",
+    details: {
+      country: existing.country,
+      city: existing.city,
+      startDate: existing.startDate,
+      endDate: existing.endDate,
+    },
+  });
+
+  await db
+    .delete(requestHistory)
+    .where(
+      and(
+        eq(requestHistory.requestType, "workation"),
+        eq(requestHistory.requestId, id)
+      )
+    );
+  await db.delete(workationRequests).where(eq(workationRequests.id, id));
+
+  revalidatePath("/workation");
+  redirect("/workation");
 }
 
 /** Admin pflegt A1-Status, Nachweise und EU-Beschränkung (Genehmigungsschritt). */

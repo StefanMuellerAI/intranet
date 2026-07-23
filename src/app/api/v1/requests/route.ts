@@ -18,6 +18,7 @@ const STATUS_MAP: Record<string, string[]> = {
   pending: ["eingereicht", "storno_beantragt"],
   approved: ["genehmigt"],
   rejected: ["beanstandet"],
+  withdrawn: ["zurueckgezogen"],
 };
 
 /**

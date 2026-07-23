@@ -6,6 +6,7 @@ import { fullName, requireUser } from "@/lib/auth";
 import { formatDateDE } from "@/lib/dates";
 import { getSettings } from "@/lib/settings";
 import { getUsedWorkationDays } from "@/lib/vacation";
+import { DeleteRequestButton } from "@/components/delete-request-button";
 import { PageHeader } from "@/components/page-header";
 import { AuditTrail, HistoryCard } from "@/components/request-meta";
 import { StatusBadge } from "@/components/status-badge";
@@ -14,7 +15,11 @@ import { WorkationForm } from "@/components/workation-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { resubmitWorkationRequest } from "../actions";
+import {
+  deleteWorkationRequest,
+  resubmitWorkationRequest,
+  withdrawWorkationRequest,
+} from "../actions";
 
 export const metadata = { title: "Workation-Antrag" };
 
@@ -35,7 +40,13 @@ export default async function WorkationDetailPage({
     where: eq(users.id, request.userId),
   });
   const canEdit =
-    request.userId === user.id && request.status === "beanstandet";
+    request.userId === user.id &&
+    (request.status === "beanstandet" || request.status === "zurueckgezogen");
+  const canWithdraw =
+    request.userId === user.id &&
+    (request.status === "eingereicht" || request.status === "beanstandet");
+  const canDelete =
+    request.userId === user.id && request.status === "zurueckgezogen";
 
   let editProps = null;
   if (canEdit) {
@@ -46,6 +57,8 @@ export default async function WorkationDetailPage({
   }
 
   const resubmitWithId = resubmitWorkationRequest.bind(null, id);
+  const withdrawWithId = withdrawWorkationRequest.bind(null, id);
+  const deleteWithId = deleteWorkationRequest.bind(null, id);
 
   return (
     <div className="space-y-6">
@@ -81,6 +94,25 @@ export default async function WorkationDetailPage({
         request={request}
         applicantName={applicant ? fullName(applicant) : "—"}
       />
+
+      {canWithdraw && (
+        <form action={withdrawWithId}>
+          <Button type="submit" variant="outline">
+            Antrag zurückziehen
+          </Button>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Der Antrag wird aus der Freigabe genommen und kann danach
+            korrigiert erneut eingereicht oder endgültig gelöscht werden.
+          </p>
+        </form>
+      )}
+
+      {canDelete && (
+        <DeleteRequestButton
+          action={deleteWithId}
+          description="Der Workation-Antrag wird unwiderruflich gelöscht. Dieser Schritt kann nicht rückgängig gemacht werden."
+        />
+      )}
 
       {canEdit && editProps && (
         <Card>

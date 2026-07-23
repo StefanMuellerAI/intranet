@@ -5,14 +5,20 @@ import { requireUser } from "@/lib/auth";
 import { formatDateDE } from "@/lib/dates";
 import { formatEuro, type MealDayInput, type AbsenceType } from "@/lib/expenses/calc";
 import { getSettings, ratesFromSettings } from "@/lib/settings";
+import { DeleteRequestButton } from "@/components/delete-request-button";
 import { ExpenseDetails } from "@/components/expense-details";
 import { ExpenseForm, type ExpenseFormDefaults } from "@/components/expense-form";
 import { PageHeader } from "@/components/page-header";
 import { AuditTrail, HistoryCard } from "@/components/request-meta";
 import { StatusBadge } from "@/components/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { resubmitExpenseReport } from "../actions";
+import {
+  deleteExpenseReport,
+  resubmitExpenseReport,
+  withdrawExpenseReport,
+} from "../actions";
 
 export const metadata = { title: "Reisekostenabrechnung" };
 
@@ -38,7 +44,14 @@ export default async function AbrechnungDetailPage({
     db.select().from(receipts).where(eq(receipts.reportId, id)),
   ]);
 
-  const canEdit = report.userId === user.id && report.status === "beanstandet";
+  const canEdit =
+    report.userId === user.id &&
+    (report.status === "beanstandet" || report.status === "zurueckgezogen");
+  const canWithdraw =
+    report.userId === user.id &&
+    (report.status === "eingereicht" || report.status === "beanstandet");
+  const canDelete =
+    report.userId === user.id && report.status === "zurueckgezogen";
 
   let editDefaults: ExpenseFormDefaults | null = null;
   let editRates = null;
@@ -87,6 +100,8 @@ export default async function AbrechnungDetailPage({
   }
 
   const resubmitWithId = resubmitExpenseReport.bind(null, id);
+  const withdrawWithId = withdrawExpenseReport.bind(null, id);
+  const deleteWithId = deleteExpenseReport.bind(null, id);
 
   return (
     <div className="space-y-6">
@@ -127,6 +142,25 @@ export default async function AbrechnungDetailPage({
         </Card>
       ) : (
         <ExpenseDetails report={report} items={items} receipts={receiptRows} />
+      )}
+
+      {canWithdraw && (
+        <form action={withdrawWithId}>
+          <Button type="submit" variant="outline">
+            Abrechnung zurückziehen
+          </Button>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Die Abrechnung wird aus der Freigabe genommen und kann danach
+            korrigiert erneut eingereicht oder endgültig gelöscht werden.
+          </p>
+        </form>
+      )}
+
+      {canDelete && (
+        <DeleteRequestButton
+          action={deleteWithId}
+          description="Die Reisekostenabrechnung wird mitsamt allen hochgeladenen Belegen unwiderruflich gelöscht. Dieser Schritt kann nicht rückgängig gemacht werden."
+        />
       )}
 
       <HistoryCard

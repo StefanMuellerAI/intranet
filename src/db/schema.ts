@@ -62,6 +62,7 @@ export const REQUEST_STATUS = [
   "beanstandet",
   "storno_beantragt",
   "storniert",
+  "zurueckgezogen",
 ] as const;
 export type RequestStatus = (typeof REQUEST_STATUS)[number];
 

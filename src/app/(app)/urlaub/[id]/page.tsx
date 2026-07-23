@@ -4,6 +4,7 @@ import { db, users, vacationRequests } from "@/db";
 import { fullName, requireUser } from "@/lib/auth";
 import { formatDateDE } from "@/lib/dates";
 import { getOverlappingAbsences, getVacationAccount } from "@/lib/vacation";
+import { DeleteRequestButton } from "@/components/delete-request-button";
 import { PageHeader } from "@/components/page-header";
 import { AuditTrail, HistoryCard } from "@/components/request-meta";
 import { StatusBadge } from "@/components/status-badge";
@@ -12,8 +13,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  deleteVacationRequest,
   requestVacationCancellation,
   resubmitVacationRequest,
+  withdrawVacationRequest,
 } from "../actions";
 
 export const metadata = { title: "Urlaubsantrag" };
@@ -39,9 +42,15 @@ export default async function UrlaubDetailPage({
     : null;
 
   const canEdit =
-    request.userId === user.id && request.status === "beanstandet";
+    request.userId === user.id &&
+    (request.status === "beanstandet" || request.status === "zurueckgezogen");
   const canCancel =
     request.userId === user.id && request.status === "genehmigt";
+  const canWithdraw =
+    request.userId === user.id &&
+    (request.status === "eingereicht" || request.status === "beanstandet");
+  const canDelete =
+    request.userId === user.id && request.status === "zurueckgezogen";
 
   let editProps = null;
   if (canEdit) {
@@ -61,6 +70,8 @@ export default async function UrlaubDetailPage({
 
   const resubmitWithId = resubmitVacationRequest.bind(null, id);
   const cancelWithId = requestVacationCancellation.bind(null, id);
+  const withdrawWithId = withdrawVacationRequest.bind(null, id);
+  const deleteWithId = deleteVacationRequest.bind(null, id);
 
   return (
     <div className="space-y-6">
@@ -129,6 +140,25 @@ export default async function UrlaubDetailPage({
             gutgeschrieben.
           </p>
         </form>
+      )}
+
+      {canWithdraw && (
+        <form action={withdrawWithId}>
+          <Button type="submit" variant="outline">
+            Antrag zurückziehen
+          </Button>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Der Antrag wird aus der Freigabe genommen und kann danach
+            korrigiert erneut eingereicht oder endgültig gelöscht werden.
+          </p>
+        </form>
+      )}
+
+      {canDelete && (
+        <DeleteRequestButton
+          action={deleteWithId}
+          description="Der Urlaubsantrag wird unwiderruflich gelöscht. Dieser Schritt kann nicht rückgängig gemacht werden."
+        />
       )}
 
       {canEdit && editProps && (

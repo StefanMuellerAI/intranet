@@ -8,14 +8,20 @@ import {
 } from "@/lib/commissions/calc";
 import { formatEuro } from "@/lib/expenses/calc";
 import { commissionRatesFromSettings, getSettings } from "@/lib/settings";
+import { DeleteRequestButton } from "@/components/delete-request-button";
 import { PageHeader } from "@/components/page-header";
 import { CommissionDetails } from "@/components/commission-details";
 import { CommissionForm } from "@/components/commission-form";
 import { AuditTrail, HistoryCard } from "@/components/request-meta";
 import { StatusBadge } from "@/components/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { resubmitCommissionClaim } from "../actions";
+import {
+  deleteCommissionClaim,
+  resubmitCommissionClaim,
+  withdrawCommissionClaim,
+} from "../actions";
 
 export const metadata = { title: "Provisionsanspruch" };
 
@@ -33,7 +39,14 @@ export default async function ProvisionDetailPage({
   if (!claim || (claim.userId !== user.id && user.role !== "admin"))
     notFound();
 
-  const canEdit = claim.userId === user.id && claim.status === "beanstandet";
+  const canEdit =
+    claim.userId === user.id &&
+    (claim.status === "beanstandet" || claim.status === "zurueckgezogen");
+  const canWithdraw =
+    claim.userId === user.id &&
+    (claim.status === "eingereicht" || claim.status === "beanstandet");
+  const canDelete =
+    claim.userId === user.id && claim.status === "zurueckgezogen";
 
   let rates = null;
   if (canEdit) {
@@ -41,6 +54,8 @@ export default async function ProvisionDetailPage({
   }
 
   const resubmitWithId = resubmitCommissionClaim.bind(null, id);
+  const withdrawWithId = withdrawCommissionClaim.bind(null, id);
+  const deleteWithId = deleteCommissionClaim.bind(null, id);
 
   return (
     <div className="space-y-6">
@@ -68,6 +83,25 @@ export default async function ProvisionDetailPage({
       )}
 
       <CommissionDetails claim={claim} />
+
+      {canWithdraw && (
+        <form action={withdrawWithId}>
+          <Button type="submit" variant="outline">
+            Anspruch zurückziehen
+          </Button>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Der Anspruch wird aus der Freigabe genommen und kann danach
+            korrigiert erneut eingereicht oder endgültig gelöscht werden.
+          </p>
+        </form>
+      )}
+
+      {canDelete && (
+        <DeleteRequestButton
+          action={deleteWithId}
+          description="Der Provisionsanspruch wird unwiderruflich gelöscht. Dieser Schritt kann nicht rückgängig gemacht werden."
+        />
+      )}
 
       {canEdit && rates && (
         <Card>

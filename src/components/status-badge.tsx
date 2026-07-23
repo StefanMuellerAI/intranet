@@ -22,6 +22,10 @@ const STATUS_STYLES: Record<string, { label: string; className: string }> = {
     label: "Storniert",
     className: "bg-gray-100 text-gray-600 border-gray-200",
   },
+  zurueckgezogen: {
+    label: "Zurückgezogen",
+    className: "bg-gray-100 text-gray-600 border-gray-200",
+  },
   gemeldet: {
     label: "Gemeldet",
     className: "bg-blue-100 text-blue-800 border-blue-200",

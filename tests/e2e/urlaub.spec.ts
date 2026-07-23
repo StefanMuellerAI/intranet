@@ -118,6 +118,48 @@ test.describe("Urlaubs-Workflow", () => {
     await expect(statusBadge(employee, "Genehmigt")).toBeVisible();
   });
 
+  test("Antrag zurückziehen und endgültig löschen", async ({ browser }) => {
+    const employee = await pageAs(browser, USER_STATE);
+    const admin = await pageAs(browser, ADMIN_STATE);
+
+    // Mitarbeiter reicht ein (Mo 16.11. – Mi 18.11. = 3 Tage)
+    await employee.goto("/urlaub/neu");
+    await employee.locator("#startDate").fill("2026-11-16");
+    await employee.locator("#endDate").fill("2026-11-18");
+    await employee.getByRole("button", { name: "Antrag einreichen" }).click();
+    await expect(employee).toHaveURL(/\/urlaub\/[0-9a-f-]+$/);
+    await expect(statusBadge(employee, "Eingereicht")).toBeVisible();
+
+    // Zurückziehen: Antrag verschwindet aus den Freigaben
+    await employee
+      .getByRole("button", { name: "Antrag zurückziehen" })
+      .click();
+    await expect(statusBadge(employee, "Zurückgezogen")).toBeVisible();
+
+    await admin.goto("/freigaben");
+    await expect(
+      admin.getByRole("row").filter({ hasText: "16.11.2026" })
+    ).toHaveCount(0);
+
+    // Zurückgezogener Antrag kann korrigiert erneut eingereicht werden
+    await expect(
+      employee.getByText("Antrag korrigieren und erneut einreichen")
+    ).toBeVisible();
+
+    // Endgültig löschen mit Bestätigungsdialog
+    await employee
+      .getByRole("button", { name: "Endgültig löschen" })
+      .click();
+    await employee
+      .getByRole("dialog")
+      .getByRole("button", { name: "Endgültig löschen" })
+      .click();
+    await expect(employee).toHaveURL(/\/urlaub$/);
+    await expect(
+      employee.getByRole("row").filter({ hasText: "16.11.2026" })
+    ).toHaveCount(0);
+  });
+
   test("Antrag über den Resturlaub hinaus wird abgelehnt", async ({
     browser,
   }) => {

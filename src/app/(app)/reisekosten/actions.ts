@@ -2,10 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
-import { put } from "@vercel/blob";
+import { and, eq } from "drizzle-orm";
+import { del, put } from "@vercel/blob";
 import { z } from "zod";
-import { db, expenseItems, expenseReports, receipts } from "@/db";
+import {
+  db,
+  expenseItems,
+  expenseReports,
+  receipts,
+  requestHistory,
+} from "@/db";
 import { writeAudit } from "@/lib/audit";
 import { fullName, requireUser } from "@/lib/auth";
 import { formatDateDE } from "@/lib/dates";
@@ -274,8 +280,10 @@ export async function resubmitExpenseReport(id: string, formData: FormData) {
   });
   if (!existing || existing.userId !== user.id)
     throw new Error("Abrechnung nicht gefunden.");
-  if (existing.status !== "beanstandet")
-    throw new Error("Nur beanstandete Abrechnungen können korrigiert werden.");
+  if (existing.status !== "beanstandet" && existing.status !== "zurueckgezogen")
+    throw new Error(
+      "Nur beanstandete oder zurückgezogene Abrechnungen können korrigiert werden."
+    );
 
   const oldItems = await db
     .select()
@@ -321,4 +329,86 @@ export async function resubmitExpenseReport(id: string, formData: FormData) {
 
   revalidatePath("/reisekosten");
   redirect(`/reisekosten/${id}`);
+}
+
+/** Eingereichte oder beanstandete Abrechnung zurückziehen. */
+export async function withdrawExpenseReport(id: string) {
+  const user = await requireUser();
+  const existing = await db.query.expenseReports.findFirst({
+    where: eq(expenseReports.id, id),
+  });
+  if (!existing || existing.userId !== user.id)
+    throw new Error("Abrechnung nicht gefunden.");
+  if (existing.status !== "eingereicht" && existing.status !== "beanstandet")
+    throw new Error(
+      "Nur eingereichte oder beanstandete Abrechnungen können zurückgezogen werden."
+    );
+
+  await db
+    .update(expenseReports)
+    .set({ status: "zurueckgezogen", updatedAt: new Date() })
+    .where(eq(expenseReports.id, id));
+
+  await writeAudit({
+    objectType: "reisekosten",
+    objectId: id,
+    action: "zurueckgezogen",
+    actorUserId: user.id,
+    actorLabel: fullName(user),
+    source: "web",
+  });
+
+  revalidatePath(`/reisekosten/${id}`);
+  revalidatePath("/reisekosten");
+}
+
+/** Zurückgezogene Abrechnung endgültig löschen (inkl. Beleg-Dateien). */
+export async function deleteExpenseReport(id: string) {
+  const user = await requireUser();
+  const existing = await db.query.expenseReports.findFirst({
+    where: eq(expenseReports.id, id),
+  });
+  if (!existing || existing.userId !== user.id)
+    throw new Error("Abrechnung nicht gefunden.");
+  if (existing.status !== "zurueckgezogen")
+    throw new Error(
+      "Nur zurückgezogene Abrechnungen können endgültig gelöscht werden."
+    );
+
+  // Beleg-Dateien in Vercel Blob entfernen (DB-Zeilen fallen per Cascade)
+  const reportReceipts = await db
+    .select()
+    .from(receipts)
+    .where(eq(receipts.reportId, id));
+  if (reportReceipts.length > 0)
+    await del(reportReceipts.map((r) => r.blobUrl));
+
+  // Audit vor dem Löschen schreiben (Audit-Log hat keinen Fremdschlüssel)
+  await writeAudit({
+    objectType: "reisekosten",
+    objectId: id,
+    action: "geloescht",
+    actorUserId: user.id,
+    actorLabel: fullName(user),
+    source: "web",
+    details: {
+      destination: existing.destination,
+      departureDate: existing.departureDate,
+      returnDate: existing.returnDate,
+      totalCents: existing.totalCents,
+    },
+  });
+
+  await db
+    .delete(requestHistory)
+    .where(
+      and(
+        eq(requestHistory.requestType, "reisekosten"),
+        eq(requestHistory.requestId, id)
+      )
+    );
+  await db.delete(expenseReports).where(eq(expenseReports.id, id));
+
+  revalidatePath("/reisekosten");
+  redirect("/reisekosten");
 }

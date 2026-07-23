@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { db, vacationRequests } from "@/db";
+import { db, requestHistory, vacationRequests } from "@/db";
 import { writeAudit } from "@/lib/audit";
 import { fullName, requireUser } from "@/lib/auth";
 import { countVacationDays, formatDateDE } from "@/lib/dates";
@@ -109,8 +109,10 @@ export async function resubmitVacationRequest(id: string, formData: FormData) {
   });
   if (!existing || existing.userId !== user.id)
     throw new Error("Antrag nicht gefunden.");
-  if (existing.status !== "beanstandet")
-    throw new Error("Nur beanstandete Anträge können korrigiert werden.");
+  if (existing.status !== "beanstandet" && existing.status !== "zurueckgezogen")
+    throw new Error(
+      "Nur beanstandete oder zurückgezogene Anträge können korrigiert werden."
+    );
 
   const data = parseForm(formData);
   const days = countVacationDays(
@@ -167,6 +169,79 @@ export async function resubmitVacationRequest(id: string, formData: FormData) {
 
   revalidatePath("/urlaub");
   redirect(`/urlaub/${id}`);
+}
+
+/** Eingereichten oder beanstandeten Antrag zurückziehen. */
+export async function withdrawVacationRequest(id: string) {
+  const user = await requireUser();
+  const existing = await db.query.vacationRequests.findFirst({
+    where: eq(vacationRequests.id, id),
+  });
+  if (!existing || existing.userId !== user.id)
+    throw new Error("Antrag nicht gefunden.");
+  if (existing.status !== "eingereicht" && existing.status !== "beanstandet")
+    throw new Error(
+      "Nur eingereichte oder beanstandete Anträge können zurückgezogen werden."
+    );
+
+  await db
+    .update(vacationRequests)
+    .set({ status: "zurueckgezogen", updatedAt: new Date() })
+    .where(eq(vacationRequests.id, id));
+
+  await writeAudit({
+    objectType: "urlaub",
+    objectId: id,
+    action: "zurueckgezogen",
+    actorUserId: user.id,
+    actorLabel: fullName(user),
+    source: "web",
+  });
+
+  revalidatePath(`/urlaub/${id}`);
+  revalidatePath("/urlaub");
+}
+
+/** Zurückgezogenen Antrag endgültig löschen. */
+export async function deleteVacationRequest(id: string) {
+  const user = await requireUser();
+  const existing = await db.query.vacationRequests.findFirst({
+    where: eq(vacationRequests.id, id),
+  });
+  if (!existing || existing.userId !== user.id)
+    throw new Error("Antrag nicht gefunden.");
+  if (existing.status !== "zurueckgezogen")
+    throw new Error(
+      "Nur zurückgezogene Anträge können endgültig gelöscht werden."
+    );
+
+  // Audit vor dem Löschen schreiben (Audit-Log hat keinen Fremdschlüssel)
+  await writeAudit({
+    objectType: "urlaub",
+    objectId: id,
+    action: "geloescht",
+    actorUserId: user.id,
+    actorLabel: fullName(user),
+    source: "web",
+    details: {
+      startDate: existing.startDate,
+      endDate: existing.endDate,
+      days: existing.days,
+    },
+  });
+
+  await db
+    .delete(requestHistory)
+    .where(
+      and(
+        eq(requestHistory.requestType, "urlaub"),
+        eq(requestHistory.requestId, id)
+      )
+    );
+  await db.delete(vacationRequests).where(eq(vacationRequests.id, id));
+
+  revalidatePath("/urlaub");
+  redirect("/urlaub");
 }
 
 /** Stornierung eines genehmigten Urlaubs beantragen. */

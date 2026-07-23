@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { commissionClaims, db } from "@/db";
+import { commissionClaims, db, requestHistory } from "@/db";
 import { writeAudit } from "@/lib/audit";
 import { fullName, requireAdmin, requireUser } from "@/lib/auth";
 import {
@@ -167,8 +167,10 @@ export async function resubmitCommissionClaim(id: string, formData: FormData) {
   });
   if (!existing || existing.userId !== user.id)
     throw new Error("Anspruch nicht gefunden.");
-  if (existing.status !== "beanstandet")
-    throw new Error("Nur beanstandete Ansprüche können korrigiert werden.");
+  if (existing.status !== "beanstandet" && existing.status !== "zurueckgezogen")
+    throw new Error(
+      "Nur beanstandete oder zurückgezogene Ansprüche können korrigiert werden."
+    );
 
   const data = parseForm(formData);
   const settings = await getSettings();
@@ -227,6 +229,79 @@ export async function resubmitCommissionClaim(id: string, formData: FormData) {
 
   revalidatePath("/provision");
   redirect(`/provision/${id}`);
+}
+
+/** Eingereichten oder beanstandeten Anspruch zurückziehen. */
+export async function withdrawCommissionClaim(id: string) {
+  const user = await requireUser();
+  const existing = await db.query.commissionClaims.findFirst({
+    where: eq(commissionClaims.id, id),
+  });
+  if (!existing || existing.userId !== user.id)
+    throw new Error("Anspruch nicht gefunden.");
+  if (existing.status !== "eingereicht" && existing.status !== "beanstandet")
+    throw new Error(
+      "Nur eingereichte oder beanstandete Ansprüche können zurückgezogen werden."
+    );
+
+  await db
+    .update(commissionClaims)
+    .set({ status: "zurueckgezogen", updatedAt: new Date() })
+    .where(eq(commissionClaims.id, id));
+
+  await writeAudit({
+    objectType: "provision",
+    objectId: id,
+    action: "zurueckgezogen",
+    actorUserId: user.id,
+    actorLabel: fullName(user),
+    source: "web",
+  });
+
+  revalidatePath(`/provision/${id}`);
+  revalidatePath("/provision");
+}
+
+/** Zurückgezogenen Anspruch endgültig löschen. */
+export async function deleteCommissionClaim(id: string) {
+  const user = await requireUser();
+  const existing = await db.query.commissionClaims.findFirst({
+    where: eq(commissionClaims.id, id),
+  });
+  if (!existing || existing.userId !== user.id)
+    throw new Error("Anspruch nicht gefunden.");
+  if (existing.status !== "zurueckgezogen")
+    throw new Error(
+      "Nur zurückgezogene Ansprüche können endgültig gelöscht werden."
+    );
+
+  // Audit vor dem Löschen schreiben (Audit-Log hat keinen Fremdschlüssel)
+  await writeAudit({
+    objectType: "provision",
+    objectId: id,
+    action: "geloescht",
+    actorUserId: user.id,
+    actorLabel: fullName(user),
+    source: "web",
+    details: {
+      customerName: existing.customerName,
+      orderDate: existing.orderDate,
+      businessType: existing.businessType,
+    },
+  });
+
+  await db
+    .delete(requestHistory)
+    .where(
+      and(
+        eq(requestHistory.requestType, "provision"),
+        eq(requestHistory.requestId, id)
+      )
+    );
+  await db.delete(commissionClaims).where(eq(commissionClaims.id, id));
+
+  revalidatePath("/provision");
+  redirect("/provision");
 }
 
 /**
