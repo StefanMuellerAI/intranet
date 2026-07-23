@@ -35,10 +35,12 @@ function MonthGrid({
   year,
   month,
   absences,
+  large = false,
 }: {
   year: number;
   month: number; // 0-basiert
   absences: CalendarAbsence[];
+  large?: boolean;
 }) {
   const first = new Date(year, month, 1);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -57,17 +59,31 @@ function MonthGrid({
       <h3 className="mb-2 font-medium">
         {MONTH_NAMES[month]} {year}
       </h3>
-      <div className="grid grid-cols-7 gap-px rounded-md border bg-border overflow-hidden text-xs">
+      <div
+        className={cn(
+          "grid grid-cols-7 gap-px rounded-md border bg-border overflow-hidden",
+          large ? "text-sm" : "text-xs"
+        )}
+      >
         {["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].map((d) => (
           <div
             key={d}
-            className="bg-muted p-1 text-center font-medium text-muted-foreground"
+            className={cn(
+              "bg-muted text-center font-medium text-muted-foreground",
+              large ? "p-2" : "p-1"
+            )}
           >
             {d}
           </div>
         ))}
         {cells.map((date, i) => {
-          if (!date) return <div key={i} className="bg-background p-1" />;
+          if (!date)
+            return (
+              <div
+                key={i}
+                className={cn("bg-background", large ? "p-2" : "p-1")}
+              />
+            );
           const iso = toISODate(date);
           const dayAbsences = absences.filter(
             (a) => a.from <= iso && a.to >= iso
@@ -77,7 +93,8 @@ function MonthGrid({
             <div
               key={i}
               className={cn(
-                "min-h-14 bg-background p-1 align-top",
+                "bg-background align-top",
+                large ? "min-h-24 p-2" : "min-h-14 p-1",
                 weekend && "bg-muted/50"
               )}
             >
@@ -185,9 +202,20 @@ export default async function KalenderPage({
       </div>
 
       <Card>
-        <CardContent className="grid gap-6 pt-6 md:grid-cols-2 xl:grid-cols-3">
+        <CardContent
+          className={cn(
+            "grid gap-6 pt-6",
+            yearView && "md:grid-cols-2 xl:grid-cols-3"
+          )}
+        >
           {months.map((m) => (
-            <MonthGrid key={m} year={year} month={m} absences={absences} />
+            <MonthGrid
+              key={m}
+              year={year}
+              month={m}
+              absences={absences}
+              large={!yearView}
+            />
           ))}
         </CardContent>
       </Card>
