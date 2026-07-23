@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/table";
 import {
   addWebhook,
+  updateCommissionRates,
   updateQuotas,
   updateRates,
   updateRetention,
@@ -221,6 +222,59 @@ export default async function EinstellungenPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle className="text-base">
+            Provisionssätze (Folgegeschäfte)
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Vertragswerte als Standard: Folge-Trainings je zusätzlich
+            bestelltem Training, Folgeberatungen als Prozentsatz vom
+            Nettoauftragswert. Neukunden-Vermittlungsprovision wird im
+            Einzelfall bei der Freigabe eingetragen.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <ActionForm
+            action={updateCommissionRates}
+            successMessage="Provisionssätze gespeichert."
+            className="grid gap-4 sm:grid-cols-4"
+          >
+            <RateField
+              name="commissionHalfDay"
+              label="Training halbtägig (€)"
+              cents={settings.commissionHalfDayCents}
+            />
+            <RateField
+              name="commissionFullDay"
+              label="Training ganztägig (€)"
+              cents={settings.commissionFullDayCents}
+            />
+            <RateField
+              name="commissionTwoDay"
+              label="Training zweitägig (€)"
+              cents={settings.commissionTwoDayCents}
+            />
+            <div className="space-y-1">
+              <Label htmlFor="commissionConsultingPercent">
+                Folgeberatung (% vom Nettoauftragswert)
+              </Label>
+              <Input
+                id="commissionConsultingPercent"
+                name="commissionConsultingPercent"
+                inputMode="decimal"
+                defaultValue={String(
+                  settings.commissionConsultingPercent
+                ).replace(".", ",")}
+              />
+            </div>
+            <Button type="submit" className="sm:col-span-4 w-fit">
+              Speichern
+            </Button>
+          </ActionForm>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-base">Vertretung</CardTitle>
           <p className="text-xs text-muted-foreground">
             Die Vertretung darf Anträge genehmigen/beanstandet, aber keine
@@ -261,6 +315,7 @@ export default async function EinstellungenPage() {
                 <option value="workation">Workation</option>
                 <option value="reisekosten">Reisekosten</option>
                 <option value="krankmeldung">Krankmeldung</option>
+                <option value="provision">Provision</option>
               </select>
             </div>
             <div className="space-y-1">

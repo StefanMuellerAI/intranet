@@ -8,6 +8,7 @@ export interface AuditEntry {
     | "workation"
     | "reisekosten"
     | "krankmeldung"
+    | "provision"
     | "user"
     | "settings"
     | "api_key"

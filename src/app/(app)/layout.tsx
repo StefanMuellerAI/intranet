@@ -1,5 +1,11 @@
 import { SignOutButton } from "@clerk/nextjs";
-import { db, expenseReports, vacationRequests, workationRequests } from "@/db";
+import {
+  commissionClaims,
+  db,
+  expenseReports,
+  vacationRequests,
+  workationRequests,
+} from "@/db";
 import { fullName, getActiveDeputy, getCurrentUser } from "@/lib/auth";
 import { Sidebar } from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
@@ -36,7 +42,7 @@ export default async function AppLayout({
 
   let openApprovals = 0;
   if (canApprove) {
-    const [v, w, e] = await Promise.all([
+    const [v, w, e, c] = await Promise.all([
       db
         .select({ id: vacationRequests.id, status: vacationRequests.status })
         .from(vacationRequests),
@@ -46,8 +52,11 @@ export default async function AppLayout({
       db
         .select({ id: expenseReports.id, status: expenseReports.status })
         .from(expenseReports),
+      db
+        .select({ id: commissionClaims.id, status: commissionClaims.status })
+        .from(commissionClaims),
     ]);
-    openApprovals = [...v, ...w, ...e].filter(
+    openApprovals = [...v, ...w, ...e, ...c].filter(
       (r) => r.status === "eingereicht" || r.status === "storno_beantragt"
     ).length;
   }

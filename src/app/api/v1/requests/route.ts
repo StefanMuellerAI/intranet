@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { asc, inArray } from "drizzle-orm";
 import {
+  commissionClaims,
   db,
   expenseItems,
   expenseReports,
@@ -20,7 +21,7 @@ const STATUS_MAP: Record<string, string[]> = {
 };
 
 /**
- * GET /api/v1/requests?status=pending&type=vacation|workation|expense
+ * GET /api/v1/requests?status=pending&type=vacation|workation|expense|commission
  * Offene Anträge inkl. aller Formulardaten.
  */
 export async function GET(req: Request) {
@@ -66,6 +67,22 @@ export async function GET(req: Request) {
       ...rows.map((r) => ({
         id: r.id,
         type: "workation",
+        status: r.status,
+        user: userInfo(r.userId),
+        data: r,
+      }))
+    );
+  }
+  if (!typeParam || typeParam === "commission") {
+    const rows = await db
+      .select()
+      .from(commissionClaims)
+      .where(inArray(commissionClaims.status, statuses as never[]))
+      .orderBy(asc(commissionClaims.createdAt));
+    results.push(
+      ...rows.map((r) => ({
+        id: r.id,
+        type: "commission",
         status: r.status,
         user: userInfo(r.userId),
         data: r,

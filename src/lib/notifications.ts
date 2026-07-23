@@ -8,6 +8,7 @@ export const TYPE_LABELS: Record<string, string> = {
   urlaub: "Urlaubsantrag",
   workation: "Workation-Antrag",
   reisekosten: "Reisekostenabrechnung",
+  provision: "Provisionsanspruch",
 };
 
 async function adminRecipients(): Promise<MailRecipient[]> {
@@ -21,7 +22,7 @@ async function adminRecipients(): Promise<MailRecipient[]> {
 
 /** Neuer Antrag / korrigiert erneut eingereicht → Admin + aktive Vertretung */
 export async function notifyRequestSubmitted(opts: {
-  type: "urlaub" | "workation" | "reisekosten";
+  type: "urlaub" | "workation" | "reisekosten" | "provision";
   requestId: string;
   applicant: User;
   resubmitted: boolean;
@@ -48,7 +49,7 @@ export async function notifyRequestSubmitted(opts: {
 
 /** Antrag genehmigt → Antragsteller/in */
 export async function notifyRequestApproved(opts: {
-  type: "urlaub" | "workation" | "reisekosten";
+  type: "urlaub" | "workation" | "reisekosten" | "provision";
   requestId: string;
   applicant: User;
   summary: string;
@@ -64,7 +65,7 @@ export async function notifyRequestApproved(opts: {
 
 /** Antrag beanstandet (inkl. Kommentar) → Antragsteller/in */
 export async function notifyRequestRejected(opts: {
-  type: "urlaub" | "workation" | "reisekosten";
+  type: "urlaub" | "workation" | "reisekosten" | "provision";
   requestId: string;
   applicant: User;
   comment: string;

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { and, asc, eq, gte, inArray, lt, ne } from "drizzle-orm";
 import {
+  commissionClaims,
   db,
   expenseItems,
   expenseReports,
@@ -14,6 +15,7 @@ import { formatDateDE } from "@/lib/dates";
 import { getVacationAccount } from "@/lib/vacation";
 import type { WorkflowType } from "@/lib/workflow";
 import { ApprovalButtons } from "@/components/approval-buttons";
+import { CommissionDetails } from "@/components/commission-details";
 import { ExpenseDetails } from "@/components/expense-details";
 import { PageHeader } from "@/components/page-header";
 import { AuditTrail, HistoryCard } from "@/components/request-meta";
@@ -25,12 +27,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { updateCommissionAdminFields } from "@/app/(app)/provision/actions";
 import { updateWorkationAdminFields } from "@/app/(app)/workation/actions";
 import { formatEuro } from "@/lib/expenses/calc";
 
 export const metadata = { title: "Freigabe prüfen" };
 
-const TYPES: WorkflowType[] = ["urlaub", "workation", "reisekosten"];
+const TYPES: WorkflowType[] = ["urlaub", "workation", "reisekosten", "provision"];
 
 export default async function FreigabeDetailPage({
   params,
@@ -176,6 +179,105 @@ export default async function FreigabeDetailPage({
                 </div>
                 <Button type="submit" variant="outline">
                   Felder speichern
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+      </>
+    );
+  } else if (workflowType === "provision") {
+    const claim = await db.query.commissionClaims.findFirst({
+      where: eq(commissionClaims.id, id),
+    });
+    if (!claim) notFound();
+    applicantId = claim.userId;
+    status = claim.status;
+    const applicant = (await db.query.users.findFirst({
+      where: eq(users.id, claim.userId),
+    }))!;
+    title = `Provision: ${fullName(applicant)}${
+      claim.finalAmountCents != null
+        ? ` · ${formatEuro(claim.finalAmountCents)}`
+        : ""
+    }`;
+    const updateWithId = updateCommissionAdminFields.bind(null, id);
+    const needsAmount = claim.finalAmountCents == null;
+    content = (
+      <>
+        {needsAmount && (
+          <Alert>
+            <AlertTitle>Betrag noch offen</AlertTitle>
+            <AlertDescription>
+              {claim.customerType === "neukunde"
+                ? "Neukunden-Vermittlung: Die Vermittlungsprovision wird im Einzelfall abgestimmt."
+                : "Abweichendes Trainingsformat: Die Pauschalvergütung wird gesondert vereinbart."}{" "}
+              Vor der Genehmigung muss der finale Betrag unten gepflegt werden.
+            </AlertDescription>
+          </Alert>
+        )}
+        <CommissionDetails claim={claim} />
+        {approver.role === "admin" && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">
+                Vom Admin zu pflegende Beträge
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Ohne finalen Betrag: berechneter Anspruch plus
+                Vermittlungsprovision. Der finale Betrag überschreibt die
+                Berechnung.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <form action={updateWithId} className="space-y-4 max-w-xl">
+                {claim.customerType === "neukunde" && (
+                  <div className="space-y-1">
+                    <Label htmlFor="referralBonus">
+                      Vermittlungsprovision Neukunde (€, Einzelfall)
+                    </Label>
+                    <Input
+                      id="referralBonus"
+                      name="referralBonus"
+                      inputMode="decimal"
+                      placeholder="z. B. 500,00"
+                      defaultValue={
+                        claim.referralBonusCents != null
+                          ? (claim.referralBonusCents / 100)
+                              .toFixed(2)
+                              .replace(".", ",")
+                          : ""
+                      }
+                    />
+                  </div>
+                )}
+                <div className="space-y-1">
+                  <Label htmlFor="finalAmount">
+                    Finaler Provisionsbetrag gesamt (€, optionaler Override)
+                  </Label>
+                  <Input
+                    id="finalAmount"
+                    name="finalAmount"
+                    inputMode="decimal"
+                    placeholder={
+                      claim.calculatedAmountCents != null
+                        ? `berechnet: ${formatEuro(claim.calculatedAmountCents)}`
+                        : "z. B. 750,00"
+                    }
+                    defaultValue={
+                      claim.finalAmountCents != null &&
+                      claim.finalAmountCents !==
+                        (claim.calculatedAmountCents ?? 0) +
+                          (claim.referralBonusCents ?? 0)
+                        ? (claim.finalAmountCents / 100)
+                            .toFixed(2)
+                            .replace(".", ",")
+                        : ""
+                    }
+                  />
+                </div>
+                <Button type="submit" variant="outline">
+                  Beträge speichern
                 </Button>
               </form>
             </CardContent>

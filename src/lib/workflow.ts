@@ -1,6 +1,7 @@
 import "server-only";
 import { asc, eq } from "drizzle-orm";
 import {
+  commissionClaims,
   db,
   expenseItems,
   expenseReports,
@@ -8,6 +9,7 @@ import {
   users,
   vacationRequests,
   workationRequests,
+  type CommissionClaim,
   type ExpenseReport,
   type User,
   type VacationRequest,
@@ -15,6 +17,10 @@ import {
 } from "@/db";
 import { writeAudit } from "@/lib/audit";
 import { fullName } from "@/lib/auth";
+import {
+  BUSINESS_TYPE_LABELS,
+  CUSTOMER_TYPE_LABELS,
+} from "@/lib/commissions/calc";
 import { formatDateDE } from "@/lib/dates";
 import { formatEuro } from "@/lib/expenses/calc";
 import {
@@ -26,7 +32,7 @@ import {
 import { signReceiptUrl } from "@/lib/signed-url";
 import { dispatchWebhookEvent } from "@/lib/webhooks";
 
-export type WorkflowType = "urlaub" | "workation" | "reisekosten";
+export type WorkflowType = "urlaub" | "workation" | "reisekosten" | "provision";
 
 export interface Actor {
   user: User;
@@ -34,12 +40,17 @@ export interface Actor {
   apiKeyId?: string;
 }
 
-type AnyRequest = VacationRequest | WorkationRequest | ExpenseReport;
+type AnyRequest =
+  | VacationRequest
+  | WorkationRequest
+  | ExpenseReport
+  | CommissionClaim;
 
 const TABLES = {
   urlaub: vacationRequests,
   workation: workationRequests,
   reisekosten: expenseReports,
+  provision: commissionClaims,
 } as const;
 
 export async function loadRequest(
@@ -56,6 +67,12 @@ export async function loadRequest(
     return (
       (await db.query.workationRequests.findFirst({
         where: eq(workationRequests.id, id),
+      })) ?? null
+    );
+  if (type === "provision")
+    return (
+      (await db.query.commissionClaims.findFirst({
+        where: eq(commissionClaims.id, id),
       })) ?? null
     );
   return (
@@ -79,6 +96,14 @@ function summaryFor(type: WorkflowType, request: AnyRequest): string {
   if (type === "workation") {
     const r = request as WorkationRequest;
     return `Workation in ${r.city}, ${r.country} vom ${formatDateDE(r.startDate)} bis ${formatDateDE(r.endDate)} (${r.workDays} Arbeitstage).`;
+  }
+  if (type === "provision") {
+    const r = request as CommissionClaim;
+    const amount =
+      r.finalAmountCents != null
+        ? formatEuro(r.finalAmountCents)
+        : "Betrag noch offen";
+    return `Provisionsanspruch ${BUSINESS_TYPE_LABELS[r.businessType]} für ${r.customerName} (${CUSTOMER_TYPE_LABELS[r.customerType]}), ${amount}.`;
   }
   const r = request as ExpenseReport;
   return `Reisekostenabrechnung ${r.destination} (${r.customerPurpose}), Gesamterstattung ${formatEuro(r.totalCents)}.`;
@@ -136,6 +161,13 @@ export async function approveRequest(
   if (request.userId === actor.user.id)
     throw new Error(
       "Eigene Anträge dürfen nicht selbst genehmigt werden (Vier-Augen-Prinzip)."
+    );
+  if (
+    type === "provision" &&
+    (request as CommissionClaim).finalAmountCents == null
+  )
+    throw new Error(
+      "Vor der Genehmigung muss der finale Provisionsbetrag gepflegt werden (bei abweichendem Trainingsformat bzw. Neukunden-Vermittlung individuell zu vereinbaren)."
     );
 
   const isCancellation = request.status === "storno_beantragt";
@@ -248,7 +280,12 @@ export async function rejectRequest(
 export async function findRequestWithType(
   id: string
 ): Promise<{ type: WorkflowType; request: AnyRequest } | null> {
-  for (const type of ["urlaub", "workation", "reisekosten"] as WorkflowType[]) {
+  for (const type of [
+    "urlaub",
+    "workation",
+    "reisekosten",
+    "provision",
+  ] as WorkflowType[]) {
     const request = await loadRequest(type, id);
     if (request) return { type, request };
   }

@@ -242,6 +242,58 @@ export const receipts = pgTable("receipts", {
 });
 
 // ---------------------------------------------------------------------------
+// Provisionsansprüche
+// ---------------------------------------------------------------------------
+
+export const commissionClaims = pgTable("commission_claims", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id),
+  status: text("status", { enum: REQUEST_STATUS })
+    .notNull()
+    .default("eingereicht"),
+  version: integer("version").notNull().default(1),
+  /** Art des Folgegeschäfts */
+  businessType: text("business_type", {
+    enum: ["beratung", "schulung"],
+  }).notNull(),
+  /** Komplett neuer Kunde (Vermittlung) oder über Bestandskunden/Partner */
+  customerType: text("customer_type", {
+    enum: ["neukunde", "bestandskunde"],
+  }).notNull(),
+  /** Kunde bzw. vorgelagerte Organisation (z. B. Haufe, dbb) */
+  customerName: text("customer_name").notNull(),
+  /** Datum der Bestellung bzw. des Zustandekommens */
+  orderDate: date("order_date").notNull(),
+  /** Messeinheit des Folgegeschäfts */
+  unit: text("unit", { enum: ["tage", "liefergegenstaende"] }).notNull(),
+  /** Umfang in der gewählten Einheit */
+  quantity: doublePrecision("quantity").notNull(),
+  // Schulung: Format bestimmt den Satz (50/75/100 € bzw. Pauschale)
+  trainingFormat: text("training_format", {
+    enum: ["halbtaegig", "ganztaegig", "zweitaegig", "abweichend"],
+  }),
+  trainingCount: integer("training_count"),
+  // Beratung: 4 % vom Nettoauftragswert
+  netOrderValueCents: integer("net_order_value_cents"),
+  note: text("note"),
+  /** Sätze-Snapshot zum Zeitpunkt der Einreichung */
+  ratesSnapshot: jsonb("rates_snapshot"),
+  /** Automatisch berechneter Anspruch (null bei abweichendem Format) */
+  calculatedAmountCents: integer("calculated_amount_cents"),
+  /** Vermittlungsprovision Neukunde — Einzelfall, pflegt der Admin */
+  referralBonusCents: integer("referral_bonus_cents"),
+  /** Finaler Betrag — vorbelegt mit Berechnung, Admin-Override möglich */
+  finalAmountCents: integer("final_amount_cents"),
+  rejectionComment: text("rejection_comment"),
+  decidedById: uuid("decided_by_id").references(() => users.id),
+  decidedAt: timestamp("decided_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ---------------------------------------------------------------------------
 // Krankmeldungen
 // ---------------------------------------------------------------------------
 
@@ -267,7 +319,12 @@ export const sickLeaves = pgTable("sick_leaves", {
 // Historie und Audit-Log
 // ---------------------------------------------------------------------------
 
-export const REQUEST_TYPES = ["urlaub", "workation", "reisekosten"] as const;
+export const REQUEST_TYPES = [
+  "urlaub",
+  "workation",
+  "reisekosten",
+  "provision",
+] as const;
 export type RequestType = (typeof REQUEST_TYPES)[number];
 
 export const requestHistory = pgTable("request_history", {
@@ -304,6 +361,7 @@ export const WEBHOOK_CATEGORIES = [
   "workation",
   "reisekosten",
   "krankmeldung",
+  "provision",
 ] as const;
 
 export const WEBHOOK_EVENTS = [
@@ -406,6 +464,25 @@ export const settings = pgTable("settings", {
   employerDailySupplementCents: integer("employer_daily_supplement_cents")
     .notNull()
     .default(0),
+  // Provisionssätze (Vertragswerte als Standard)
+  /** Folge-Training halbtägig (Cents je Training) */
+  commissionHalfDayCents: integer("commission_half_day_cents")
+    .notNull()
+    .default(5000),
+  /** Folge-Training ganztägig (Cents je Training) */
+  commissionFullDayCents: integer("commission_full_day_cents")
+    .notNull()
+    .default(7500),
+  /** Folge-Training zweitägig (Cents je Training) */
+  commissionTwoDayCents: integer("commission_two_day_cents")
+    .notNull()
+    .default(10000),
+  /** Folgeberatung: Prozentsatz vom Nettoauftragswert */
+  commissionConsultingPercent: doublePrecision(
+    "commission_consulting_percent"
+  )
+    .notNull()
+    .default(4),
   // Aufbewahrungsfristen in Jahren (nach Ablauf des Kalenderjahres)
   retentionExpenseYears: integer("retention_expense_years")
     .notNull()
@@ -430,6 +507,7 @@ export type ExpenseReport = typeof expenseReports.$inferSelect;
 export type ExpenseItem = typeof expenseItems.$inferSelect;
 export type Receipt = typeof receipts.$inferSelect;
 export type SickLeave = typeof sickLeaves.$inferSelect;
+export type CommissionClaim = typeof commissionClaims.$inferSelect;
 export type Settings = typeof settings.$inferSelect;
 export type DeputyAssignment = typeof deputyAssignments.$inferSelect;
 export type ApiKey = typeof apiKeys.$inferSelect;

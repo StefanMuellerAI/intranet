@@ -59,6 +59,35 @@ export async function updateRates(formData: FormData) {
   revalidatePath("/einstellungen");
 }
 
+export async function updateCommissionRates(formData: FormData) {
+  const admin = await requireAdmin();
+  const percent = Number(
+    String(formData.get("commissionConsultingPercent") ?? "").replace(",", ".")
+  );
+  if (!Number.isFinite(percent) || percent < 0 || percent > 100)
+    throw new Error("Ungültiger Prozentsatz.");
+
+  await db
+    .update(settings)
+    .set({
+      commissionHalfDayCents: euroToCents(formData.get("commissionHalfDay")),
+      commissionFullDayCents: euroToCents(formData.get("commissionFullDay")),
+      commissionTwoDayCents: euroToCents(formData.get("commissionTwoDay")),
+      commissionConsultingPercent: percent,
+      updatedAt: new Date(),
+    })
+    .where(eq(settings.id, 1));
+
+  await writeAudit({
+    objectType: "settings",
+    action: "provisionssaetze_geaendert",
+    actorUserId: admin.id,
+    actorLabel: fullName(admin),
+    source: "web",
+  });
+  revalidatePath("/einstellungen");
+}
+
 export async function updateQuotas(formData: FormData) {
   const admin = await requireAdmin();
   const defaultVacation = Number(formData.get("defaultAnnualVacationDays"));

@@ -1,6 +1,7 @@
 import "server-only";
 import { eq } from "drizzle-orm";
 import { db, settings, type Settings } from "@/db";
+import type { CommissionRates } from "@/lib/commissions/calc";
 import type { MealRates } from "@/lib/expenses/calc";
 
 export async function getSettings(): Promise<Settings> {
@@ -16,6 +17,15 @@ export async function getSettings(): Promise<Settings> {
   return created ?? (await db.query.settings.findFirst({
     where: eq(settings.id, 1),
   }))!;
+}
+
+export function commissionRatesFromSettings(s: Settings): CommissionRates {
+  return {
+    halfDayCents: s.commissionHalfDayCents,
+    fullDayCents: s.commissionFullDayCents,
+    twoDayCents: s.commissionTwoDayCents,
+    consultingPercent: s.commissionConsultingPercent,
+  };
 }
 
 export function ratesFromSettings(s: Settings): MealRates {

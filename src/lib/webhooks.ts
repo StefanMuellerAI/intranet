@@ -20,7 +20,7 @@ export function signPayload(payload: string, secret: string): string {
 
 /** Ereignis auslösen: Zustellungen anlegen und sofort erstmals versuchen. */
 export async function dispatchWebhookEvent(
-  category: "urlaub" | "workation" | "reisekosten" | "krankmeldung",
+  category: "urlaub" | "workation" | "reisekosten" | "krankmeldung" | "provision",
   event: string,
   payload: Record<string, unknown>
 ): Promise<void> {

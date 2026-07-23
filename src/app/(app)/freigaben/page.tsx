@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { asc, inArray } from "drizzle-orm";
 import {
+  commissionClaims,
   db,
   expenseReports,
   users,
@@ -8,6 +9,10 @@ import {
   workationRequests,
 } from "@/db";
 import { fullName, requireApprover } from "@/lib/auth";
+import {
+  BUSINESS_TYPE_LABELS,
+  CUSTOMER_TYPE_LABELS,
+} from "@/lib/commissions/calc";
 import { formatDateDE } from "@/lib/dates";
 import { formatEuro } from "@/lib/expenses/calc";
 import { PageHeader } from "@/components/page-header";
@@ -29,24 +34,30 @@ const OPEN = ["eingereicht", "storno_beantragt"] as const;
 export default async function FreigabenPage() {
   await requireApprover();
 
-  const [vacations, workations, expenses, allUsers] = await Promise.all([
-    db
-      .select()
-      .from(vacationRequests)
-      .where(inArray(vacationRequests.status, [...OPEN]))
-      .orderBy(asc(vacationRequests.createdAt)),
-    db
-      .select()
-      .from(workationRequests)
-      .where(inArray(workationRequests.status, [...OPEN]))
-      .orderBy(asc(workationRequests.createdAt)),
-    db
-      .select()
-      .from(expenseReports)
-      .where(inArray(expenseReports.status, [...OPEN]))
-      .orderBy(asc(expenseReports.createdAt)),
-    db.select().from(users),
-  ]);
+  const [vacations, workations, expenses, commissions, allUsers] =
+    await Promise.all([
+      db
+        .select()
+        .from(vacationRequests)
+        .where(inArray(vacationRequests.status, [...OPEN]))
+        .orderBy(asc(vacationRequests.createdAt)),
+      db
+        .select()
+        .from(workationRequests)
+        .where(inArray(workationRequests.status, [...OPEN]))
+        .orderBy(asc(workationRequests.createdAt)),
+      db
+        .select()
+        .from(expenseReports)
+        .where(inArray(expenseReports.status, [...OPEN]))
+        .orderBy(asc(expenseReports.createdAt)),
+      db
+        .select()
+        .from(commissionClaims)
+        .where(inArray(commissionClaims.status, [...OPEN]))
+        .orderBy(asc(commissionClaims.createdAt)),
+      db.select().from(users),
+    ]);
 
   const nameOf = (id: string) => {
     const u = allUsers.find((x) => x.id === id);
@@ -80,6 +91,19 @@ export default async function FreigabenPage() {
       status: r.status,
       createdAt: r.createdAt,
       summary: `${r.destination} (${r.customerPurpose}) · ${formatEuro(r.totalCents)}`,
+    })),
+    ...commissions.map((r) => ({
+      type: "provision" as const,
+      typeLabel: "Provision",
+      id: r.id,
+      user: nameOf(r.userId),
+      status: r.status,
+      createdAt: r.createdAt,
+      summary: `${BUSINESS_TYPE_LABELS[r.businessType]} · ${r.customerName} (${CUSTOMER_TYPE_LABELS[r.customerType]}) · ${
+        r.finalAmountCents != null
+          ? formatEuro(r.finalAmountCents)
+          : "Betrag individuell"
+      }`,
     })),
   ].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 

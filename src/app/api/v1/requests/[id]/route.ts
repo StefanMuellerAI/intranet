@@ -46,6 +46,7 @@ export async function GET(
     urlaub: "vacation",
     workation: "workation",
     reisekosten: "expense",
+    provision: "commission",
   };
 
   return NextResponse.json({
