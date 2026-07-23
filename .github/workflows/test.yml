@@ -1,0 +1,81 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Alle Läufe teilen sich die eine Test-Datenbank — niemals parallel testen
+concurrency:
+  group: test-suite
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Dependencies installieren
+        run: npm ci
+
+      - name: .env.test aus Secrets erzeugen
+        env:
+          TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+          TEST_CLERK_PUBLISHABLE_KEY: ${{ secrets.TEST_CLERK_PUBLISHABLE_KEY }}
+          TEST_CLERK_SECRET_KEY: ${{ secrets.TEST_CLERK_SECRET_KEY }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          {
+            echo "DATABASE_URL=$TEST_DATABASE_URL"
+            echo "TEST_DB_RESET_ALLOWED=ja"
+            echo "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$TEST_CLERK_PUBLISHABLE_KEY"
+            echo "CLERK_SECRET_KEY=$TEST_CLERK_SECRET_KEY"
+            echo "NEXT_PUBLIC_CLERK_SIGN_IN_URL=/anmelden"
+            echo "E2E_ADMIN_EMAIL=e2e-admin@stefanai.de"
+            echo "E2E_USER_EMAIL=e2e-mitarbeiter@stefanai.de"
+            echo "ALLOWED_EMAIL_DOMAIN=stefanai.de"
+            echo "APP_BASE_URL=http://localhost:3100"
+            echo "DOWNLOAD_URL_SECRET=ci-download-secret-$RUN_ID"
+            echo "CRON_SECRET=ci-cron-secret-$RUN_ID"
+          } > .env.test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit-Tests
+        run: npm run test:unit
+
+      - name: Migrationen auf die Test-DB anwenden
+        run: node scripts/migrate-test-db.mjs
+
+      - name: Integrationstests
+        run: npm run test:integration
+
+      - name: Playwright-Browser-Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Playwright-Browser installieren
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E-Tests
+        run: npm run test:e2e
+        env:
+          CI: "true"
+
+      - name: Playwright-Report als Artifact hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
