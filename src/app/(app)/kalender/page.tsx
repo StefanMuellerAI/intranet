@@ -121,16 +121,38 @@ function MonthGrid({
   );
 }
 
+function calendarHref({
+  year,
+  month,
+  yearView,
+}: {
+  year: number;
+  month: number; // 0-basiert
+  yearView: boolean;
+}) {
+  const params = new URLSearchParams({ jahr: String(year) });
+  if (yearView) params.set("ansicht", "jahr");
+  else params.set("monat", String(month + 1));
+  return `/kalender?${params.toString()}`;
+}
+
 export default async function KalenderPage({
   searchParams,
 }: {
-  searchParams: Promise<{ jahr?: string; ansicht?: string }>;
+  searchParams: Promise<{ jahr?: string; monat?: string; ansicht?: string }>;
 }) {
   const user = await requireUser();
   const params = await searchParams;
   const now = new Date();
   const year = Number(params.jahr) || now.getFullYear();
   const yearView = params.ansicht === "jahr";
+  const parsedMonth = Number(params.monat);
+  const month =
+    Number.isInteger(parsedMonth) && parsedMonth >= 1 && parsedMonth <= 12
+      ? parsedMonth - 1
+      : now.getFullYear() === year
+        ? now.getMonth()
+        : 0;
 
   const absences = await getCalendarAbsences(
     user,
@@ -140,7 +162,16 @@ export default async function KalenderPage({
 
   const months = yearView
     ? Array.from({ length: 12 }, (_, i) => i)
-    : [now.getFullYear() === year ? now.getMonth() : 0];
+    : [month];
+
+  const prevMonth =
+    month === 0
+      ? { year: year - 1, month: 11 }
+      : { year, month: month - 1 };
+  const nextMonth =
+    month === 11
+      ? { year: year + 1, month: 0 }
+      : { year, month: month + 1 };
 
   return (
     <div>
@@ -153,24 +184,64 @@ export default async function KalenderPage({
         <Button
           variant={yearView ? "outline" : "default"}
           size="sm"
-          render={<Link href={`/kalender?jahr=${year}`} />}
+          render={
+            <Link href={calendarHref({ year, month, yearView: false })} />
+          }
         >
           Monatsansicht
         </Button>
         <Button
           variant={yearView ? "default" : "outline"}
           size="sm"
-          render={<Link href={`/kalender?jahr=${year}&ansicht=jahr`} />}
+          render={
+            <Link href={calendarHref({ year, month, yearView: true })} />
+          }
         >
           Jahresansicht
         </Button>
         <span className="mx-2 text-sm text-muted-foreground">|</span>
+        {!yearView && (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              render={
+                <Link
+                  href={calendarHref({
+                    year: prevMonth.year,
+                    month: prevMonth.month,
+                    yearView: false,
+                  })}
+                />
+              }
+            >
+              ← {MONTH_NAMES[prevMonth.month]}
+            </Button>
+            <span className="text-sm font-medium">{MONTH_NAMES[month]}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              render={
+                <Link
+                  href={calendarHref({
+                    year: nextMonth.year,
+                    month: nextMonth.month,
+                    yearView: false,
+                  })}
+                />
+              }
+            >
+              {MONTH_NAMES[nextMonth.month]} →
+            </Button>
+            <span className="mx-2 text-sm text-muted-foreground">|</span>
+          </>
+        )}
         <Button
           variant="outline"
           size="sm"
           render={
             <Link
-              href={`/kalender?jahr=${year - 1}${yearView ? "&ansicht=jahr" : ""}`}
+              href={calendarHref({ year: year - 1, month, yearView })}
             />
           }
         >
@@ -182,7 +253,7 @@ export default async function KalenderPage({
           size="sm"
           render={
             <Link
-              href={`/kalender?jahr=${year + 1}${yearView ? "&ansicht=jahr" : ""}`}
+              href={calendarHref({ year: year + 1, month, yearView })}
             />
           }
         >
