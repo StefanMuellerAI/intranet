@@ -382,8 +382,8 @@ export const auditLog = pgTable("audit_log", {
   actorUserId: uuid("actor_user_id").references(() => users.id),
   /** Anzeigename des Akteurs (bleibt auch nach User-Anonymisierung lesbar) */
   actorLabel: text("actor_label").notNull(),
-  /** Kennzeichnung Web-Oberfläche vs. API (KI) vs. System */
-  source: text("source", { enum: ["web", "api", "system"] }).notNull(),
+  /** Kennzeichnung Web-Oberfläche vs. API (KI) vs. MCP vs. System */
+  source: text("source", { enum: ["web", "api", "mcp", "system"] }).notNull(),
   apiKeyId: uuid("api_key_id"),
   details: jsonb("details"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

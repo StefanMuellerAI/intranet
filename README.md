@@ -51,6 +51,9 @@ Kürzung beim Grundsatz (nie negativ) sowie die Workation-Validierungen
 2. **Clerk**: Anwendung anlegen; E-Mail+Passwort aktivieren; *Client Trust*
    (E-Mail-Code bei neuen Geräten) aktivieren; unter *Restrictions* die
    Allowlist auf `stefanai.de` setzen; Invitations aktivieren.
+   Für den persönlichen MCP-Zugang (Claude/Cursor): unter *OAuth Applications*
+   **Dynamic Client Registration** aktivieren und Default-Scopes
+   `openid`, `profile`, `email` setzen.
 3. **Vercel**: Projekt verbinden, Domain `intra.stefanai.de` hinzufügen
    (DNS-Eintrag beim Domain-Hoster Google setzen), Umgebungsvariablen aus
    `.env.example` hinterlegen. Blob-Store in Region `fra1` erstellen.
@@ -100,6 +103,19 @@ mit Kennzeichnung „API" und dem verwendeten Key.
 | POST | `/api/v1/requests/{id}/approve` | Genehmigen |
 | POST | `/api/v1/requests/{id}/reject` | Beanstanden, Body: `{ "comment": "…" }` (Pflicht) |
 | GET | `/api/v1/absences` | Krankmeldungen und genehmigte Abwesenheiten (nur lesend) |
+
+## Persönlicher MCP-Zugang (Claude / Cursor)
+
+Jeder Mitarbeitende kann unter **Mein Konto** die MCP-Server-URL
+(`{APP_BASE_URL}/mcp`) kopieren und in Claude oder Cursor als Remote-MCP
+hinterlegen. Die Authentifizierung läuft über Clerk OAuth 2.1 (PKCE): beim
+ersten Connect erscheint der Intranet-Login. Danach agieren die Tools nur im
+Namen des angemeldeten Users (eigene Anträge erstellen/listen/zurückziehen).
+HR-Dokumente und Freigaben fremder Anträge sind nicht freigegeben.
+
+Voraussetzung in Clerk: Dynamic Client Registration + Default-Scopes
+(siehe Einrichtung oben). Die bestehende Freigabe-API (`/api/v1` + Admin-Keys)
+bleibt davon getrennt.
 
 ## Datenschutz (Kurzüberblick)
 

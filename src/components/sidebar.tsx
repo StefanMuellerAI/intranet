@@ -19,6 +19,7 @@ import {
   Plane,
   Receipt,
   Settings,
+  UserRound,
   Users,
   X,
 } from "lucide-react";
@@ -53,6 +54,7 @@ export function Sidebar({
     { href: "/krankmeldung", label: "Krankmeldung", icon: HeartPulse },
     { href: "/kalender", label: "Kalender", icon: CalendarDays },
     { href: "/dokumente", label: "Dokumente", icon: FileText },
+    { href: "/konto", label: "Mein Konto", icon: UserRound },
     ...(canApprove
       ? [
           {

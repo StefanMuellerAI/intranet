@@ -21,7 +21,7 @@ export interface AuditEntry {
   action: string;
   actorUserId?: string | null;
   actorLabel: string;
-  source: "web" | "api" | "system";
+  source: "web" | "api" | "mcp" | "system";
   apiKeyId?: string;
   details?: Record<string, unknown>;
 }
