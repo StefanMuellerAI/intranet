@@ -1,4 +1,5 @@
 import { SignOutButton } from "@clerk/nextjs";
+import { auth } from "@clerk/nextjs/server";
 import {
   commissionClaims,
   db,
@@ -15,6 +16,11 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Ressourcenbasierter Zugriffsschutz (statt Middleware-Route-Matching):
+  // Unangemeldete werden zur Anmeldung geleitet (inkl. redirect_url); bei
+  // abgelaufenem Session-Token übernimmt Clerk den Token-Refresh.
+  await auth.protect();
+
   const user = await getCurrentUser();
 
   if (!user) {
