@@ -22,6 +22,7 @@ test.describe("Rollen und Berechtigungen", () => {
     await expect(
       nav.getByRole("link", { name: "Mitarbeitende" })
     ).toHaveCount(0);
+    await expect(nav.getByRole("link", { name: "Inhalte" })).toHaveCount(0);
     await expect(
       nav.getByRole("link", { name: "Einstellungen" })
     ).toHaveCount(0);

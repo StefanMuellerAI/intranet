@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Newspaper,
   Palmtree,
   Plane,
   Receipt,
@@ -65,6 +66,7 @@ export function Sidebar({
     ...(isAdmin
       ? [
           { href: "/mitarbeitende", label: "Mitarbeitende", icon: Users },
+          { href: "/inhalte", label: "Inhalte", icon: Newspaper },
           { href: "/einstellungen", label: "Einstellungen", icon: Settings },
         ]
       : []),

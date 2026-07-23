@@ -534,6 +534,35 @@ export const settings = pgTable("settings", {
 });
 
 // ---------------------------------------------------------------------------
+// Dashboard-Inhalte (Hilfreiche Links + Neuigkeiten)
+// ---------------------------------------------------------------------------
+
+export const helpfulLinks = pgTable("helpful_links", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  url: text("url").notNull(),
+  /** Optionale Kurzbeschreibung unter dem Titel */
+  description: text("description"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const newsItems = pgTable("news_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  /** Kurzer Nachrichtentext für den Dashboard-Ticker */
+  body: text("body").notNull(),
+  active: boolean("active").notNull().default(true),
+  createdById: uuid("created_by_id")
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ---------------------------------------------------------------------------
 // Typen
 // ---------------------------------------------------------------------------
 
@@ -550,3 +579,5 @@ export type Settings = typeof settings.$inferSelect;
 export type DeputyAssignment = typeof deputyAssignments.$inferSelect;
 export type ApiKey = typeof apiKeys.$inferSelect;
 export type WebhookConfig = typeof webhookConfigs.$inferSelect;
+export type HelpfulLink = typeof helpfulLinks.$inferSelect;
+export type NewsItem = typeof newsItems.$inferSelect;

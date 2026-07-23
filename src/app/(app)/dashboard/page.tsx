@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { desc, eq, inArray } from "drizzle-orm";
+import { asc, desc, eq, inArray } from "drizzle-orm";
 import {
   db,
   expenseReports,
+  helpfulLinks,
+  newsItems,
   vacationRequests,
   workationRequests,
 } from "@/db";
@@ -11,6 +13,8 @@ import { formatDateDE } from "@/lib/dates";
 import { formatEuro } from "@/lib/expenses/calc";
 import { getSettings } from "@/lib/settings";
 import { getUsedWorkationDays, getVacationAccount } from "@/lib/vacation";
+import { DashboardHelpfulLinks } from "@/components/dashboard-helpful-links";
+import { DashboardNewsTicker } from "@/components/dashboard-news-ticker";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,29 +28,47 @@ export default async function DashboardPage() {
   const deputy = await getActiveDeputy();
   const canApprove = user.role === "admin" || deputy?.id === user.id;
 
-  const [account, usedWorkation, myVacations, myWorkations, myExpenses] =
-    await Promise.all([
-      getVacationAccount(user, year),
-      getUsedWorkationDays(user.id, year),
-      db
-        .select()
-        .from(vacationRequests)
-        .where(eq(vacationRequests.userId, user.id))
-        .orderBy(desc(vacationRequests.createdAt))
-        .limit(5),
-      db
-        .select()
-        .from(workationRequests)
-        .where(eq(workationRequests.userId, user.id))
-        .orderBy(desc(workationRequests.createdAt))
-        .limit(5),
-      db
-        .select()
-        .from(expenseReports)
-        .where(eq(expenseReports.userId, user.id))
-        .orderBy(desc(expenseReports.createdAt))
-        .limit(5),
-    ]);
+  const [
+    account,
+    usedWorkation,
+    myVacations,
+    myWorkations,
+    myExpenses,
+    activeLinks,
+    activeNews,
+  ] = await Promise.all([
+    getVacationAccount(user, year),
+    getUsedWorkationDays(user.id, year),
+    db
+      .select()
+      .from(vacationRequests)
+      .where(eq(vacationRequests.userId, user.id))
+      .orderBy(desc(vacationRequests.createdAt))
+      .limit(5),
+    db
+      .select()
+      .from(workationRequests)
+      .where(eq(workationRequests.userId, user.id))
+      .orderBy(desc(workationRequests.createdAt))
+      .limit(5),
+    db
+      .select()
+      .from(expenseReports)
+      .where(eq(expenseReports.userId, user.id))
+      .orderBy(desc(expenseReports.createdAt))
+      .limit(5),
+    db
+      .select()
+      .from(helpfulLinks)
+      .where(eq(helpfulLinks.active, true))
+      .orderBy(asc(helpfulLinks.sortOrder), asc(helpfulLinks.title)),
+    db
+      .select()
+      .from(newsItems)
+      .where(eq(newsItems.active, true))
+      .orderBy(desc(newsItems.createdAt))
+      .limit(10),
+  ]);
 
   let openApprovals: { label: string; href: string; status: string }[] = [];
   if (canApprove) {
@@ -174,6 +196,11 @@ export default async function DashboardPage() {
             </Link>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="mb-6 grid gap-4 md:grid-cols-2">
+        <DashboardHelpfulLinks links={activeLinks} />
+        <DashboardNewsTicker items={activeNews} />
       </div>
 
       {canApprove && (

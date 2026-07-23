@@ -46,6 +46,9 @@ export async function resetDb(): Promise<void> {
       sick_leaves,
       deputy_assignments,
       api_keys,
+      employee_documents,
+      helpful_links,
+      news_items,
       settings,
       users
     CASCADE

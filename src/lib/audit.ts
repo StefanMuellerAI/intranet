@@ -14,7 +14,9 @@ export interface AuditEntry {
     | "settings"
     | "api_key"
     | "webhook"
-    | "vertretung";
+    | "vertretung"
+    | "hilfreicher_link"
+    | "neuigkeit";
   objectId?: string;
   action: string;
   actorUserId?: string | null;
