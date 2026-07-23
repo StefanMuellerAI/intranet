@@ -10,6 +10,7 @@ export interface AuditEntry {
     | "krankmeldung"
     | "provision"
     | "user"
+    | "dokument"
     | "settings"
     | "api_key"
     | "webhook"

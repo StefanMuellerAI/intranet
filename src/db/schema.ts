@@ -38,6 +38,42 @@ export const users = pgTable("users", {
 });
 
 // ---------------------------------------------------------------------------
+// Mitarbeiterdokumente (Arbeitsverträge etc.) — verschlüsselt im Blob-Store
+// ---------------------------------------------------------------------------
+
+export const DOCUMENT_CATEGORIES = [
+  "arbeitsvertrag",
+  "zusatzvereinbarung",
+  "bescheinigung",
+  "sonstiges",
+] as const;
+export type DocumentCategory = (typeof DOCUMENT_CATEGORIES)[number];
+
+export const employeeDocuments = pgTable("employee_documents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id),
+  category: text("category", { enum: DOCUMENT_CATEGORIES })
+    .notNull()
+    .default("sonstiges"),
+  /** Optionale Beschreibung, z. B. "Arbeitsvertrag vom 01.01.2026" */
+  title: text("title"),
+  filename: text("filename").notNull(),
+  /** Original-MIME-Typ für die entschlüsselte Auslieferung */
+  contentType: text("content_type").notNull(),
+  /** Klartextgröße in Bytes */
+  sizeBytes: integer("size_bytes").notNull(),
+  /** URL des AES-256-GCM-verschlüsselten Payloads in Vercel Blob */
+  blobUrl: text("blob_url").notNull(),
+  keyVersion: integer("key_version").notNull().default(1),
+  uploadedById: uuid("uploaded_by_id")
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ---------------------------------------------------------------------------
 // Vertretung
 // ---------------------------------------------------------------------------
 
@@ -502,6 +538,7 @@ export const settings = pgTable("settings", {
 // ---------------------------------------------------------------------------
 
 export type User = typeof users.$inferSelect;
+export type EmployeeDocument = typeof employeeDocuments.$inferSelect;
 export type VacationRequest = typeof vacationRequests.$inferSelect;
 export type WorkationRequest = typeof workationRequests.$inferSelect;
 export type ExpenseReport = typeof expenseReports.$inferSelect;

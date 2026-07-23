@@ -3,10 +3,19 @@
 import { revalidatePath } from "next/cache";
 import { clerkClient } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
+import { del, put } from "@vercel/blob";
 import { z } from "zod";
-import { db, users } from "@/db";
+import {
+  db,
+  employeeDocuments,
+  users,
+  DOCUMENT_CATEGORIES,
+  type DocumentCategory,
+  type User,
+} from "@/db";
 import { writeAudit } from "@/lib/audit";
 import { fullName, isAllowedEmail, requireAdmin, ALLOWED_EMAIL_DOMAIN } from "@/lib/auth";
+import { DOCUMENT_KEY_VERSION, encryptDocument } from "@/lib/document-crypto";
 import { notifyInvitation } from "@/lib/notifications";
 
 const inviteSchema = z.object({
@@ -17,6 +26,147 @@ const inviteSchema = z.object({
     .number()
     .min(0.5, "Der Jahresurlaubsanspruch ist Pflichtfeld."),
 });
+
+// ---------------------------------------------------------------------------
+// Mitarbeiterdokumente — verschlüsselte Ablage in Vercel Blob
+// ---------------------------------------------------------------------------
+
+const ALLOWED_DOCUMENT_TYPES = ["application/pdf", "image/jpeg", "image/png"];
+const MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024;
+
+function parseDocumentCategory(value: unknown): DocumentCategory {
+  const category = String(value ?? "sonstiges");
+  if (!(DOCUMENT_CATEGORIES as readonly string[]).includes(category))
+    throw new Error("Ungültige Dokument-Kategorie.");
+  return category as DocumentCategory;
+}
+
+/** Dateien aus dem FormData holen und validieren (Typ + Größe). */
+function extractDocumentFiles(formData: FormData, field = "documents"): File[] {
+  const files = formData
+    .getAll(field)
+    .filter((f): f is File => f instanceof File && f.size > 0);
+  for (const file of files) {
+    if (!ALLOWED_DOCUMENT_TYPES.includes(file.type))
+      throw new Error(
+        `Dokument "${file.name}": Nur PDF, JPG oder PNG sind zulässig.`
+      );
+    if (file.size > MAX_DOCUMENT_SIZE_BYTES)
+      throw new Error(
+        `Dokument "${file.name}": Maximal 10 MB pro Datei sind zulässig.`
+      );
+  }
+  return files;
+}
+
+/**
+ * Dokument serverseitig mit AES-256-GCM verschlüsseln und als unlesbaren
+ * Binär-Blob ablegen. Klartext verlässt den Server-Prozess nie.
+ */
+async function storeEncryptedDocument(opts: {
+  userId: string;
+  file: File;
+  category: DocumentCategory;
+  title: string | null;
+  admin: User;
+}): Promise<void> {
+  const plain = Buffer.from(await opts.file.arrayBuffer());
+  const encrypted = encryptDocument(plain);
+
+  // Pfad und Inhalt lassen keinen Rückschluss auf das Dokument zu
+  const blob = await put(
+    `dokumente/${opts.userId}/${crypto.randomUUID()}.bin`,
+    encrypted,
+    {
+      access: "public",
+      addRandomSuffix: false,
+      contentType: "application/octet-stream",
+    }
+  );
+
+  const [doc] = await db
+    .insert(employeeDocuments)
+    .values({
+      userId: opts.userId,
+      category: opts.category,
+      title: opts.title,
+      filename: opts.file.name,
+      contentType: opts.file.type,
+      sizeBytes: opts.file.size,
+      blobUrl: blob.url,
+      keyVersion: DOCUMENT_KEY_VERSION,
+      uploadedById: opts.admin.id,
+    })
+    .returning();
+
+  await writeAudit({
+    objectType: "dokument",
+    objectId: doc.id,
+    action: "hochgeladen",
+    actorUserId: opts.admin.id,
+    actorLabel: fullName(opts.admin),
+    source: "web",
+    details: {
+      userId: opts.userId,
+      filename: opts.file.name,
+      kategorie: opts.category,
+    },
+  });
+}
+
+/** Dokumente für eine/n bestehende/n Mitarbeiter/in hochladen (nur Admin). */
+export async function uploadEmployeeDocuments(
+  userId: string,
+  formData: FormData
+) {
+  const admin = await requireAdmin();
+  const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
+  if (!user) throw new Error("User nicht gefunden.");
+
+  const files = extractDocumentFiles(formData);
+  if (files.length === 0) throw new Error("Bitte mindestens eine Datei auswählen.");
+  const category = parseDocumentCategory(formData.get("category"));
+  const titleRaw = String(formData.get("title") ?? "").trim();
+  const title = titleRaw.length > 0 ? titleRaw : null;
+
+  for (const file of files) {
+    await storeEncryptedDocument({ userId, file, category, title, admin });
+  }
+
+  revalidatePath("/mitarbeitende");
+  revalidatePath("/dokumente");
+}
+
+/** Dokument endgültig löschen (nur Admin) — Blob-Datei und Metadaten. */
+export async function deleteEmployeeDocument(documentId: string) {
+  const admin = await requireAdmin();
+  const doc = await db.query.employeeDocuments.findFirst({
+    where: eq(employeeDocuments.id, documentId),
+  });
+  if (!doc) throw new Error("Dokument nicht gefunden.");
+
+  await del(doc.blobUrl);
+
+  // Audit vor dem Löschen schreiben (Audit-Log hat keinen Fremdschlüssel)
+  await writeAudit({
+    objectType: "dokument",
+    objectId: doc.id,
+    action: "geloescht",
+    actorUserId: admin.id,
+    actorLabel: fullName(admin),
+    source: "web",
+    details: {
+      userId: doc.userId,
+      filename: doc.filename,
+      kategorie: doc.category,
+    },
+  });
+
+  await db.delete(employeeDocuments).where(eq(employeeDocuments.id, documentId));
+
+  revalidatePath("/mitarbeitende");
+  revalidatePath("/dokumente");
+}
 
 /** Clerk-Einladung erstellen und Link zurückgeben. */
 async function createClerkInvitation(email: string): Promise<string | null> {
@@ -57,6 +207,11 @@ export async function inviteUser(formData: FormData) {
   if (existing)
     throw new Error("Für diese E-Mail-Adresse existiert bereits ein Konto.");
 
+  // Optionale Dokumente (Arbeitsvertrag etc.) vor der Einladung validieren,
+  // damit eine ungültige Datei nicht zu einem halb angelegten User führt.
+  const documentFiles = extractDocumentFiles(formData);
+  const documentCategory = parseDocumentCategory(formData.get("documentCategory"));
+
   const invitationUrl = await createClerkInvitation(data.email);
 
   const [user] = await db
@@ -69,6 +224,17 @@ export async function inviteUser(formData: FormData) {
       status: "eingeladen",
     })
     .returning();
+
+  // Mitgelieferte Dokumente verschlüsselt ablegen
+  for (const file of documentFiles) {
+    await storeEncryptedDocument({
+      userId: user.id,
+      file,
+      category: documentCategory,
+      title: null,
+      admin,
+    });
+  }
 
   await writeAudit({
     objectType: "user",

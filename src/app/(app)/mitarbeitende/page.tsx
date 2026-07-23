@@ -1,12 +1,15 @@
-import { asc } from "drizzle-orm";
-import { db, users } from "@/db";
+import { asc, desc } from "drizzle-orm";
+import { db, employeeDocuments, users } from "@/db";
 import { fullName, requireAdmin, ALLOWED_EMAIL_DOMAIN } from "@/lib/auth";
+import { DOCUMENT_CATEGORY_LABELS } from "@/lib/documents";
 import { getSettings } from "@/lib/settings";
 import { PageHeader } from "@/components/page-header";
 import {
+  EmployeeDocumentsPanel,
   InviteForm,
   UserRowActions,
   VacationEntitlementForm,
+  type EmployeeDocumentItem,
 } from "@/components/user-admin";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +27,28 @@ export default async function MitarbeitendePage() {
   const admin = await requireAdmin();
   const settings = await getSettings();
   const allUsers = await db.select().from(users).orderBy(asc(users.lastName));
+
+  const allDocuments = await db
+    .select()
+    .from(employeeDocuments)
+    .orderBy(desc(employeeDocuments.createdAt));
+  const documentsByUser = new Map<string, EmployeeDocumentItem[]>();
+  for (const doc of allDocuments) {
+    const list = documentsByUser.get(doc.userId) ?? [];
+    list.push({
+      id: doc.id,
+      category: doc.category,
+      categoryLabel: DOCUMENT_CATEGORY_LABELS[doc.category],
+      title: doc.title,
+      filename: doc.filename,
+      createdAtLabel: doc.createdAt.toLocaleDateString("de-DE", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }),
+    });
+    documentsByUser.set(doc.userId, list);
+  }
 
   return (
     <div className="space-y-6">
@@ -76,6 +101,10 @@ export default async function MitarbeitendePage() {
                 userId={u.id}
                 annualVacationDays={u.annualVacationDays}
                 vacationCarryoverDays={u.vacationCarryoverDays}
+              />
+              <EmployeeDocumentsPanel
+                userId={u.id}
+                documents={documentsByUser.get(u.id) ?? []}
               />
               <UserRowActions
                 userId={u.id}

@@ -15,6 +15,13 @@
       "when": 1784800390872,
       "tag": "0001_bright_arachne",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784809122008,
+      "tag": "0002_workable_wendigo",
+      "breakpoints": true
     }
   ]
 }
