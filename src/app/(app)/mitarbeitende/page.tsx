@@ -115,6 +115,7 @@ export default async function MitarbeitendePage() {
                 userId={u.id}
                 technicalSupervisorId={u.technicalSupervisorId}
                 disciplinarySupervisorId={u.disciplinarySupervisorId}
+                isManagingDirector={u.isManagingDirector}
                 options={supervisorOptions.filter((o) => o.id !== u.id)}
               />
               <EmployeeDocumentsPanel

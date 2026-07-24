@@ -43,6 +43,13 @@
       "when": 1784879874126,
       "tag": "0005_furry_paper_doll",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784881425663,
+      "tag": "0006_bored_rhino",
+      "breakpoints": true
     }
   ]
 }

@@ -44,6 +44,8 @@ export const users = pgTable("users", {
   disciplinarySupervisorId: uuid("disciplinary_supervisor_id").references(
     (): AnyPgColumn => users.id
   ),
+  /** Geschäftsführung — hat keine fachlichen/disziplinarischen Vorgesetzten */
+  isManagingDirector: boolean("is_managing_director").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

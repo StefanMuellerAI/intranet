@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "is_managing_director" boolean DEFAULT false NOT NULL;

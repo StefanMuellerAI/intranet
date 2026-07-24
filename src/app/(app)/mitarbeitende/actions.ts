@@ -394,16 +394,23 @@ export async function updateUserSupervisors(
     return supervisor.id;
   }
 
-  const technicalSupervisorId = await parseSupervisorId(
-    "technicalSupervisorId"
-  );
-  const disciplinarySupervisorId = await parseSupervisorId(
-    "disciplinarySupervisorId"
-  );
+  // Geschäftsführung hat keine Vorgesetzten — Zuordnungen werden geleert
+  const isManagingDirector = formData.get("isManagingDirector") === "on";
+  const technicalSupervisorId = isManagingDirector
+    ? null
+    : await parseSupervisorId("technicalSupervisorId");
+  const disciplinarySupervisorId = isManagingDirector
+    ? null
+    : await parseSupervisorId("disciplinarySupervisorId");
 
   await db
     .update(users)
-    .set({ technicalSupervisorId, disciplinarySupervisorId, updatedAt: new Date() })
+    .set({
+      technicalSupervisorId,
+      disciplinarySupervisorId,
+      isManagingDirector,
+      updatedAt: new Date(),
+    })
     .where(eq(users.id, userId));
 
   await writeAudit({
@@ -414,6 +421,7 @@ export async function updateUserSupervisors(
     actorLabel: fullName(admin),
     source: "web",
     details: {
+      geschaeftsfuehrung: isManagingDirector,
       fachlicherVorgesetzter: technicalSupervisorId,
       disziplinarischerVorgesetzter: disciplinarySupervisorId,
     },

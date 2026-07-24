@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { FileText, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -246,14 +247,17 @@ export function SupervisorsForm({
   userId,
   technicalSupervisorId,
   disciplinarySupervisorId,
+  isManagingDirector,
   options,
 }: {
   userId: string;
   technicalSupervisorId: string | null;
   disciplinarySupervisorId: string | null;
+  isManagingDirector: boolean;
   options: SupervisorOption[];
 }) {
   const [pending, startTransition] = useTransition();
+  const [managingDirector, setManagingDirector] = useState(isManagingDirector);
   const updateWithId = updateUserSupervisors.bind(null, userId);
 
   return (
@@ -268,33 +272,55 @@ export function SupervisorsForm({
           }
         })
       }
-      className="flex flex-wrap items-end gap-2"
+      className="flex flex-wrap items-end gap-x-4 gap-y-2"
     >
-      <div className="w-56 space-y-1">
-        <Label htmlFor={`technical-supervisor-${userId}`} className="text-xs">
-          Fachliche/r Vorgesetzte/r
-        </Label>
-        <SupervisorSelect
-          id={`technical-supervisor-${userId}`}
-          name="technicalSupervisorId"
-          defaultValue={technicalSupervisorId}
-          options={options}
+      <div className="flex h-9 items-center gap-2">
+        <Checkbox
+          id={`managing-director-${userId}`}
+          name="isManagingDirector"
+          checked={managingDirector}
+          onCheckedChange={(checked) => setManagingDirector(checked === true)}
         />
-      </div>
-      <div className="w-56 space-y-1">
-        <Label
-          htmlFor={`disciplinary-supervisor-${userId}`}
-          className="text-xs"
-        >
-          Disziplinarische/r Vorgesetzte/r
+        <Label htmlFor={`managing-director-${userId}`} className="text-xs">
+          Geschäftsführung
         </Label>
-        <SupervisorSelect
-          id={`disciplinary-supervisor-${userId}`}
-          name="disciplinarySupervisorId"
-          defaultValue={disciplinarySupervisorId}
-          options={options}
-        />
       </div>
+      {managingDirector ? (
+        <p className="flex h-9 items-center text-sm text-muted-foreground">
+          Geschäftsführung — keine Vorgesetzten-Zuordnung.
+        </p>
+      ) : (
+        <>
+          <div className="w-56 space-y-1">
+            <Label
+              htmlFor={`technical-supervisor-${userId}`}
+              className="text-xs"
+            >
+              Fachliche/r Vorgesetzte/r
+            </Label>
+            <SupervisorSelect
+              id={`technical-supervisor-${userId}`}
+              name="technicalSupervisorId"
+              defaultValue={technicalSupervisorId}
+              options={options}
+            />
+          </div>
+          <div className="w-56 space-y-1">
+            <Label
+              htmlFor={`disciplinary-supervisor-${userId}`}
+              className="text-xs"
+            >
+              Disziplinarische/r Vorgesetzte/r
+            </Label>
+            <SupervisorSelect
+              id={`disciplinary-supervisor-${userId}`}
+              name="disciplinarySupervisorId"
+              defaultValue={disciplinarySupervisorId}
+              options={options}
+            />
+          </div>
+        </>
+      )}
       <Button size="sm" variant="outline" type="submit" disabled={pending}>
         Speichern
       </Button>
