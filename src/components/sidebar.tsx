@@ -106,7 +106,7 @@ export function Sidebar({
   );
 
   const footer = (
-    <div className="mt-auto border-t p-4">
+    <div className="shrink-0 border-t p-4">
       <p className="text-sm font-medium">{userName}</p>
       <p className="text-xs text-muted-foreground">{roleLabel}</p>
       <Button
@@ -145,8 +145,8 @@ export function Sidebar({
         </div>
       )}
       {/* Desktop Sidebar */}
-      <aside className="hidden w-60 shrink-0 flex-col border-r bg-background md:flex md:min-h-screen">
-        <div className="flex items-center gap-3 border-b px-5 py-4">
+      <aside className="hidden w-60 shrink-0 flex-col border-r bg-background md:flex md:h-full">
+        <div className="flex shrink-0 items-center gap-3 border-b px-5 py-4">
           <Image
             src="/logo.png"
             alt="StefanAI Logo"
@@ -161,7 +161,7 @@ export function Sidebar({
             </p>
           </div>
         </div>
-        {nav}
+        <div className="min-h-0 flex-1 overflow-y-auto">{nav}</div>
         {footer}
       </aside>
     </>
