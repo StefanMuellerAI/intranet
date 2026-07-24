@@ -77,6 +77,17 @@ describe("buildBriefingText", () => {
     expect(text).toBe("Max Muster hat heute Geburtstag.");
   });
 
+  it("blendet bereits beendete Einträge aus (z. B. vergangene Krankmeldung mit Status 'gemeldet')", () => {
+    const text = buildBriefingText(
+      [entry("krank", "Stefan Müller", "2026-07-21", "2026-07-21")],
+      TODAY,
+      RANGE_END
+    );
+    expect(text).toBe(
+      "In den nächsten zwei Wochen stehen keine Abwesenheiten oder Geburtstage an."
+    );
+  });
+
   it("formuliert offene Krankmeldungen mit 'seit' statt Enddatum", () => {
     // getCalendarAbsences setzt bei fehlendem Enddatum to = Bereichsende
     const text = buildBriefingText(

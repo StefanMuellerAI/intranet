@@ -89,10 +89,15 @@ export function buildBriefingText(
   todayISO: string,
   rangeEndISO: string
 ): string {
-  const sorted = [...absences].sort(
-    (a, b) =>
-      a.from.localeCompare(b.from) || a.userName.localeCompare(b.userName)
-  );
+  // Bereits beendete Einträge ausblenden — getCalendarAbsences liefert z. B.
+  // Krankmeldungen mit Status "gemeldet" auch, wenn ihr Enddatum in der
+  // Vergangenheit liegt (für die Kalenderansicht korrekt, hier nicht relevant).
+  const sorted = absences
+    .filter((a) => a.to >= todayISO)
+    .sort(
+      (a, b) =>
+        a.from.localeCompare(b.from) || a.userName.localeCompare(b.userName)
+    );
 
   const byType = (type: CalendarAbsence["type"]) =>
     sorted.filter((a) => a.type === type);
