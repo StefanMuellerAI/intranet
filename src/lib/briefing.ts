@@ -68,6 +68,21 @@ function groupSentence(
   return `${list} sind ${predicate}.`;
 }
 
+function teamEventSentence(
+  entries: BriefingEntry[],
+  todayISO: string
+): string | null {
+  if (entries.length === 0) return null;
+  if (entries.length === 1) {
+    const a = entries[0];
+    return `Das Teamevent „${a.userName}“ findet ${rangeLong(a, todayISO)} statt.`;
+  }
+  const list = joinNames(
+    entries.map((a) => `„${a.userName}“ (${rangeShort(a, todayISO)})`)
+  );
+  return `Als Teamevents stehen ${list} an.`;
+}
+
 function birthdaySentence(
   entries: BriefingEntry[],
   todayISO: string
@@ -108,6 +123,7 @@ export function buildBriefingText(
     a.to >= rangeEndISO ? { ...a, openEnded: true } : a;
 
   const sentences = [
+    teamEventSentence(byType("teamevent"), todayISO),
     groupSentence(byType("urlaub"), todayISO, "im Urlaub"),
     groupSentence(byType("workation"), todayISO, "auf Workation"),
     groupSentence(byType("krank").map(markOpenEnded), todayISO, "krankgemeldet"),
@@ -116,7 +132,7 @@ export function buildBriefingText(
   ].filter((s): s is string => s !== null);
 
   if (sentences.length === 0) {
-    return "In den nächsten zwei Wochen stehen keine Abwesenheiten oder Geburtstage an.";
+    return "In den nächsten zwei Wochen stehen keine Abwesenheiten, Geburtstage oder Teamevents an.";
   }
   return sentences.join(" ");
 }

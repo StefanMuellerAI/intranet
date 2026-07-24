@@ -575,6 +575,21 @@ export const newsItems = pgTable("news_items", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+/** Teamevents für Kalender und Kurzbriefing — ganztägig, ohne Uhrzeit. */
+export const teamEvents = pgTable("team_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  startDate: date("start_date").notNull(),
+  /** Eintägige Events haben endDate = startDate */
+  endDate: date("end_date").notNull(),
+  active: boolean("active").notNull().default(true),
+  createdById: uuid("created_by_id")
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // ---------------------------------------------------------------------------
 // Typen
 // ---------------------------------------------------------------------------
@@ -594,3 +609,4 @@ export type ApiKey = typeof apiKeys.$inferSelect;
 export type WebhookConfig = typeof webhookConfigs.$inferSelect;
 export type HelpfulLink = typeof helpfulLinks.$inferSelect;
 export type NewsItem = typeof newsItems.$inferSelect;
+export type TeamEvent = typeof teamEvents.$inferSelect;

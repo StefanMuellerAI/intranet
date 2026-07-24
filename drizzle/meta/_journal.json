@@ -50,6 +50,13 @@
       "when": 1784881425663,
       "tag": "0006_bored_rhino",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1784883573282,
+      "tag": "0007_classy_naoko",
+      "breakpoints": true
     }
   ]
 }

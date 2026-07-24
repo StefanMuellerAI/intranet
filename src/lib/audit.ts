@@ -16,7 +16,8 @@ export interface AuditEntry {
     | "webhook"
     | "vertretung"
     | "hilfreicher_link"
-    | "neuigkeit";
+    | "neuigkeit"
+    | "teamevent";
   objectId?: string;
   action: string;
   actorUserId?: string | null;

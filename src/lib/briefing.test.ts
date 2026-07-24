@@ -17,7 +17,7 @@ function entry(
 describe("buildBriefingText", () => {
   it("liefert den Leer-Zustand ohne Einträge", () => {
     expect(buildBriefingText([], TODAY, RANGE_END)).toBe(
-      "In den nächsten zwei Wochen stehen keine Abwesenheiten oder Geburtstage an."
+      "In den nächsten zwei Wochen stehen keine Abwesenheiten, Geburtstage oder Teamevents an."
     );
   });
 
@@ -84,7 +84,7 @@ describe("buildBriefingText", () => {
       RANGE_END
     );
     expect(text).toBe(
-      "In den nächsten zwei Wochen stehen keine Abwesenheiten oder Geburtstage an."
+      "In den nächsten zwei Wochen stehen keine Abwesenheiten, Geburtstage oder Teamevents an."
     );
   });
 
@@ -116,6 +116,40 @@ describe("buildBriefingText", () => {
     expect(text).toBe("Lisa List ist noch bis 25.07. abwesend.");
   });
 
+  it("formuliert ein einzelnes mehrtägiges Teamevent als Satz", () => {
+    const text = buildBriefingText(
+      [entry("teamevent", "Sommerfest", "2026-08-12", "2026-08-14")],
+      TODAY,
+      "2026-08-20"
+    );
+    expect(text).toBe(
+      "Das Teamevent „Sommerfest“ findet vom 12.08. bis 14.08. statt."
+    );
+  });
+
+  it("formuliert ein eintägiges Teamevent heute als 'heute'", () => {
+    const text = buildBriefingText(
+      [entry("teamevent", "Team-Frühstück", TODAY, TODAY)],
+      TODAY,
+      RANGE_END
+    );
+    expect(text).toBe("Das Teamevent „Team-Frühstück“ findet heute statt.");
+  });
+
+  it("fasst mehrere Teamevents zusammen", () => {
+    const text = buildBriefingText(
+      [
+        entry("teamevent", "Offsite", "2026-08-03", "2026-08-05"),
+        entry("teamevent", "Sommerfest", "2026-07-30", "2026-07-30"),
+      ],
+      TODAY,
+      RANGE_END
+    );
+    expect(text).toBe(
+      "Als Teamevents stehen „Sommerfest“ (30.07.) und „Offsite“ (03.08.–05.08.) an."
+    );
+  });
+
   it("kombiniert alle Gruppen in fester Reihenfolge", () => {
     const text = buildBriefingText(
       [
@@ -123,12 +157,14 @@ describe("buildBriefingText", () => {
         entry("krank", "Lisa List", "2026-07-22", RANGE_END),
         entry("urlaub", "Anna Muster", "2026-07-28", "2026-08-01"),
         entry("workation", "Clara Muster", "2026-07-27", "2026-08-06"),
+        entry("teamevent", "Sommerfest", "2026-07-31", "2026-07-31"),
       ],
       TODAY,
       RANGE_END
     );
     expect(text).toBe(
-      "Anna Muster ist vom 28.07. bis 01.08. im Urlaub. " +
+      "Das Teamevent „Sommerfest“ findet am 31.07. statt. " +
+        "Anna Muster ist vom 28.07. bis 01.08. im Urlaub. " +
         "Clara Muster ist vom 27.07. bis 06.08. auf Workation. " +
         "Lisa List ist seit dem 22.07. krankgemeldet. " +
         "Max Muster hat am 30.07. Geburtstag."

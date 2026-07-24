@@ -5,12 +5,16 @@ import { toast } from "sonner";
 import {
   createHelpfulLink,
   createNewsItem,
+  createTeamEvent,
   deleteHelpfulLink,
   deleteNewsItem,
+  deleteTeamEvent,
   toggleHelpfulLink,
   toggleNewsItem,
+  toggleTeamEvent,
   updateHelpfulLink,
   updateNewsItem,
+  updateTeamEvent,
 } from "@/app/(app)/inhalte/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -233,6 +237,135 @@ export function NewsCreateForm() {
         <Button type="submit">Neuigkeit veröffentlichen</Button>
       </div>
     </ActionForm>
+  );
+}
+
+export function TeamEventCreateForm() {
+  return (
+    <ActionForm
+      action={createTeamEvent}
+      successMessage="Teamevent angelegt."
+      className="grid gap-3 sm:grid-cols-2"
+    >
+      <div className="space-y-1 sm:col-span-2">
+        <Label htmlFor="event-title">Titel</Label>
+        <Input
+          id="event-title"
+          name="title"
+          required
+          placeholder="z. B. Sommerfest"
+        />
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor="event-start">Startdatum</Label>
+        <Input id="event-start" name="startDate" type="date" required />
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor="event-end">Enddatum (optional, für Zeiträume)</Label>
+        <Input id="event-end" name="endDate" type="date" />
+      </div>
+      <div className="flex items-end">
+        <Button type="submit">Teamevent hinzufügen</Button>
+      </div>
+    </ActionForm>
+  );
+}
+
+export function TeamEventRow({
+  event,
+}: {
+  event: {
+    id: string;
+    title: string;
+    startDate: string;
+    endDate: string;
+    active: boolean;
+    rangeLabel: string;
+  };
+}) {
+  const { pending, run } = useAction();
+
+  return (
+    <li className="rounded-lg border p-4 space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="font-medium">{event.title}</p>
+        <Badge variant={event.active ? "default" : "secondary"}>
+          {event.active ? "sichtbar" : "ausgeblendet"}
+        </Badge>
+        <span className="text-xs text-muted-foreground">
+          {event.rangeLabel}
+        </span>
+      </div>
+
+      <ActionForm
+        action={updateTeamEvent}
+        successMessage="Teamevent aktualisiert."
+        className="grid gap-3 sm:grid-cols-2"
+      >
+        <input type="hidden" name="id" value={event.id} />
+        <div className="space-y-1 sm:col-span-2">
+          <Label htmlFor={`event-title-${event.id}`}>Titel</Label>
+          <Input
+            id={`event-title-${event.id}`}
+            name="title"
+            defaultValue={event.title}
+            required
+          />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor={`event-start-${event.id}`}>Startdatum</Label>
+          <Input
+            id={`event-start-${event.id}`}
+            name="startDate"
+            type="date"
+            defaultValue={event.startDate}
+            required
+          />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor={`event-end-${event.id}`}>Enddatum</Label>
+          <Input
+            id={`event-end-${event.id}`}
+            name="endDate"
+            type="date"
+            defaultValue={event.endDate}
+          />
+        </div>
+        <div className="flex flex-wrap items-end gap-2">
+          <Button type="submit" size="sm" variant="outline">
+            Speichern
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={pending}
+            onClick={() =>
+              run(
+                () => toggleTeamEvent(event.id),
+                event.active
+                  ? "Teamevent ausgeblendet."
+                  : "Teamevent eingeblendet."
+              )
+            }
+          >
+            {event.active ? "Ausblenden" : "Einblenden"}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="destructive"
+            disabled={pending}
+            onClick={() => {
+              if (!confirm("Teamevent wirklich löschen?")) return;
+              run(() => deleteTeamEvent(event.id), "Teamevent gelöscht.");
+            }}
+          >
+            Löschen
+          </Button>
+        </div>
+      </ActionForm>
+    </li>
   );
 }
 

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  parseEventRange,
   parseExternalUrl,
+  parseISODateInput,
   parseSortOrder,
   requireNonEmpty,
 } from "./content";
@@ -56,5 +58,49 @@ describe("parseSortOrder", () => {
   it("lehnt negative und ungültige Werte ab", () => {
     expect(() => parseSortOrder("-1")).toThrow("Ungültige Sortierung.");
     expect(() => parseSortOrder("abc")).toThrow("Ungültige Sortierung.");
+  });
+});
+
+describe("parseISODateInput", () => {
+  it("akzeptiert gültige Kalenderdaten", () => {
+    expect(parseISODateInput("2026-08-12", "Startdatum")).toBe("2026-08-12");
+    expect(parseISODateInput(" 2028-02-29 ", "Startdatum")).toBe("2028-02-29");
+  });
+
+  it("lehnt falsche Formate und Nicht-Kalendertage ab", () => {
+    expect(() => parseISODateInput("12.08.2026", "Startdatum")).toThrow(
+      "Startdatum ist ungültig."
+    );
+    expect(() => parseISODateInput("2026-02-30", "Startdatum")).toThrow(
+      "Startdatum ist ungültig."
+    );
+  });
+
+  it("wirft bei leerem Datum", () => {
+    expect(() => parseISODateInput("", "Startdatum")).toThrow(
+      "Startdatum ist erforderlich."
+    );
+  });
+});
+
+describe("parseEventRange", () => {
+  it("nutzt das Startdatum als Ende, wenn kein Enddatum angegeben ist", () => {
+    expect(parseEventRange("2026-08-12", "")).toEqual({
+      startDate: "2026-08-12",
+      endDate: "2026-08-12",
+    });
+  });
+
+  it("akzeptiert mehrtägige Zeiträume", () => {
+    expect(parseEventRange("2026-08-12", "2026-08-14")).toEqual({
+      startDate: "2026-08-12",
+      endDate: "2026-08-14",
+    });
+  });
+
+  it("lehnt ein Enddatum vor dem Startdatum ab", () => {
+    expect(() => parseEventRange("2026-08-12", "2026-08-11")).toThrow(
+      "Das Enddatum darf nicht vor dem Startdatum liegen."
+    );
   });
 });

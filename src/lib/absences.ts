@@ -3,6 +3,7 @@ import { and, eq, gte, inArray, lte, or } from "drizzle-orm";
 import {
   db,
   sickLeaves,
+  teamEvents,
   users,
   vacationRequests,
   workationRequests,
@@ -10,10 +11,18 @@ import {
 } from "@/db";
 
 export interface CalendarAbsence {
+  /** Bei Teamevents: die Event-ID (kein Personenbezug) */
   userId: string;
+  /** Bei Teamevents: der Event-Titel */
   userName: string;
-  /** urlaub | workation | krank | abwesend (neutral) | geburtstag */
-  type: "urlaub" | "workation" | "krank" | "abwesend" | "geburtstag";
+  /** urlaub | workation | krank | abwesend (neutral) | geburtstag | teamevent */
+  type:
+    | "urlaub"
+    | "workation"
+    | "krank"
+    | "abwesend"
+    | "geburtstag"
+    | "teamevent";
   from: string;
   to: string;
 }
@@ -67,7 +76,7 @@ export async function getCalendarAbsences(
   fromISO: string,
   toISO: string
 ): Promise<CalendarAbsence[]> {
-  const [vacations, workations, sick, allUsers] = await Promise.all([
+  const [vacations, workations, sick, events, allUsers] = await Promise.all([
     db
       .select()
       .from(vacationRequests)
@@ -98,6 +107,16 @@ export async function getCalendarAbsences(
             gte(sickLeaves.endDate, fromISO),
             eq(sickLeaves.status, "gemeldet")
           )
+        )
+      ),
+    db
+      .select()
+      .from(teamEvents)
+      .where(
+        and(
+          eq(teamEvents.active, true),
+          lte(teamEvents.startDate, toISO),
+          gte(teamEvents.endDate, fromISO)
         )
       ),
     db.select().from(users),
@@ -135,6 +154,15 @@ export async function getCalendarAbsences(
         type: isAdmin || s.userId === viewer.id ? "krank" : "abwesend",
         from: s.startDate,
         to: s.endDate ?? toISO,
+      })
+    ),
+    ...events.map(
+      (e): CalendarAbsence => ({
+        userId: e.id,
+        userName: e.title,
+        type: "teamevent",
+        from: e.startDate,
+        to: e.endDate,
       })
     ),
     ...birthdayEntries(allUsers, fromISO, toISO),

@@ -18,6 +18,10 @@ const TYPE_STYLES: Record<string, { label: string; className: string }> = {
     label: "Geburtstag",
     className: "bg-amber-200 text-amber-900",
   },
+  teamevent: {
+    label: "Teamevent",
+    className: "bg-purple-200 text-purple-900",
+  },
 };
 
 const MONTH_NAMES = [
@@ -113,7 +117,9 @@ function MonthGrid({
                       TYPE_STYLES[a.type].className
                     )}
                   >
-                    {a.userName.split(" ")[0]}
+                    {a.type === "teamevent"
+                      ? a.userName
+                      : a.userName.split(" ")[0]}
                   </div>
                 ))}
               </div>
@@ -181,7 +187,7 @@ export default async function KalenderPage({
     <div>
       <PageHeader
         title="Abwesenheitskalender"
-        description="Genehmigte Urlaube, Workations, Krankheitszeiten und Geburtstage aller Mitarbeitenden"
+        description="Genehmigte Urlaube, Workations, Krankheitszeiten, Geburtstage und Teamevents"
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
