@@ -12,10 +12,49 @@ import {
 export interface CalendarAbsence {
   userId: string;
   userName: string;
-  /** urlaub | workation | krank | abwesend (neutral) */
-  type: "urlaub" | "workation" | "krank" | "abwesend";
+  /** urlaub | workation | krank | abwesend (neutral) | geburtstag */
+  type: "urlaub" | "workation" | "krank" | "abwesend" | "geburtstag";
   from: string;
   to: string;
+}
+
+function isLeapYear(year: number): boolean {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+}
+
+/**
+ * Geburtstage als jährlich wiederkehrende Eintagseinträge im Bereich
+ * [fromISO, toISO]. Nur Monat/Tag werden übernommen — das Geburtsjahr
+ * verlässt diese Funktion nicht. 29.02. wird in Nicht-Schaltjahren am
+ * 28.02. angezeigt.
+ */
+function birthdayEntries(
+  allUsers: User[],
+  fromISO: string,
+  toISO: string
+): CalendarAbsence[] {
+  const fromYear = Number(fromISO.slice(0, 4));
+  const toYear = Number(toISO.slice(0, 4));
+  const entries: CalendarAbsence[] = [];
+
+  for (const u of allUsers) {
+    if (!u.birthDate || u.status === "deaktiviert") continue;
+    const monthDay = u.birthDate.slice(5); // "MM-TT"
+    for (let year = fromYear; year <= toYear; year++) {
+      const dayInYear =
+        monthDay === "02-29" && !isLeapYear(year) ? "02-28" : monthDay;
+      const iso = `${year}-${dayInYear}`;
+      if (iso < fromISO || iso > toISO) continue;
+      entries.push({
+        userId: u.id,
+        userName: `${u.firstName} ${u.lastName}`,
+        type: "geburtstag",
+        from: iso,
+        to: iso,
+      });
+    }
+  }
+  return entries;
 }
 
 /**
@@ -98,5 +137,6 @@ export async function getCalendarAbsences(
         to: s.endDate ?? toISO,
       })
     ),
+    ...birthdayEntries(allUsers, fromISO, toISO),
   ];
 }

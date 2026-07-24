@@ -27,6 +27,8 @@ export const users = pgTable("users", {
   status: text("status", { enum: ["eingeladen", "aktiv", "deaktiviert"] })
     .notNull()
     .default("eingeladen"),
+  /** Geburtsdatum — optional, wird im Kalender ohne Jahr angezeigt */
+  birthDate: date("birth_date"),
   /** Individueller Jahresurlaubsanspruch in Tagen (0,5er-Schritte möglich) */
   annualVacationDays: doublePrecision("annual_vacation_days").notNull(),
   /** Manueller Übertrag aus dem Vorjahr in Tagen */

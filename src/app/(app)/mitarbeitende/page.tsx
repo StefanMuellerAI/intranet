@@ -5,6 +5,7 @@ import { DOCUMENT_CATEGORY_LABELS } from "@/lib/documents";
 import { getSettings } from "@/lib/settings";
 import { PageHeader } from "@/components/page-header";
 import {
+  BirthdayForm,
   EmployeeDocumentsPanel,
   InviteForm,
   UserRowActions,
@@ -102,6 +103,7 @@ export default async function MitarbeitendePage() {
                 annualVacationDays={u.annualVacationDays}
                 vacationCarryoverDays={u.vacationCarryoverDays}
               />
+              <BirthdayForm userId={u.id} birthDate={u.birthDate} />
               <EmployeeDocumentsPanel
                 userId={u.id}
                 documents={documentsByUser.get(u.id) ?? []}

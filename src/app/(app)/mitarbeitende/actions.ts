@@ -25,6 +25,21 @@ const inviteSchema = z.object({
   annualVacationDays: z.coerce
     .number()
     .min(0.5, "Der Jahresurlaubsanspruch ist Pflichtfeld."),
+  birthDate: z
+    .string()
+    .transform((v) => v.trim())
+    .pipe(
+      z.union([
+        z.literal("").transform(() => null),
+        z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/, "Ungültiges Geburtsdatum.")
+          .refine(
+            (v) => v <= new Date().toISOString().slice(0, 10),
+            "Das Geburtsdatum muss in der Vergangenheit liegen."
+          ),
+      ])
+    ),
 });
 
 // ---------------------------------------------------------------------------
@@ -193,6 +208,7 @@ export async function inviteUser(formData: FormData) {
     lastName: String(formData.get("lastName") ?? ""),
     email: String(formData.get("email") ?? "").trim().toLowerCase(),
     annualVacationDays: formData.get("annualVacationDays"),
+    birthDate: String(formData.get("birthDate") ?? ""),
   });
 
   // Serverseitige Domain-Validierung (zusätzlich zur Clerk-Allowlist)
@@ -221,6 +237,7 @@ export async function inviteUser(formData: FormData) {
       firstName: data.firstName,
       lastName: data.lastName,
       annualVacationDays: data.annualVacationDays,
+      birthDate: data.birthDate,
       status: "eingeladen",
     })
     .returning();
@@ -243,7 +260,11 @@ export async function inviteUser(formData: FormData) {
     actorUserId: admin.id,
     actorLabel: fullName(admin),
     source: "web",
-    details: { email: data.email, jahresurlaub: data.annualVacationDays },
+    details: {
+      email: data.email,
+      jahresurlaub: data.annualVacationDays,
+      geburtsdatum: data.birthDate,
+    },
   });
   await notifyInvitation({
     email: data.email,
@@ -314,6 +335,40 @@ export async function updateUserVacation(userId: string, formData: FormData) {
     details: { jahresurlaub: annual, uebertrag: carryover },
   });
   revalidatePath("/mitarbeitende");
+}
+
+/** Geburtsdatum setzen oder leeren (nur Admin) — Anzeige im Kalender. */
+export async function updateUserBirthday(userId: string, formData: FormData) {
+  const admin = await requireAdmin();
+  const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
+  if (!user) throw new Error("User nicht gefunden.");
+
+  const raw = String(formData.get("birthDate") ?? "").trim();
+  let birthDate: string | null = null;
+  if (raw.length > 0) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw))
+      throw new Error("Ungültiges Geburtsdatum.");
+    if (raw > new Date().toISOString().slice(0, 10))
+      throw new Error("Das Geburtsdatum muss in der Vergangenheit liegen.");
+    birthDate = raw;
+  }
+
+  await db
+    .update(users)
+    .set({ birthDate, updatedAt: new Date() })
+    .where(eq(users.id, userId));
+
+  await writeAudit({
+    objectType: "user",
+    objectId: userId,
+    action: "geburtsdatum_geaendert",
+    actorUserId: admin.id,
+    actorLabel: fullName(admin),
+    source: "web",
+    details: { geburtsdatum: birthDate },
+  });
+  revalidatePath("/mitarbeitende");
+  revalidatePath("/kalender");
 }
 
 /** Offboarding: Login sperren, Antragsdaten bleiben erhalten (Abschnitt 9). */

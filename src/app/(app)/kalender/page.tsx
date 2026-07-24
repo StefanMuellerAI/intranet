@@ -14,6 +14,10 @@ const TYPE_STYLES: Record<string, { label: string; className: string }> = {
   workation: { label: "Workation", className: "bg-blue-200 text-blue-900" },
   krank: { label: "Krank", className: "bg-red-200 text-red-900" },
   abwesend: { label: "abwesend", className: "bg-gray-200 text-gray-700" },
+  geburtstag: {
+    label: "Geburtstag",
+    className: "bg-amber-200 text-amber-900",
+  },
 };
 
 const MONTH_NAMES = [
@@ -177,7 +181,7 @@ export default async function KalenderPage({
     <div>
       <PageHeader
         title="Abwesenheitskalender"
-        description="Genehmigte Urlaube, Workations und Krankheitszeiten aller Mitarbeitenden"
+        description="Genehmigte Urlaube, Workations, Krankheitszeiten und Geburtstage aller Mitarbeitenden"
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">

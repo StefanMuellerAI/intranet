@@ -14,6 +14,7 @@ import {
   deleteEmployeeDocument,
   resendInvitation,
   setUserStatus,
+  updateUserBirthday,
   updateUserVacation,
   uploadEmployeeDocuments,
 } from "@/app/(app)/mitarbeitende/actions";
@@ -155,6 +156,49 @@ export function VacationEntitlementForm({
           step="0.5"
           defaultValue={vacationCarryoverDays}
           className="w-28"
+        />
+      </div>
+      <Button size="sm" variant="outline" type="submit" disabled={pending}>
+        Speichern
+      </Button>
+    </form>
+  );
+}
+
+export function BirthdayForm({
+  userId,
+  birthDate,
+}: {
+  userId: string;
+  birthDate: string | null;
+}) {
+  const [pending, startTransition] = useTransition();
+  const updateWithId = updateUserBirthday.bind(null, userId);
+
+  return (
+    <form
+      action={(fd) =>
+        startTransition(async () => {
+          try {
+            await updateWithId(fd);
+            toast.success("Geburtsdatum gespeichert.");
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Fehler");
+          }
+        })
+      }
+      className="flex flex-wrap items-end gap-2"
+    >
+      <div className="space-y-1">
+        <Label htmlFor={`birth-date-${userId}`} className="text-xs">
+          Geburtsdatum (wird im Kalender ohne Jahr angezeigt)
+        </Label>
+        <Input
+          id={`birth-date-${userId}`}
+          name="birthDate"
+          type="date"
+          defaultValue={birthDate ?? ""}
+          className="w-40"
         />
       </div>
       <Button size="sm" variant="outline" type="submit" disabled={pending}>
@@ -349,6 +393,13 @@ export function InviteForm({
           required
           defaultValue={defaultVacationDays}
         />
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor="invite-birth-date">Geburtsdatum (optional)</Label>
+        <Input id="invite-birth-date" name="birthDate" type="date" />
+        <p className="text-xs text-muted-foreground">
+          Wird im Kalender als Geburtstag angezeigt — ohne Geburtsjahr.
+        </p>
       </div>
       <div className="space-y-1">
         <Label htmlFor="invite-documents">
