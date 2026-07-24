@@ -8,11 +8,13 @@ import {
   vacationRequests,
   workationRequests,
 } from "@/db";
+import { getCalendarAbsences } from "@/lib/absences";
 import { getActiveDeputy, requireUser } from "@/lib/auth";
-import { formatDateDE } from "@/lib/dates";
+import { formatDateDE, toISODate } from "@/lib/dates";
 import { formatEuro } from "@/lib/expenses/calc";
 import { getSettings } from "@/lib/settings";
 import { getUsedWorkationDays, getVacationAccount } from "@/lib/vacation";
+import { DashboardBriefing } from "@/components/dashboard-briefing";
 import { DashboardHelpfulLinks } from "@/components/dashboard-helpful-links";
 import { DashboardNewsTicker } from "@/components/dashboard-news-ticker";
 import { PageHeader } from "@/components/page-header";
@@ -23,7 +25,12 @@ export const metadata = { title: "Dashboard" };
 
 export default async function DashboardPage() {
   const user = await requireUser();
-  const year = new Date().getFullYear();
+  const now = new Date();
+  const year = now.getFullYear();
+  const todayISO = toISODate(now);
+  const briefingEndISO = toISODate(
+    new Date(now.getFullYear(), now.getMonth(), now.getDate() + 14)
+  );
   const settings = await getSettings();
   const deputy = await getActiveDeputy();
   const canApprove = user.role === "admin" || deputy?.id === user.id;
@@ -36,6 +43,7 @@ export default async function DashboardPage() {
     myExpenses,
     activeLinks,
     activeNews,
+    briefingAbsences,
   ] = await Promise.all([
     getVacationAccount(user, year),
     getUsedWorkationDays(user.id, year),
@@ -68,6 +76,7 @@ export default async function DashboardPage() {
       .where(eq(newsItems.active, true))
       .orderBy(desc(newsItems.createdAt))
       .limit(10),
+    getCalendarAbsences(user, todayISO, briefingEndISO),
   ]);
 
   let openApprovals: { label: string; href: string; status: string }[] = [];
@@ -134,6 +143,12 @@ export default async function DashboardPage() {
       <PageHeader
         title={`Willkommen, ${user.firstName}!`}
         description="Ihr Überblick über Anträge, Kontingente und Abwesenheiten"
+      />
+
+      <DashboardBriefing
+        absences={briefingAbsences}
+        todayISO={todayISO}
+        rangeEndISO={briefingEndISO}
       />
 
       <div className="mb-6 grid gap-4 grid-cols-2 sm:grid-cols-4">
