@@ -371,6 +371,56 @@ export async function updateUserBirthday(userId: string, formData: FormData) {
   revalidatePath("/kalender");
 }
 
+/** Fachliche/n und disziplinarische/n Vorgesetzte/n pflegen (nur Admin). */
+export async function updateUserSupervisors(
+  userId: string,
+  formData: FormData
+) {
+  const admin = await requireAdmin();
+  const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
+  if (!user) throw new Error("User nicht gefunden.");
+
+  async function parseSupervisorId(field: string): Promise<string | null> {
+    const raw = String(formData.get(field) ?? "").trim();
+    if (raw.length === 0) return null;
+    if (raw === userId)
+      throw new Error(
+        "Mitarbeitende können nicht ihre eigenen Vorgesetzten sein."
+      );
+    const supervisor = await db.query.users.findFirst({
+      where: eq(users.id, raw),
+    });
+    if (!supervisor) throw new Error("Ausgewählte/r Vorgesetzte/r nicht gefunden.");
+    return supervisor.id;
+  }
+
+  const technicalSupervisorId = await parseSupervisorId(
+    "technicalSupervisorId"
+  );
+  const disciplinarySupervisorId = await parseSupervisorId(
+    "disciplinarySupervisorId"
+  );
+
+  await db
+    .update(users)
+    .set({ technicalSupervisorId, disciplinarySupervisorId, updatedAt: new Date() })
+    .where(eq(users.id, userId));
+
+  await writeAudit({
+    objectType: "user",
+    objectId: userId,
+    action: "vorgesetzte_geaendert",
+    actorUserId: admin.id,
+    actorLabel: fullName(admin),
+    source: "web",
+    details: {
+      fachlicherVorgesetzter: technicalSupervisorId,
+      disziplinarischerVorgesetzter: disciplinarySupervisorId,
+    },
+  });
+  revalidatePath("/mitarbeitende");
+}
+
 /** Offboarding: Login sperren, Antragsdaten bleiben erhalten (Abschnitt 9). */
 export async function setUserStatus(
   userId: string,

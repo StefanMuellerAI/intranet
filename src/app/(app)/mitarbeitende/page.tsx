@@ -8,9 +8,11 @@ import {
   BirthdayForm,
   EmployeeDocumentsPanel,
   InviteForm,
+  SupervisorsForm,
   UserRowActions,
   VacationEntitlementForm,
   type EmployeeDocumentItem,
+  type SupervisorOption,
 } from "@/components/user-admin";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +52,11 @@ export default async function MitarbeitendePage() {
     });
     documentsByUser.set(doc.userId, list);
   }
+
+  // Auswahlliste für Vorgesetzte: alle nicht deaktivierten Mitarbeitenden
+  const supervisorOptions: SupervisorOption[] = allUsers
+    .filter((u) => u.status !== "deaktiviert")
+    .map((u) => ({ id: u.id, name: fullName(u) }));
 
   return (
     <div className="space-y-6">
@@ -104,6 +111,12 @@ export default async function MitarbeitendePage() {
                 vacationCarryoverDays={u.vacationCarryoverDays}
               />
               <BirthdayForm userId={u.id} birthDate={u.birthDate} />
+              <SupervisorsForm
+                userId={u.id}
+                technicalSupervisorId={u.technicalSupervisorId}
+                disciplinarySupervisorId={u.disciplinarySupervisorId}
+                options={supervisorOptions.filter((o) => o.id !== u.id)}
+              />
               <EmployeeDocumentsPanel
                 userId={u.id}
                 documents={documentsByUser.get(u.id) ?? []}

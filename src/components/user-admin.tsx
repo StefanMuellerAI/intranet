@@ -15,6 +15,7 @@ import {
   resendInvitation,
   setUserStatus,
   updateUserBirthday,
+  updateUserSupervisors,
   updateUserVacation,
   uploadEmployeeDocuments,
 } from "@/app/(app)/mitarbeitende/actions";
@@ -199,6 +200,99 @@ export function BirthdayForm({
           type="date"
           defaultValue={birthDate ?? ""}
           className="w-40"
+        />
+      </div>
+      <Button size="sm" variant="outline" type="submit" disabled={pending}>
+        Speichern
+      </Button>
+    </form>
+  );
+}
+
+export interface SupervisorOption {
+  id: string;
+  name: string;
+}
+
+function SupervisorSelect({
+  id,
+  name,
+  defaultValue,
+  options,
+}: {
+  id: string;
+  name: string;
+  defaultValue: string | null;
+  options: SupervisorOption[];
+}) {
+  return (
+    <select
+      id={id}
+      name={name}
+      defaultValue={defaultValue ?? ""}
+      className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+    >
+      <option value="">— keine Angabe —</option>
+      {options.map((o) => (
+        <option key={o.id} value={o.id}>
+          {o.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+export function SupervisorsForm({
+  userId,
+  technicalSupervisorId,
+  disciplinarySupervisorId,
+  options,
+}: {
+  userId: string;
+  technicalSupervisorId: string | null;
+  disciplinarySupervisorId: string | null;
+  options: SupervisorOption[];
+}) {
+  const [pending, startTransition] = useTransition();
+  const updateWithId = updateUserSupervisors.bind(null, userId);
+
+  return (
+    <form
+      action={(fd) =>
+        startTransition(async () => {
+          try {
+            await updateWithId(fd);
+            toast.success("Vorgesetzte gespeichert.");
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Fehler");
+          }
+        })
+      }
+      className="flex flex-wrap items-end gap-2"
+    >
+      <div className="w-56 space-y-1">
+        <Label htmlFor={`technical-supervisor-${userId}`} className="text-xs">
+          Fachliche/r Vorgesetzte/r
+        </Label>
+        <SupervisorSelect
+          id={`technical-supervisor-${userId}`}
+          name="technicalSupervisorId"
+          defaultValue={technicalSupervisorId}
+          options={options}
+        />
+      </div>
+      <div className="w-56 space-y-1">
+        <Label
+          htmlFor={`disciplinary-supervisor-${userId}`}
+          className="text-xs"
+        >
+          Disziplinarische/r Vorgesetzte/r
+        </Label>
+        <SupervisorSelect
+          id={`disciplinary-supervisor-${userId}`}
+          name="disciplinarySupervisorId"
+          defaultValue={disciplinarySupervisorId}
+          options={options}
         />
       </div>
       <Button size="sm" variant="outline" type="submit" disabled={pending}>

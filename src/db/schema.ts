@@ -8,6 +8,7 @@ import {
   text,
   timestamp,
   uuid,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
 // ---------------------------------------------------------------------------
@@ -35,6 +36,14 @@ export const users = pgTable("users", {
   vacationCarryoverDays: doublePrecision("vacation_carryover_days")
     .notNull()
     .default(0),
+  /** Fachliche/r Vorgesetzte/r — optional, Selbstreferenz auf users */
+  technicalSupervisorId: uuid("technical_supervisor_id").references(
+    (): AnyPgColumn => users.id
+  ),
+  /** Disziplinarische/r Vorgesetzte/r — optional, Selbstreferenz auf users */
+  disciplinarySupervisorId: uuid("disciplinary_supervisor_id").references(
+    (): AnyPgColumn => users.id
+  ),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

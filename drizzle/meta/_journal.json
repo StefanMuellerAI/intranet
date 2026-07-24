@@ -36,6 +36,13 @@
       "when": 1784876901726,
       "tag": "0004_puzzling_skin",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1784879874126,
+      "tag": "0005_furry_paper_doll",
+      "breakpoints": true
     }
   ]
 }
