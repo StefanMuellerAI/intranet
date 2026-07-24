@@ -1,7 +1,7 @@
-import { asc, desc } from "drizzle-orm";
+import { asc, desc, gte } from "drizzle-orm";
 import { db, helpfulLinks, newsItems, teamEvents } from "@/db";
 import { requireAdmin } from "@/lib/auth";
-import { formatDateDE } from "@/lib/dates";
+import { formatDateDE, toISODate } from "@/lib/dates";
 import { PageHeader } from "@/components/page-header";
 import {
   HelpfulLinkCreateForm,
@@ -18,10 +18,19 @@ export const metadata = { title: "Inhalte" };
 export default async function InhaltePage() {
   await requireAdmin();
 
+  // Vergangene Teamevents gelten als archiviert: Sie bleiben in der
+  // Datenbank (und damit im Kalender-Rückblick), werden hier aber nicht
+  // mehr aufgelistet.
+  const todayISO = toISODate(new Date());
+
   const [links, news, events] = await Promise.all([
     db.select().from(helpfulLinks).orderBy(asc(helpfulLinks.sortOrder), asc(helpfulLinks.title)),
     db.select().from(newsItems).orderBy(desc(newsItems.createdAt)),
-    db.select().from(teamEvents).orderBy(asc(teamEvents.startDate), asc(teamEvents.title)),
+    db
+      .select()
+      .from(teamEvents)
+      .where(gte(teamEvents.endDate, todayISO))
+      .orderBy(asc(teamEvents.startDate), asc(teamEvents.title)),
   ]);
 
   return (
@@ -93,7 +102,7 @@ export default async function InhaltePage() {
             <TeamEventCreateForm />
             {events.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Noch keine Teamevents angelegt.
+                Keine anstehenden Teamevents.
               </p>
             ) : (
               <ul className="space-y-3">
@@ -115,6 +124,10 @@ export default async function InhaltePage() {
                 ))}
               </ul>
             )}
+            <p className="text-xs text-muted-foreground">
+              Vergangene Teamevents werden hier automatisch ausgeblendet,
+              bleiben aber im Kalender sichtbar.
+            </p>
           </CardContent>
         </Card>
       </div>
