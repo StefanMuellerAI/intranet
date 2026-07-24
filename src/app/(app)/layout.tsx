@@ -68,7 +68,7 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="flex min-h-screen flex-col md:h-svh md:overflow-hidden md:flex-row">
+    <div className="flex min-h-screen flex-col md:flex-row">
       <Sidebar
         userName={fullName(user)}
         roleLabel={
@@ -78,7 +78,7 @@ export default async function AppLayout({
         canApprove={canApprove}
         openApprovals={openApprovals}
       />
-      <main className="flex-1 p-4 md:overflow-y-auto md:p-8 max-w-5xl w-full mx-auto">
+      <main className="flex-1 p-4 md:p-8 max-w-5xl w-full mx-auto">
         {children}
       </main>
     </div>

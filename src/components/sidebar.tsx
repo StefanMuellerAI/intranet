@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Network,
   Newspaper,
   Palmtree,
   Plane,
@@ -53,6 +54,7 @@ export function Sidebar({
     { href: "/provision", label: "Provisionen", icon: HandCoins },
     { href: "/krankmeldung", label: "Krankmeldung", icon: HeartPulse },
     { href: "/kalender", label: "Kalender", icon: CalendarDays },
+    { href: "/organigramm", label: "Organigramm", icon: Network },
     { href: "/dokumente", label: "Dokumente", icon: FileText },
     { href: "/konto", label: "Mein Konto", icon: UserRound },
     ...(canApprove
@@ -145,7 +147,7 @@ export function Sidebar({
         </div>
       )}
       {/* Desktop Sidebar */}
-      <aside className="hidden w-60 shrink-0 flex-col border-r bg-background md:flex md:h-full">
+      <aside className="hidden w-60 shrink-0 flex-col border-r bg-background md:sticky md:top-0 md:flex md:h-svh">
         <div className="flex shrink-0 items-center gap-3 border-b px-5 py-4">
           <Image
             src="/logo.png"
