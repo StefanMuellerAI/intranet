@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import {
   db,
   expenseReports,
+  fakturaTimeEntries,
   helpfulLinks,
   newsItems,
   vacationRequests,
@@ -11,6 +12,14 @@ import {
 import { getCalendarAbsences } from "@/lib/absences";
 import { getActiveDeputy, requireUser } from "@/lib/auth";
 import { formatDateDE, toISODate } from "@/lib/dates";
+import {
+  addDaysISO,
+  berlinTodayISO,
+  currentNow,
+  isoWeekOf,
+  isoWeekday,
+  mondayOfIsoWeek,
+} from "@/lib/faktura/zeitfenster";
 import { formatEuro } from "@/lib/expenses/calc";
 import { getSettings } from "@/lib/settings";
 import { getUsedWorkationDays, getVacationAccount } from "@/lib/vacation";
@@ -34,6 +43,28 @@ export default async function DashboardPage() {
   const settings = await getSettings();
   const deputy = await getActiveDeputy();
   const canApprove = user.role === "admin" || deputy?.id === user.id;
+
+  // Freitags-Erinnerung (E-7): Hinweis, wenn in der laufenden Woche noch
+  // keine Zeiten erfasst wurden — ausgewertet in Europe/Berlin, keine E-Mail.
+  const berlinToday = berlinTodayISO(currentNow());
+  let showFridayReminder = false;
+  if (isoWeekday(berlinToday) === 5) {
+    const week = isoWeekOf(berlinToday);
+    const monday = mondayOfIsoWeek(week.isoYear, week.isoWeek);
+    const weekEntries = await db
+      .select({ id: fakturaTimeEntries.id })
+      .from(fakturaTimeEntries)
+      .where(
+        and(
+          eq(fakturaTimeEntries.userId, user.id),
+          eq(fakturaTimeEntries.deleted, false),
+          gte(fakturaTimeEntries.entryDate, monday),
+          lte(fakturaTimeEntries.entryDate, addDaysISO(monday, 6))
+        )
+      )
+      .limit(1);
+    showFridayReminder = weekEntries.length === 0;
+  }
 
   const [
     account,
@@ -145,6 +176,29 @@ export default async function DashboardPage() {
         description="Ihr Überblick über Anträge, Kontingente und Abwesenheiten"
       />
 
+      {showFridayReminder && (
+        <div
+          data-testid="freitags-erinnerung"
+          className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border-2 border-amber-400 bg-amber-50 p-4 dark:border-amber-600 dark:bg-amber-950"
+        >
+          <div>
+            <p className="font-semibold">
+              Du hast diese Woche noch keine Zeiten gebucht
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Bitte erfasse deine Projektzeiten für die laufende Kalenderwoche
+              — das Buchungsfenster schließt am Samstag um 00:00 Uhr.
+            </p>
+          </div>
+          <Link
+            href="/faktura"
+            className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
+          >
+            Jetzt Zeiten buchen
+          </Link>
+        </div>
+      )}
+
       <DashboardBriefing
         absences={briefingAbsences}
         todayISO={todayISO}
@@ -208,6 +262,10 @@ export default async function DashboardPage() {
               href="/krankmeldung/neu"
             >
               Krank melden
+            </Link>
+            <span className="text-muted-foreground">·</span>
+            <Link className="underline underline-offset-4" href="/faktura">
+              Zeiten buchen
             </Link>
           </CardContent>
         </Card>

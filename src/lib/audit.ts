@@ -17,7 +17,12 @@ export interface AuditEntry {
     | "vertretung"
     | "hilfreicher_link"
     | "neuigkeit"
-    | "teamevent";
+    | "teamevent"
+    | "faktura_kunde"
+    | "faktura_projekt"
+    | "faktura_buchung"
+    | "faktura_freigabe"
+    | "faktura_stundenzettel";
   objectId?: string;
   action: string;
   actorUserId?: string | null;

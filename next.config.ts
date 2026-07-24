@@ -7,6 +7,10 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "15mb",
     },
   },
+  // Logo für die Stundenzettel-PDF-Erzeugung in den Server-Bundles mitliefern
+  outputFileTracingIncludes: {
+    "/**": ["./public/logo.png"],
+  },
 };
 
 export default nextConfig;

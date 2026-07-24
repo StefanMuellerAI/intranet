@@ -7,6 +7,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
@@ -591,6 +592,132 @@ export const teamEvents = pgTable("team_events", {
 });
 
 // ---------------------------------------------------------------------------
+// Faktura — projektbezogene Zeiterfassung
+// ---------------------------------------------------------------------------
+
+/** Kunden — niemals physisch löschen, nur inaktiv setzen (Revisionssicherheit). */
+export const fakturaCustomers = pgTable("faktura_customers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull().unique(),
+  /** Optionale Anschrift — erscheint auf dem Stundenzettel */
+  address: text("address"),
+  /** Optionale/r Ansprechpartner/in — erscheint auf dem Stundenzettel */
+  contactPerson: text("contact_person"),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+/** Projekte — gehören zu genau einem Kunden; Name eindeutig je Kunde. */
+export const fakturaProjects = pgTable(
+  "faktura_projects",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => fakturaCustomers.id),
+    name: text("name").notNull(),
+    /** Optionale Laufzeit — Buchungen außerhalb werden abgelehnt */
+    validFrom: date("valid_from"),
+    validTo: date("valid_to"),
+    /** Optionales Monatslimit in Minuten (Vielfache von 15), über alle Mitarbeitenden */
+    monthlyLimitMinutes: integer("monthly_limit_minutes"),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("faktura_projects_customer_name_idx").on(t.customerId, t.name)]
+);
+
+/**
+ * Zeitbuchungen — Dauer als Minuten (Vielfache von 15) statt Gleitkomma,
+ * um Rundungsfehler bei Summen und Limitprüfungen auszuschließen.
+ */
+export const fakturaTimeEntries = pgTable("faktura_time_entries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id),
+  projectId: uuid("project_id")
+    .notNull()
+    .references(() => fakturaProjects.id),
+  /** Buchungsdatum (Kalendertag, maßgeblich für Woche und Monatslimit) */
+  entryDate: date("entry_date").notNull(),
+  durationMinutes: integer("duration_minutes").notNull(),
+  /** Tätigkeitsbeschreibung — Pflicht, erscheint auf dem Stundenzettel */
+  description: text("description").notNull(),
+  status: text("status", { enum: ["offen", "freigegeben"] })
+    .notNull()
+    .default("offen"),
+  /** Sichtbarkeit auf dem kundenseitigen Stundenzettel — nur vom Admin änderbar */
+  visibleOnTimesheet: boolean("visible_on_timesheet").notNull().default(true),
+  /** Buchung liegt (anteilig) oberhalb des Monatslimits des Projekts */
+  overbooked: boolean("overbooked").notNull().default(false),
+  /** Soft-Delete — keine physischen Löschungen (Revisionssicherheit) */
+  deleted: boolean("deleted").notNull().default(false),
+  createdById: uuid("created_by_id")
+    .notNull()
+    .references(() => users.id),
+  updatedById: uuid("updated_by_id")
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+/** Wochenfreigaben — eine ISO-Kalenderwoche, alle Kunden/Projekte gemeinsam. */
+export const fakturaWeekApprovals = pgTable(
+  "faktura_week_approvals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    isoYear: integer("iso_year").notNull(),
+    isoWeek: integer("iso_week").notNull(),
+    status: text("status", { enum: ["offen", "freigegeben", "widerrufen"] })
+      .notNull()
+      .default("offen"),
+    approvedAt: timestamp("approved_at"),
+    approvedById: uuid("approved_by_id").references(() => users.id),
+    /** Pflichtbegründung beim Widerruf */
+    revokeReason: text("revoke_reason"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("faktura_week_approvals_week_idx").on(t.isoYear, t.isoWeek)]
+);
+
+/**
+ * Stundenzettel — unveränderlich archivierte PDFs (Vercel Blob) mit
+ * Dokumentnummer, Versionszähler und Prüfsumme. Nie überschreiben.
+ */
+export const fakturaTimesheets = pgTable(
+  "faktura_timesheets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => fakturaCustomers.id),
+    periodFrom: date("period_from").notNull(),
+    periodTo: date("period_to").notNull(),
+    /** Laufende Dokumentnummer, z. B. SZ-2026-0001 — stabil je Kunde+Zeitraum */
+    docNumber: text("doc_number").notNull(),
+    version: integer("version").notNull().default(1),
+    /** Entwurf mit Wasserzeichen (Zeitraum enthält nicht freigegebene Buchungen) */
+    isDraft: boolean("is_draft").notNull().default(false),
+    /** Datenbestand hat sich nach Erzeugung geändert — Neuexport erzeugt n+1 */
+    stale: boolean("stale").notNull().default(false),
+    filename: text("filename").notNull(),
+    blobUrl: text("blob_url").notNull(),
+    /** SHA-256-Prüfsumme des archivierten PDFs */
+    sha256: text("sha256").notNull(),
+    createdById: uuid("created_by_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("faktura_timesheets_doc_version_idx").on(t.docNumber, t.version)]
+);
+
+// ---------------------------------------------------------------------------
 // Typen
 // ---------------------------------------------------------------------------
 
@@ -610,3 +737,8 @@ export type WebhookConfig = typeof webhookConfigs.$inferSelect;
 export type HelpfulLink = typeof helpfulLinks.$inferSelect;
 export type NewsItem = typeof newsItems.$inferSelect;
 export type TeamEvent = typeof teamEvents.$inferSelect;
+export type FakturaCustomer = typeof fakturaCustomers.$inferSelect;
+export type FakturaProject = typeof fakturaProjects.$inferSelect;
+export type FakturaTimeEntry = typeof fakturaTimeEntries.$inferSelect;
+export type FakturaWeekApproval = typeof fakturaWeekApprovals.$inferSelect;
+export type FakturaTimesheet = typeof fakturaTimesheets.$inferSelect;

@@ -57,6 +57,13 @@
       "when": 1784883573282,
       "tag": "0007_classy_naoko",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1784895723657,
+      "tag": "0008_polite_hellion",
+      "breakpoints": true
     }
   ]
 }

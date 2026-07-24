@@ -122,6 +122,31 @@ export async function notifySickLeave(opts: {
   });
 }
 
+/**
+ * Faktura: Admin hat eine Zeitbuchung angepasst, ausgeblendet oder gelöscht
+ * → betroffene/r Mitarbeiter/in mit Alt-/Neu-Werten bzw. Begründung (FA-8.1).
+ */
+export async function notifyFakturaEntryChanged(opts: {
+  employee: User;
+  /** z. B. "angepasst", "ausgeblendet", "wieder eingeblendet", "gelöscht", "neu angelegt" */
+  action: string;
+  projectLabel: string;
+  entryDateLabel: string;
+  details: string[];
+}) {
+  await sendMail({
+    to: [{ email: opts.employee.email, name: fullName(opts.employee) }],
+    subject: `Zeitbuchung ${opts.action}: ${opts.projectLabel} (${opts.entryDateLabel})`,
+    heading: `Eine Ihrer Zeitbuchungen wurde ${opts.action}`,
+    paragraphs: [
+      `Der Admin hat Ihre Zeitbuchung für ${opts.projectLabel} am ${opts.entryDateLabel} ${opts.action}.`,
+      ...opts.details,
+    ],
+    linkPath: "/faktura",
+    linkLabel: "Zur Zeiterfassung",
+  });
+}
+
 /** Einladung / erneute Einladung → neue/r Mitarbeiter/in */
 export async function notifyInvitation(opts: {
   email: string;
