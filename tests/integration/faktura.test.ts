@@ -154,8 +154,9 @@ describe("Zeitbuchungen Mitarbeitende", () => {
       entryInput({ projectId: limitedProject.id, durationHours: 1 })
     );
     expect(second.ok).toBe(false);
-    if (!second.ok)
+    if (!second.ok && "warnings" in second)
       expect(second.warnings.join(" ")).toContain("erreicht");
+    else expect.fail("Warnungen erwartet, aber Fehler erhalten");
 
     const confirmed = await createTimeEntry(
       seed.employee,

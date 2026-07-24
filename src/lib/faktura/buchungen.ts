@@ -16,6 +16,7 @@ import { fullName } from "@/lib/auth";
 import { formatDateDE } from "@/lib/dates";
 import { notifyFakturaEntryChanged } from "@/lib/notifications";
 import { checkMonthlyLimit } from "@/lib/faktura/limit";
+import { UserError } from "@/lib/faktura/user-error";
 import {
   customerProjectLabel,
   type FakturaSource,
@@ -55,12 +56,15 @@ export const timeEntryInputSchema = z.object({
 export type TimeEntryInput = z.infer<typeof timeEntryInputSchema>;
 
 /**
- * Ergebnis einer Speicheroperation: Entweder gespeichert oder Warnungen,
- * die die/der Mitarbeitende vor dem Speichern bestätigen muss (FA-4.2).
+ * Ergebnis einer Speicheroperation: gespeichert, Warnungen, die die/der
+ * Mitarbeitende vor dem Speichern bestätigen muss (FA-4.2), oder ein
+ * fachlicher Fehler (von der Action aus UserError übersetzt — geworfene
+ * Fehlermeldungen würde Next.js in Production maskieren).
  */
 export type SaveEntryResult =
   | { ok: true; entryId: string }
-  | { ok: false; warnings: string[] };
+  | { ok: false; warnings: string[] }
+  | { ok: false; error: string };
 
 // ---------------------------------------------------------------------------
 // Gemeinsame Validierung
@@ -73,13 +77,13 @@ async function loadActiveProjectOrThrow(projectId: string): Promise<{
   const project = await db.query.fakturaProjects.findFirst({
     where: eq(fakturaProjects.id, projectId),
   });
-  if (!project) throw new Error("Projekt nicht gefunden.");
+  if (!project) throw new UserError("Projekt nicht gefunden.");
   const customer = await db.query.fakturaCustomers.findFirst({
     where: eq(fakturaCustomers.id, project.customerId),
   });
-  if (!customer) throw new Error("Kunde nicht gefunden.");
+  if (!customer) throw new UserError("Kunde nicht gefunden.");
   if (!project.active || !customer.active)
-    throw new Error(
+    throw new UserError(
       "Auf inaktive Kunden oder Projekte können keine neuen Buchungen erfasst werden."
     );
   return { project, customerName: customer.name };
@@ -93,7 +97,7 @@ function assertWithinProjectTerm(project: FakturaProject, entryDate: string) {
   ) {
     const from = project.validFrom ? formatDateDE(project.validFrom) : "offen";
     const to = project.validTo ? formatDateDE(project.validTo) : "offen";
-    throw new Error(
+    throw new UserError(
       `Das Buchungsdatum liegt außerhalb der Projektlaufzeit (${from} bis ${to}). Bitte ein Datum innerhalb der Laufzeit wählen oder den Admin kontaktieren.`
     );
   }
@@ -101,13 +105,13 @@ function assertWithinProjectTerm(project: FakturaProject, entryDate: string) {
 
 /** Buchungsdatum für Admin-Korrekturen: Werktag Mo–Fr, nie Zukunft — Fensterregel entfällt. */
 function validateAdminEntryDate(entryDate: string) {
-  if (!isValidISODate(entryDate)) throw new Error("Ungültiges Buchungsdatum.");
+  if (!isValidISODate(entryDate)) throw new UserError("Ungültiges Buchungsdatum.");
   if (isoWeekday(entryDate) >= 6)
-    throw new Error(
+    throw new UserError(
       "Samstage und Sonntage sind keine gültigen Buchungstage (auch nicht für Admin-Korrekturen)."
     );
   if (entryDate > berlinTodayISO())
-    throw new Error("Buchungen in der Zukunft sind nicht möglich.");
+    throw new UserError("Buchungen in der Zukunft sind nicht möglich.");
 }
 
 /** Tagessumme der/des Mitarbeitenden über alle Projekte (ohne gelöschte). */
@@ -150,17 +154,17 @@ async function validateEntry(opts: {
 
   const durationMinutes = parseHoursToMinutes(input.durationHours);
   if (durationMinutes === null)
-    throw new Error(
+    throw new UserError(
       "Ungültige Dauer. Bitte im 0,25-Stunden-Raster angeben (z. B. 1,25)."
     );
   const durationError = validateDurationMinutes(durationMinutes);
-  if (durationError) throw new Error(durationError);
+  if (durationError) throw new UserError(durationError);
 
   if (opts.isAdminAction) {
     validateAdminEntryDate(input.entryDate);
   } else {
     const dateResult = validateBookingDate(input.entryDate, currentNow());
-    if (!dateResult.ok) throw new Error(dateResult.error);
+    if (!dateResult.ok) throw new UserError(dateResult.error);
   }
 
   const { project, customerName } = await loadActiveProjectOrThrow(
@@ -173,7 +177,7 @@ async function validateEntry(opts: {
     (await getDayTotalMinutes(opts.ownerId, input.entryDate, opts.excludeEntryId)) +
     durationMinutes;
   if (dayTotal > MAX_DAY_MINUTES)
-    throw new Error(
+    throw new UserError(
       `Das harte Tagesmaximum von 24 Stunden würde überschritten (Summe wäre ${formatMinutesAsHours(dayTotal)} h).`
     );
 
@@ -218,7 +222,7 @@ async function loadEntryOrThrow(id: string): Promise<FakturaTimeEntry> {
   const entry = await db.query.fakturaTimeEntries.findFirst({
     where: eq(fakturaTimeEntries.id, id),
   });
-  if (!entry || entry.deleted) throw new Error("Buchung nicht gefunden.");
+  if (!entry || entry.deleted) throw new UserError("Buchung nicht gefunden.");
   return entry;
 }
 
@@ -272,7 +276,7 @@ export async function createTimeEntry(
   `);
   const insertedId = (result.rows[0] as { id: string } | undefined)?.id;
   if (!insertedId)
-    throw new Error(
+    throw new UserError(
       "Diese Kalenderwoche wurde inzwischen freigegeben — die Buchung ist nicht mehr möglich."
     );
   const entry = await loadEntryOrThrow(insertedId);
@@ -295,15 +299,15 @@ export async function createTimeEntry(
 }
 
 function assertEmployeeMayEdit(entry: FakturaTimeEntry, user: User) {
-  if (entry.userId !== user.id) throw new Error("Buchung nicht gefunden.");
+  if (entry.userId !== user.id) throw new UserError("Buchung nicht gefunden.");
   if (entry.status === "freigegeben")
-    throw new Error(
+    throw new UserError(
       "Diese Woche wurde bereits freigegeben — die Buchung ist schreibgeschützt."
     );
   // Bearbeiten/Löschen nur, solange das Buchungsdatum im Fenster liegt (FA-2.4)
   const windowResult = validateBookingDate(entry.entryDate, currentNow());
   if (!windowResult.ok)
-    throw new Error(
+    throw new UserError(
       "Das Buchungsfenster für diese Woche ist geschlossen — die Buchung kann nicht mehr geändert werden."
     );
 }
@@ -352,7 +356,7 @@ export async function updateTimeEntry(
     )
     .returning();
   if (!updated[0])
-    throw new Error(
+    throw new UserError(
       "Die Buchung wurde inzwischen freigegeben oder gelöscht und kann nicht mehr geändert werden."
     );
 
@@ -404,7 +408,7 @@ export async function softDeleteTimeEntry(
     )
     .returning();
   if (!deleted[0])
-    throw new Error(
+    throw new UserError(
       "Die Buchung wurde inzwischen freigegeben und kann nicht mehr gelöscht werden."
     );
 
@@ -465,7 +469,7 @@ export async function adminCreateTimeEntry(
   const owner = await db.query.users.findFirst({
     where: eq(users.id, input.userId),
   });
-  if (!owner) throw new Error("Mitarbeiter/in nicht gefunden.");
+  if (!owner) throw new UserError("Mitarbeiter/in nicht gefunden.");
 
   const validated = await validateEntry({
     ownerId: input.userId,
@@ -480,7 +484,7 @@ export async function adminCreateTimeEntry(
   });
   const weekApproved = approval?.status === "freigegeben";
   if (weekApproved && !input.reason)
-    throw new Error(
+    throw new UserError(
       "Die Woche ist bereits freigegeben — bitte eine Begründung für die nachträgliche Korrektur angeben."
     );
 
@@ -540,7 +544,7 @@ export async function adminUpdateTimeEntry(
   const input = adminEntryInputSchema.parse({ ...raw, userId: entry.userId });
 
   if (entry.status === "freigegeben" && !input.reason)
-    throw new Error(
+    throw new UserError(
       "Diese Buchung ist bereits freigegeben — bitte eine Begründung für die Korrektur angeben."
     );
 
@@ -609,7 +613,7 @@ export async function adminSoftDeleteTimeEntry(
 ): Promise<void> {
   const entry = await loadEntryOrThrow(id);
   if (entry.status === "freigegeben" && !reason?.trim())
-    throw new Error(
+    throw new UserError(
       "Diese Buchung ist bereits freigegeben — bitte eine Begründung für die Löschung angeben."
     );
 

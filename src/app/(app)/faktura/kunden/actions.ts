@@ -10,6 +10,7 @@ import {
   updateCustomer,
   updateProject,
 } from "@/lib/faktura/stammdaten";
+import { runAction, type ActionResult } from "@/lib/faktura/user-error";
 
 function optional(formData: FormData, key: string): string | undefined {
   const value = String(formData.get(key) ?? "").trim();
@@ -36,55 +37,87 @@ function projectInput(formData: FormData) {
   };
 }
 
-export async function createCustomerAction(formData: FormData) {
+export async function createCustomerAction(
+  formData: FormData
+): Promise<ActionResult<null>> {
   const admin = await requireAdmin();
-  await createCustomer(admin, customerInput(formData), "web");
-  revalidatePath("/faktura/kunden");
+  return runAction(async () => {
+    await createCustomer(admin, customerInput(formData), "web");
+    revalidatePath("/faktura/kunden");
+    return null;
+  });
 }
 
-export async function updateCustomerAction(formData: FormData) {
+export async function updateCustomerAction(
+  formData: FormData
+): Promise<ActionResult<null>> {
   const admin = await requireAdmin();
-  await updateCustomer(
-    admin,
-    String(formData.get("id") ?? ""),
-    customerInput(formData),
-    "web"
-  );
-  revalidatePath("/faktura/kunden");
+  return runAction(async () => {
+    await updateCustomer(
+      admin,
+      String(formData.get("id") ?? ""),
+      customerInput(formData),
+      "web"
+    );
+    revalidatePath("/faktura/kunden");
+    return null;
+  });
 }
 
-export async function toggleCustomerActiveAction(id: string, active: boolean) {
+export async function toggleCustomerActiveAction(
+  id: string,
+  active: boolean
+): Promise<ActionResult<null>> {
   const admin = await requireAdmin();
-  await setCustomerActive(admin, id, active, "web");
-  revalidatePath("/faktura/kunden");
+  return runAction(async () => {
+    await setCustomerActive(admin, id, active, "web");
+    revalidatePath("/faktura/kunden");
+    return null;
+  });
 }
 
-export async function createProjectAction(formData: FormData) {
+export async function createProjectAction(
+  formData: FormData
+): Promise<ActionResult<null>> {
   const admin = await requireAdmin();
-  await createProject(
-    admin,
-    {
-      customerId: String(formData.get("customerId") ?? ""),
-      ...projectInput(formData),
-    },
-    "web"
-  );
-  revalidatePath("/faktura/kunden");
+  return runAction(async () => {
+    await createProject(
+      admin,
+      {
+        customerId: String(formData.get("customerId") ?? ""),
+        ...projectInput(formData),
+      },
+      "web"
+    );
+    revalidatePath("/faktura/kunden");
+    return null;
+  });
 }
 
-export async function updateProjectAction(formData: FormData) {
+export async function updateProjectAction(
+  formData: FormData
+): Promise<ActionResult<null>> {
   const admin = await requireAdmin();
-  await updateProject(
-    admin,
-    String(formData.get("id") ?? ""),
-    projectInput(formData),
-    "web"
-  );
-  revalidatePath("/faktura/kunden");
+  return runAction(async () => {
+    await updateProject(
+      admin,
+      String(formData.get("id") ?? ""),
+      projectInput(formData),
+      "web"
+    );
+    revalidatePath("/faktura/kunden");
+    return null;
+  });
 }
 
-export async function toggleProjectActiveAction(id: string, active: boolean) {
+export async function toggleProjectActiveAction(
+  id: string,
+  active: boolean
+): Promise<ActionResult<null>> {
   const admin = await requireAdmin();
-  await setProjectActive(admin, id, active, "web");
-  revalidatePath("/faktura/kunden");
+  return runAction(async () => {
+    await setProjectActive(admin, id, active, "web");
+    revalidatePath("/faktura/kunden");
+    return null;
+  });
 }

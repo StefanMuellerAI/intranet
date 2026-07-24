@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { DECIMAL_PATTERN, DECIMAL_TITLE } from "@/lib/form-patterns";
 
 export interface CommissionFormDefaults {
   businessType?: BusinessType;
@@ -262,6 +263,8 @@ export function CommissionForm({
             id="netOrderValue"
             name="netOrderValue"
             inputMode="decimal"
+            pattern={DECIMAL_PATTERN}
+            title={DECIMAL_TITLE}
             required
             placeholder="z. B. 5000,00"
             value={netOrderValue}

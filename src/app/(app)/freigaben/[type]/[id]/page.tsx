@@ -12,6 +12,7 @@ import {
 } from "@/db";
 import { fullName, requireApprover } from "@/lib/auth";
 import { formatDateDE } from "@/lib/dates";
+import { DECIMAL_PATTERN, DECIMAL_TITLE } from "@/lib/form-patterns";
 import { getVacationAccount } from "@/lib/vacation";
 import type { WorkflowType } from "@/lib/workflow";
 import { ApprovalButtons } from "@/components/approval-buttons";
@@ -240,6 +241,8 @@ export default async function FreigabeDetailPage({
                       id="referralBonus"
                       name="referralBonus"
                       inputMode="decimal"
+                      pattern={DECIMAL_PATTERN}
+                      title={DECIMAL_TITLE}
                       placeholder="z. B. 500,00"
                       defaultValue={
                         claim.referralBonusCents != null
@@ -259,6 +262,8 @@ export default async function FreigabeDetailPage({
                     id="finalAmount"
                     name="finalAmount"
                     inputMode="decimal"
+                    pattern={DECIMAL_PATTERN}
+                    title={DECIMAL_TITLE}
                     placeholder={
                       claim.calculatedAmountCents != null
                         ? `berechnet: ${formatEuro(claim.calculatedAmountCents)}`

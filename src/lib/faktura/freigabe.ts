@@ -14,6 +14,7 @@ import {
 import { writeAudit } from "@/lib/audit";
 import { fullName } from "@/lib/auth";
 import { type FakturaSource } from "@/lib/faktura/stammdaten";
+import { UserError } from "@/lib/faktura/user-error";
 import { markTimesheetsStaleForRange } from "@/lib/faktura/stundenzettel";
 import {
   addDaysISO,
@@ -247,17 +248,17 @@ export async function approveWeek(
   apiKeyId?: string
 ): Promise<void> {
   if (!isWeekClosed(isoYear, isoWeek, currentNow()))
-    throw new Error(
+    throw new UserError(
       "Nur abgeschlossene Wochen können freigegeben werden (ab Samstag 00:00 Uhr)."
     );
 
   const existing = await getWeekApproval(isoYear, isoWeek);
   if (existing?.status === "freigegeben")
-    throw new Error("Diese Woche ist bereits freigegeben.");
+    throw new UserError("Diese Woche ist bereits freigegeben.");
 
   const entries = await getWeekEntries(isoYear, isoWeek);
   if (entries.length === 0)
-    throw new Error(
+    throw new UserError(
       "Diese Woche enthält keine Buchungen — eine Freigabe ist nicht erforderlich (FA-5.7)."
     );
 
@@ -320,11 +321,11 @@ export async function revokeWeekApproval(
   source: FakturaSource = "web"
 ): Promise<void> {
   if (!reason.trim())
-    throw new Error("Bitte eine Begründung für den Widerruf angeben.");
+    throw new UserError("Bitte eine Begründung für den Widerruf angeben.");
 
   const existing = await getWeekApproval(isoYear, isoWeek);
   if (!existing || existing.status !== "freigegeben")
-    throw new Error("Diese Woche ist nicht freigegeben.");
+    throw new UserError("Diese Woche ist nicht freigegeben.");
 
   await db
     .update(fakturaWeekApprovals)

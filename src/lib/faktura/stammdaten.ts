@@ -5,6 +5,7 @@ import { db, fakturaCustomers, fakturaProjects, type User } from "@/db";
 import { writeAudit, type AuditEntry } from "@/lib/audit";
 import { fullName } from "@/lib/auth";
 import { isValidISODate, QUARTER_HOUR_MINUTES } from "@/lib/faktura/zeitfenster";
+import { UserError } from "@/lib/faktura/user-error";
 
 export type FakturaSource = AuditEntry["source"];
 
@@ -35,7 +36,7 @@ async function assertUniqueCustomerName(name: string, excludeId?: string) {
       : eq(fakturaCustomers.name, name),
   });
   if (existing)
-    throw new Error(`Ein Kunde mit dem Namen „${name}" existiert bereits.`);
+    throw new UserError(`Ein Kunde mit dem Namen „${name}" existiert bereits.`);
 }
 
 export async function createCustomer(
@@ -76,7 +77,7 @@ export async function updateCustomer(
   const existing = await db.query.fakturaCustomers.findFirst({
     where: eq(fakturaCustomers.id, id),
   });
-  if (!existing) throw new Error("Kunde nicht gefunden.");
+  if (!existing) throw new UserError("Kunde nicht gefunden.");
 
   const data = customerInputSchema.parse(raw);
   await assertUniqueCustomerName(data.name, id);
@@ -121,7 +122,7 @@ export async function setCustomerActive(
   const existing = await db.query.fakturaCustomers.findFirst({
     where: eq(fakturaCustomers.id, id),
   });
-  if (!existing) throw new Error("Kunde nicht gefunden.");
+  if (!existing) throw new UserError("Kunde nicht gefunden.");
 
   await db
     .update(fakturaCustomers)
@@ -208,7 +209,7 @@ async function assertUniqueProjectName(
     where: and(...conditions),
   });
   if (existing)
-    throw new Error(
+    throw new UserError(
       `Für diesen Kunden existiert bereits ein Projekt „${name}".`
     );
 }
@@ -222,7 +223,7 @@ export async function createProject(
   const customer = await db.query.fakturaCustomers.findFirst({
     where: eq(fakturaCustomers.id, data.customerId),
   });
-  if (!customer) throw new Error("Kunde nicht gefunden.");
+  if (!customer) throw new UserError("Kunde nicht gefunden.");
   await assertUniqueProjectName(data.customerId, data.name);
 
   const [project] = await db
@@ -261,7 +262,7 @@ export async function updateProject(
   const existing = await db.query.fakturaProjects.findFirst({
     where: eq(fakturaProjects.id, id),
   });
-  if (!existing) throw new Error("Projekt nicht gefunden.");
+  if (!existing) throw new UserError("Projekt nicht gefunden.");
 
   const data = projectInputSchema.parse({
     ...raw,
@@ -316,7 +317,7 @@ export async function setProjectActive(
   const existing = await db.query.fakturaProjects.findFirst({
     where: eq(fakturaProjects.id, id),
   });
-  if (!existing) throw new Error("Projekt nicht gefunden.");
+  if (!existing) throw new UserError("Projekt nicht gefunden.");
 
   await db
     .update(fakturaProjects)

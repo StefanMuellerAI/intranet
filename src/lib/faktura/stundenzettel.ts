@@ -16,6 +16,7 @@ import { writeAudit } from "@/lib/audit";
 import { fullName } from "@/lib/auth";
 import { formatDateDE } from "@/lib/dates";
 import { type FakturaSource } from "@/lib/faktura/stammdaten";
+import { UserError } from "@/lib/faktura/user-error";
 import {
   renderTimesheetPdf,
   type TimesheetPdfData,
@@ -69,7 +70,7 @@ export async function customerIdOfProject(projectId: string): Promise<string> {
   const project = await db.query.fakturaProjects.findFirst({
     where: eq(fakturaProjects.id, projectId),
   });
-  if (!project) throw new Error("Projekt nicht gefunden.");
+  if (!project) throw new UserError("Projekt nicht gefunden.");
   return project.customerId;
 }
 
@@ -141,12 +142,12 @@ export async function generateTimesheet(
 ): Promise<GenerateTimesheetResult> {
   const { customerId, fromISO, toISO } = opts;
   if (!isValidISODate(fromISO) || !isValidISODate(toISO) || toISO < fromISO)
-    throw new Error("Ungültiger Zeitraum.");
+    throw new UserError("Ungültiger Zeitraum.");
 
   const customer = await db.query.fakturaCustomers.findFirst({
     where: eq(fakturaCustomers.id, customerId),
   });
-  if (!customer) throw new Error("Kunde nicht gefunden.");
+  if (!customer) throw new UserError("Kunde nicht gefunden.");
 
   const projects = await db
     .select()
@@ -172,7 +173,7 @@ export async function generateTimesheet(
           )
           .orderBy(asc(fakturaTimeEntries.entryDate));
   if (entries.length === 0)
-    throw new Error(
+    throw new UserError(
       "Für diesen Kunden und Zeitraum gibt es keine sichtbaren Buchungen."
     );
 

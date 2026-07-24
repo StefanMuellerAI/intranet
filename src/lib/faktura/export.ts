@@ -10,6 +10,7 @@ import {
 } from "@/db";
 import { fullName } from "@/lib/auth";
 import { formatDateDE } from "@/lib/dates";
+import { UserError } from "@/lib/faktura/user-error";
 import {
   formatIsoWeek,
   formatMinutesAsHours,
@@ -35,7 +36,7 @@ export async function getEntriesForExport(
   const customer = await db.query.fakturaCustomers.findFirst({
     where: eq(fakturaCustomers.id, customerId),
   });
-  if (!customer) throw new Error("Kunde nicht gefunden.");
+  if (!customer) throw new UserError("Kunde nicht gefunden.");
 
   const projects = await db
     .select()

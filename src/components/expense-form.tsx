@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DECIMAL_PATTERN, DECIMAL_TITLE } from "@/lib/form-patterns";
 import {
   Select,
   SelectContent,
@@ -224,6 +225,8 @@ export function ExpenseForm({
                 <Label className="text-xs">Betrag (€)</Label>
                 <Input
                   inputMode="decimal"
+                  pattern={DECIMAL_PATTERN}
+                  title={DECIMAL_TITLE}
                   placeholder="0,00"
                   value={item.amountEuro}
                   onChange={(e) =>

@@ -214,16 +214,17 @@ export function ExportForm({
               fd.set("fromISO", period.fromISO);
               fd.set("toISO", period.toISO);
               startTransition(async () => {
-                try {
-                  const result = await generateTimesheetAction(fd);
-                  toast.success(
-                    result.isDraft
-                      ? `Entwurf ${result.docNumber} v${result.version} erzeugt — Zeitraum enthält nicht freigegebene Buchungen (Wasserzeichen).`
-                      : `Stundenzettel ${result.docNumber} v${result.version} erzeugt.`
-                  );
-                } catch (err) {
-                  toast.error(err instanceof Error ? err.message : "Fehler");
+                const result = await generateTimesheetAction(fd);
+                if (!result.ok) {
+                  toast.error(result.error);
+                  return;
                 }
+                const sheet = result.data;
+                toast.success(
+                  sheet.isDraft
+                    ? `Entwurf ${sheet.docNumber} v${sheet.version} erzeugt — Zeitraum enthält nicht freigegebene Buchungen (Wasserzeichen).`
+                    : `Stundenzettel ${sheet.docNumber} v${sheet.version} erzeugt.`
+                );
               });
             }}
           >

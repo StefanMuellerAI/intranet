@@ -13,6 +13,7 @@ import {
   setEntryVisibilityAction,
   type EntryHistoryItem,
 } from "@/app/(app)/faktura/freigabe/actions";
+import type { ActionResult } from "@/lib/faktura/user-error";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  QUARTER_HOURS_PATTERN,
+  QUARTER_HOURS_TITLE,
+} from "@/lib/form-patterns";
 
 export interface AdminProjectOption {
   id: string;
@@ -89,14 +94,16 @@ export interface FreigabeWeekView {
 
 function useRun() {
   const [pending, startTransition] = useTransition();
-  const run = (fn: () => Promise<unknown>, msg?: string) =>
+  // Actions liefern Fehler als Ergebnis (statt throw), damit die Meldung
+  // auch im Production-Build lesbar ankommt.
+  const run = (fn: () => Promise<ActionResult<unknown>>, msg?: string) =>
     startTransition(async () => {
-      try {
-        await fn();
-        if (msg) toast.success(msg);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Fehler");
+      const result = await fn();
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
       }
+      if (msg) toast.success(msg);
     });
   return { pending, run };
 }
@@ -219,7 +226,10 @@ function AdminEntryDialog({
               id="admin-entry-duration"
               name="durationHours"
               inputMode="decimal"
+              pattern={QUARTER_HOURS_PATTERN}
+              title={QUARTER_HOURS_TITLE}
               required
+              placeholder="z. B. 1,25"
               defaultValue={entry?.durationHours ?? ""}
             />
           </div>

@@ -8,6 +8,7 @@ import {
   updateTimeEntry,
   type SaveEntryResult,
 } from "@/lib/faktura/buchungen";
+import { runAction, type ActionResult } from "@/lib/faktura/user-error";
 
 function parseEntryForm(formData: FormData) {
   return {
@@ -23,12 +24,15 @@ export async function createEntryAction(
   formData: FormData
 ): Promise<SaveEntryResult> {
   const user = await requireUser();
-  const result = await createTimeEntry(user, parseEntryForm(formData), "web");
-  if (result.ok) {
+  const result = await runAction(() =>
+    createTimeEntry(user, parseEntryForm(formData), "web")
+  );
+  if (!result.ok) return result;
+  if (result.data.ok) {
     revalidatePath("/faktura");
     revalidatePath("/dashboard");
   }
-  return result;
+  return result.data;
 }
 
 export async function updateEntryAction(
@@ -36,18 +40,21 @@ export async function updateEntryAction(
   formData: FormData
 ): Promise<SaveEntryResult> {
   const user = await requireUser();
-  const result = await updateTimeEntry(
-    user,
-    id,
-    parseEntryForm(formData),
-    "web"
+  const result = await runAction(() =>
+    updateTimeEntry(user, id, parseEntryForm(formData), "web")
   );
-  if (result.ok) revalidatePath("/faktura");
-  return result;
+  if (!result.ok) return result;
+  if (result.data.ok) revalidatePath("/faktura");
+  return result.data;
 }
 
-export async function deleteEntryAction(id: string): Promise<void> {
+export async function deleteEntryAction(
+  id: string
+): Promise<ActionResult<null>> {
   const user = await requireUser();
-  await softDeleteTimeEntry(user, id, "web");
-  revalidatePath("/faktura");
+  return runAction(async () => {
+    await softDeleteTimeEntry(user, id, "web");
+    revalidatePath("/faktura");
+    return null;
+  });
 }

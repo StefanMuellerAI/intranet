@@ -8,6 +8,7 @@ import {
   webhookDeliveries,
 } from "@/db";
 import { fullName, requireAdmin } from "@/lib/auth";
+import { DECIMAL_PATTERN, DECIMAL_TITLE } from "@/lib/form-patterns";
 import { getRetentionReport } from "@/lib/retention";
 import { getSettings } from "@/lib/settings";
 import { PageHeader } from "@/components/page-header";
@@ -54,7 +55,14 @@ function RateField({
   return (
     <div className="space-y-1">
       <Label htmlFor={name}>{label}</Label>
-      <Input id={name} name={name} defaultValue={euro(cents)} inputMode="decimal" />
+      <Input
+        id={name}
+        name={name}
+        defaultValue={euro(cents)}
+        inputMode="decimal"
+        pattern={DECIMAL_PATTERN}
+        title={DECIMAL_TITLE}
+      />
     </div>
   );
 }
@@ -261,6 +269,8 @@ export default async function EinstellungenPage() {
                 id="commissionConsultingPercent"
                 name="commissionConsultingPercent"
                 inputMode="decimal"
+                pattern={DECIMAL_PATTERN}
+                title={DECIMAL_TITLE}
                 defaultValue={String(
                   settings.commissionConsultingPercent
                 ).replace(".", ",")}

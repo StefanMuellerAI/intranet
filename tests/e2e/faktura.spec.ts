@@ -197,6 +197,28 @@ test.describe("Faktura — projektbezogene Zeiterfassung", () => {
     await expect(employee.getByText("Ungültiger Versuch")).toHaveCount(0);
   });
 
+  test("Typsicheres Dauer-Feld: '2h' blockiert der Browser vor dem Absenden", async ({
+    browser,
+  }) => {
+    const employee = await pageAs(browser, USER_STATE);
+    await employee.goto("/faktura");
+    await openDialog(
+      employee.getByTestId("neue-buchung"),
+      employee.getByText("Neue Zeitbuchung")
+    );
+    await employee.getByText("Projekt wählen").click();
+    await employee.getByRole("option", { name: PROJEKT }).click();
+    await employee.locator("#entry-duration").fill("2h");
+    await employee.locator("#entry-description").fill("Pattern-Check");
+    await employee.getByRole("button", { name: "Buchung speichern" }).click();
+
+    // Constraint-Validierung greift: Feld invalid, kein Request, kein Eintrag
+    await expect(employee.locator("#entry-duration:invalid")).toHaveCount(1);
+    await expect(employee.getByText("Buchung gespeichert.")).toHaveCount(0);
+    await employee.goto("/faktura");
+    await expect(employee.getByText("Pattern-Check")).toHaveCount(0);
+  });
+
   test("Monatslimit: zweistufige Warnung mit Trotzdem-buchen und Überbuchungs-Markierung", async ({
     browser,
   }) => {

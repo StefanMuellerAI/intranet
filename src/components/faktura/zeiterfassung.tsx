@@ -8,6 +8,10 @@ import {
   updateEntryAction,
 } from "@/app/(app)/faktura/actions";
 import type { SaveEntryResult } from "@/lib/faktura/buchungen";
+import {
+  QUARTER_HOURS_PATTERN,
+  QUARTER_HOURS_TITLE,
+} from "@/lib/form-patterns";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -77,19 +81,17 @@ function EntryForm({
     formData.set("projectId", projectId);
     formData.set("confirmWarnings", confirm ? "true" : "false");
     startTransition(async () => {
-      try {
-        const result: SaveEntryResult = entry
-          ? await updateEntryAction(entry.id, formData)
-          : await createEntryAction(formData);
-        if (result.ok) {
-          toast.success(entry ? "Buchung aktualisiert." : "Buchung gespeichert.");
-          setWarnings([]);
-          onDone();
-        } else {
-          setWarnings(result.warnings);
-        }
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Fehler");
+      const result: SaveEntryResult = entry
+        ? await updateEntryAction(entry.id, formData)
+        : await createEntryAction(formData);
+      if (result.ok) {
+        toast.success(entry ? "Buchung aktualisiert." : "Buchung gespeichert.");
+        setWarnings([]);
+        onDone();
+      } else if ("error" in result) {
+        toast.error(result.error);
+      } else {
+        setWarnings(result.warnings);
       }
     });
   };
@@ -142,6 +144,8 @@ function EntryForm({
           id="entry-duration"
           name="durationHours"
           inputMode="decimal"
+          pattern={QUARTER_HOURS_PATTERN}
+          title={QUARTER_HOURS_TITLE}
           required
           placeholder="z. B. 1,25"
           defaultValue={entry?.durationHours ?? ""}
@@ -230,12 +234,9 @@ function DeleteButton({ id }: { id: string }) {
       onClick={() => {
         if (!confirm("Buchung wirklich löschen?")) return;
         startTransition(async () => {
-          try {
-            await deleteEntryAction(id);
-            toast.success("Buchung gelöscht.");
-          } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Fehler");
-          }
+          const result = await deleteEntryAction(id);
+          if (result.ok) toast.success("Buchung gelöscht.");
+          else toast.error(result.error);
         });
       }}
     >

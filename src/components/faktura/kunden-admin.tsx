@@ -10,11 +10,16 @@ import {
   updateCustomerAction,
   updateProjectAction,
 } from "@/app/(app)/faktura/kunden/actions";
+import type { ActionResult } from "@/lib/faktura/user-error";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  QUARTER_HOURS_PATTERN,
+  QUARTER_HOURS_TITLE,
+} from "@/lib/form-patterns";
 
 export interface ProjectView {
   id: string;
@@ -38,14 +43,16 @@ export interface CustomerView {
 
 function useAction() {
   const [pending, startTransition] = useTransition();
-  const run = (fn: () => Promise<unknown>, msg?: string) =>
+  // Actions liefern Fehler als Ergebnis (statt throw), damit die Meldung
+  // auch im Production-Build lesbar ankommt.
+  const run = (fn: () => Promise<ActionResult<unknown>>, msg?: string) =>
     startTransition(async () => {
-      try {
-        await fn();
-        if (msg) toast.success(msg);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Fehler");
+      const result = await fn();
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
       }
+      if (msg) toast.success(msg);
     });
   return { pending, run };
 }
@@ -56,7 +63,7 @@ function ActionForm({
   children,
   className,
 }: {
-  action: (formData: FormData) => Promise<void>;
+  action: (formData: FormData) => Promise<ActionResult<unknown>>;
   successMessage: string;
   children: React.ReactNode;
   className?: string;
@@ -169,6 +176,8 @@ function ProjectRow({ project }: { project: ProjectView }) {
             id={`project-limit-${project.id}`}
             name="monthlyLimitHours"
             inputMode="decimal"
+            pattern={QUARTER_HOURS_PATTERN}
+            title={QUARTER_HOURS_TITLE}
             placeholder="z. B. 40"
             defaultValue={project.monthlyLimitHours ?? ""}
           />
@@ -330,6 +339,8 @@ export function CustomerCard({ customer }: { customer: CustomerView }) {
                 id={`new-project-limit-${customer.id}`}
                 name="monthlyLimitHours"
                 inputMode="decimal"
+                pattern={QUARTER_HOURS_PATTERN}
+                title={QUARTER_HOURS_TITLE}
                 placeholder="z. B. 40"
               />
             </div>
