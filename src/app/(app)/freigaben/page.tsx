@@ -108,7 +108,7 @@ export default async function FreigabenPage() {
   ].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
   return (
-    <div>
+    <div data-page-width="wide">
       <PageHeader
         title="Freigaben"
         description="Alle offenen Anträge mit Direktzugriff auf die Freigabe"

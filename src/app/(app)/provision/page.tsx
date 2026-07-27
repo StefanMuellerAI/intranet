@@ -42,7 +42,7 @@ export default async function ProvisionPage() {
   const openCount = claims.filter((c) => c.status === "eingereicht").length;
 
   return (
-    <div>
+    <div data-page-width="wide">
       <PageHeader
         title="Provisionen"
         description="Eigene Provisionsansprüche aus Folgegeschäften (Beratung und Schulung)"

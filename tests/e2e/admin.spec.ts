@@ -70,28 +70,39 @@ test.describe("Administration", () => {
     await admin.goto("/mitarbeitende");
 
     // Einladen (Clerk-Einladung mit notify:false, Mail nur über Stub geloggt)
+    await admin
+      .getByRole("button", { name: "Mitarbeiter/in einladen" })
+      .click();
     await admin.locator("#firstName").fill("Nora");
     await admin.locator("#lastName").fill("Neu");
     await admin.locator("#email").fill("e2e-neu@stefanai.de");
-    await admin.getByRole("button", { name: "Einladen", exact: true }).click();
+    await admin
+      .getByRole("dialog")
+      .getByRole("button", { name: "Einladen", exact: true })
+      .click();
     await expect(admin.getByText("Einladung versendet.")).toBeVisible();
 
-    await expect(admin.getByText("e2e-neu@stefanai.de")).toBeVisible();
-    await expect(admin.getByText("Eingeladen")).toBeVisible();
+    // Die neue Zeile trägt Status "Eingeladen" und die Aktion zum Nachfassen
+    const row = admin.locator("tr", { hasText: "e2e-neu@stefanai.de" }).first();
+    await expect(row).toBeVisible();
+    await expect(row.getByText("Eingeladen")).toBeVisible();
+    await expect(
+      row.getByRole("button", { name: "Einladung erneut senden" })
+    ).toBeVisible();
 
     // Deaktivieren (Offboarding — Daten bleiben erhalten)
+    await row.getByRole("button", { name: "Deaktivieren" }).click();
     await admin
-      .locator("div.flex.flex-wrap.gap-2", {
-        has: admin.getByRole("button", { name: "Einladung erneut senden" }),
-      })
+      .getByRole("dialog")
       .getByRole("button", { name: "Deaktivieren" })
       .click();
     await expect(admin.getByText(/User deaktiviert/)).toBeVisible();
-    await expect(admin.getByText("Deaktiviert").first()).toBeVisible();
+    await expect(row.getByText("Deaktiviert")).toBeVisible();
 
     // Reaktivieren
-    await admin.getByRole("button", { name: "Reaktivieren" }).click();
+    await row.getByRole("button", { name: "Reaktivieren" }).click();
     await expect(admin.getByText("User reaktiviert.")).toBeVisible();
+    await expect(row.getByText("Aktiv")).toBeVisible();
   });
 
   test("Fremde E-Mail-Domains können nicht eingeladen werden", async ({
@@ -99,10 +110,16 @@ test.describe("Administration", () => {
   }) => {
     const admin = await pageAs(browser, ADMIN_STATE);
     await admin.goto("/mitarbeitende");
+    await admin
+      .getByRole("button", { name: "Mitarbeiter/in einladen" })
+      .click();
     await admin.locator("#firstName").fill("Eve");
     await admin.locator("#lastName").fill("Extern");
     await admin.locator("#email").fill("eve@example.com");
-    await admin.getByRole("button", { name: "Einladen", exact: true }).click();
+    await admin
+      .getByRole("dialog")
+      .getByRole("button", { name: "Einladen", exact: true })
+      .click();
     await expect(
       admin.getByText(/Zulässig sind ausschließlich Adressen der Domain/)
     ).toBeVisible();

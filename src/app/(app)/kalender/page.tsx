@@ -184,7 +184,7 @@ export default async function KalenderPage({
       : { year, month: month + 1 };
 
   return (
-    <div>
+    <div data-page-width="wide">
       <PageHeader
         title="Abwesenheitskalender"
         description="Genehmigte Urlaube, Workations, Krankheitszeiten, Geburtstage und Teamevents"
@@ -286,7 +286,7 @@ export default async function KalenderPage({
         <CardContent
           className={cn(
             "grid gap-6 pt-6",
-            yearView && "md:grid-cols-2 xl:grid-cols-3"
+            yearView && "md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
           )}
         >
           {months.map((m) => (

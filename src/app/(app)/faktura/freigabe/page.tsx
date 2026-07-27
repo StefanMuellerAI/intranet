@@ -121,7 +121,7 @@ export default async function FakturaFreigabePage({
     .map((u) => ({ id: u.id, name: fullName(u) }));
 
   return (
-    <div>
+    <div data-page-width="wide">
       <PageHeader
         title="Wochenfreigabe"
         description="Alle Buchungen aller Mitarbeitenden je Kalenderwoche — gruppiert nach Kunde, Projekt und Tag. Freigaben erfolgen immer für die gesamte Woche."

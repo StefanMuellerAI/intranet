@@ -2,17 +2,33 @@
 
 import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { FileText, Trash2 } from "lucide-react";
+import { FileText, Mail, Pencil, Plus, UserCheck, UserX } from "lucide-react";
+import {
+  ConfirmDialog,
+  DeleteDialog,
+  FormDialog,
+  PanelDialog,
+  RowActions,
+  TabSection,
+  createTrigger,
+  editTrigger,
+  iconTrigger,
+  useAction,
+} from "@/components/admin-ui";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TableCell, TableHead, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DOCUMENT_CATEGORY_LABELS,
   DOCUMENT_CATEGORY_OPTIONS,
 } from "@/lib/documents";
 import {
   deleteEmployeeDocument,
+  inviteUser,
   resendInvitation,
   setUserStatus,
   updateUserBirthday,
@@ -20,6 +36,56 @@ import {
   updateUserVacation,
   uploadEmployeeDocuments,
 } from "@/app/(app)/mitarbeitende/actions";
+
+export interface SupervisorOption {
+  id: string;
+  name: string;
+}
+
+export interface EmployeeDocumentItem {
+  id: string;
+  category: string;
+  categoryLabel: string;
+  title: string | null;
+  filename: string;
+  createdAtLabel: string;
+}
+
+export type UserStatus = "eingeladen" | "aktiv" | "deaktiviert";
+
+export type EmployeeRow = {
+  id: string;
+  name: string;
+  email: string;
+  status: UserStatus;
+  isAdmin: boolean;
+  isSelf: boolean;
+  isManagingDirector: boolean;
+  annualVacationDays: number;
+  vacationCarryoverDays: number;
+  birthDate: string | null;
+  birthdayLabel: string;
+  technicalSupervisorId: string | null;
+  disciplinarySupervisorId: string | null;
+  supervisorsLabel: string;
+  documents: EmployeeDocumentItem[];
+};
+
+const STATUS_LABELS: Record<UserStatus, string> = {
+  eingeladen: "Eingeladen",
+  aktiv: "Aktiv",
+  deaktiviert: "Deaktiviert",
+};
+
+const STATUS_CLASSES: Record<UserStatus, string> = {
+  aktiv: "bg-green-100 text-green-800 border-green-200",
+  eingeladen: "bg-blue-100 text-blue-800 border-blue-200",
+  deaktiviert: "bg-gray-100 text-gray-600 border-gray-200",
+};
+
+// ---------------------------------------------------------------------------
+// Bausteine
+// ---------------------------------------------------------------------------
 
 function CategorySelect({
   id,
@@ -46,72 +112,91 @@ function CategorySelect({
   );
 }
 
-export function UserRowActions({
-  userId,
-  status,
-  isSelf,
+function SupervisorSelect({
+  id,
+  name,
+  defaultValue,
+  options,
 }: {
-  userId: string;
-  status: string;
-  isSelf: boolean;
+  id: string;
+  name: string;
+  defaultValue: string | null;
+  options: SupervisorOption[];
 }) {
-  const [pending, startTransition] = useTransition();
-
-  function run(fn: () => Promise<void>, msg: string) {
-    startTransition(async () => {
-      try {
-        await fn();
-        toast.success(msg);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Fehler");
-      }
-    });
-  }
-
   return (
-    <div className="flex flex-wrap gap-2">
-      {status === "eingeladen" && (
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={pending}
-          onClick={() =>
-            run(() => resendInvitation(userId), "Einladung erneut versendet.")
-          }
-        >
-          Einladung erneut senden
-        </Button>
-      )}
-      {!isSelf && status !== "deaktiviert" && (
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={pending}
-          onClick={() =>
-            run(
-              () => setUserStatus(userId, "deaktiviert"),
-              "User deaktiviert — Login gesperrt, Antragsdaten bleiben erhalten."
-            )
-          }
-        >
-          Deaktivieren
-        </Button>
-      )}
-      {!isSelf && status === "deaktiviert" && (
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={pending}
-          onClick={() =>
-            run(() => setUserStatus(userId, "aktiv"), "User reaktiviert.")
-          }
-        >
-          Reaktivieren
-        </Button>
-      )}
-    </div>
+    <select
+      id={id}
+      name={name}
+      defaultValue={defaultValue ?? ""}
+      className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+    >
+      <option value="">— keine Angabe —</option>
+      {options.map((o) => (
+        <option key={o.id} value={o.id}>
+          {o.name}
+        </option>
+      ))}
+    </select>
   );
 }
+
+function StatusBadge({ status }: { status: UserStatus }) {
+  return (
+    <Badge variant="outline" className={STATUS_CLASSES[status]}>
+      {STATUS_LABELS[status]}
+    </Badge>
+  );
+}
+
+/** Abschnitt innerhalb eines Dialogs — jeder speichert für sich. */
+function DialogSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-2 border-t pt-4 first:border-t-0 first:pt-0">
+      <h3 className="text-sm font-medium">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+/** Icon-Button in der Aktionsspalte, der eine Server Action direkt auslöst. */
+function IconAction({
+  label,
+  action,
+  successMessage,
+  children,
+}: {
+  label: string;
+  action: () => Promise<unknown>;
+  successMessage: string;
+  children: React.ReactNode;
+}) {
+  const { pending, run } = useAction();
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      aria-label={label}
+      title={label}
+      disabled={pending}
+      className="text-muted-foreground hover:text-foreground"
+      onClick={() => run(action, successMessage)}
+    >
+      {children}
+    </Button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Formulare — jedes ruft genau eine Server Action und schreibt einen
+// eigenen Audit-Eintrag, deshalb behält jedes seinen Speichern-Button.
+// ---------------------------------------------------------------------------
 
 export function VacationEntitlementForm({
   userId,
@@ -140,8 +225,11 @@ export function VacationEntitlementForm({
       className="flex flex-wrap items-end gap-2"
     >
       <div className="space-y-1">
-        <Label className="text-xs">Jahresanspruch (Tage)</Label>
+        <Label htmlFor={`annual-vacation-${userId}`} className="text-xs">
+          Jahresanspruch (Tage)
+        </Label>
         <Input
+          id={`annual-vacation-${userId}`}
           name="annualVacationDays"
           type="number"
           step="0.5"
@@ -151,8 +239,11 @@ export function VacationEntitlementForm({
         />
       </div>
       <div className="space-y-1">
-        <Label className="text-xs">Übertrag Vorjahr (Tage)</Label>
+        <Label htmlFor={`vacation-carryover-${userId}`} className="text-xs">
+          Übertrag Vorjahr (Tage)
+        </Label>
         <Input
+          id={`vacation-carryover-${userId}`}
           name="vacationCarryoverDays"
           type="number"
           step="0.5"
@@ -207,39 +298,6 @@ export function BirthdayForm({
         Speichern
       </Button>
     </form>
-  );
-}
-
-export interface SupervisorOption {
-  id: string;
-  name: string;
-}
-
-function SupervisorSelect({
-  id,
-  name,
-  defaultValue,
-  options,
-}: {
-  id: string;
-  name: string;
-  defaultValue: string | null;
-  options: SupervisorOption[];
-}) {
-  return (
-    <select
-      id={id}
-      name={name}
-      defaultValue={defaultValue ?? ""}
-      className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-    >
-      <option value="">— keine Angabe —</option>
-      {options.map((o) => (
-        <option key={o.id} value={o.id}>
-          {o.name}
-        </option>
-      ))}
-    </select>
   );
 }
 
@@ -328,15 +386,6 @@ export function SupervisorsForm({
   );
 }
 
-export interface EmployeeDocumentItem {
-  id: string;
-  category: string;
-  categoryLabel: string;
-  title: string | null;
-  filename: string;
-  createdAtLabel: string;
-}
-
 export function EmployeeDocumentsPanel({
   userId,
   documents,
@@ -349,13 +398,9 @@ export function EmployeeDocumentsPanel({
   const uploadWithId = uploadEmployeeDocuments.bind(null, userId);
 
   return (
-    <div className="rounded-md border p-3">
-      <p className="mb-2 text-sm font-medium">
-        Dokumente ({documents.length})
-      </p>
-
-      {documents.length > 0 && (
-        <ul className="mb-3 space-y-1">
+    <div className="space-y-4">
+      {documents.length > 0 ? (
+        <ul className="space-y-1">
           {documents.map((doc) => (
             <li
               key={doc.id}
@@ -373,36 +418,19 @@ export function EmployeeDocumentsPanel({
               <span className="text-xs text-muted-foreground">
                 {doc.categoryLabel} · {doc.createdAtLabel}
               </span>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                disabled={pending}
-                title="Dokument endgültig löschen"
-                onClick={() => {
-                  if (
-                    !window.confirm(
-                      `Dokument "${doc.filename}" endgültig löschen?`
-                    )
-                  )
-                    return;
-                  startTransition(async () => {
-                    try {
-                      await deleteEmployeeDocument(doc.id);
-                      toast.success("Dokument gelöscht.");
-                    } catch (err) {
-                      toast.error(
-                        err instanceof Error ? err.message : "Fehler"
-                      );
-                    }
-                  });
-                }}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <DeleteDialog
+                entityLabel="Dokument"
+                itemTitle={doc.filename}
+                action={() => deleteEmployeeDocument(doc.id)}
+                successMessage="Dokument gelöscht."
+              />
             </li>
           ))}
         </ul>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          Noch keine Dokumente hinterlegt.
+        </p>
       )}
 
       <form
@@ -418,7 +446,7 @@ export function EmployeeDocumentsPanel({
             }
           })
         }
-        className="grid items-end gap-2 sm:grid-cols-4"
+        className="grid items-end gap-3 border-t pt-4 sm:grid-cols-2"
       >
         <div className="space-y-1">
           <Label htmlFor={`doc-files-${userId}`} className="text-xs">
@@ -449,7 +477,13 @@ export function EmployeeDocumentsPanel({
             placeholder="z. B. Arbeitsvertrag vom 01.01.2026"
           />
         </div>
-        <Button size="sm" variant="outline" type="submit" disabled={pending}>
+        <Button
+          size="sm"
+          variant="outline"
+          type="submit"
+          disabled={pending}
+          className="sm:w-fit"
+        >
           {pending ? "Wird gespeichert …" : "Hochladen"}
         </Button>
       </form>
@@ -457,40 +491,25 @@ export function EmployeeDocumentsPanel({
   );
 }
 
-export function InviteForm({
-  action,
+/** Felder des Einladen-Dialogs. */
+function InviteFields({
   defaultVacationDays,
   emailDomain,
 }: {
-  action: (formData: FormData) => Promise<void>;
   defaultVacationDays: number;
   emailDomain: string;
 }) {
-  const [pending, startTransition] = useTransition();
-
   return (
-    <form
-      action={(fd) =>
-        startTransition(async () => {
-          try {
-            await action(fd);
-            toast.success("Einladung versendet.");
-          } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Fehler");
-          }
-        })
-      }
-      className="grid gap-4 sm:grid-cols-2"
-    >
-      <div className="space-y-1">
+    <>
+      <div className="space-y-1.5">
         <Label htmlFor="firstName">Vorname</Label>
         <Input id="firstName" name="firstName" required />
       </div>
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         <Label htmlFor="lastName">Nachname</Label>
         <Input id="lastName" name="lastName" required />
       </div>
-      <div className="space-y-1">
+      <div className="space-y-1.5 sm:col-span-2">
         <Label htmlFor="email">E-Mail-Adresse (@{emailDomain})</Label>
         <Input
           id="email"
@@ -500,7 +519,7 @@ export function InviteForm({
           placeholder={`vorname.nachname@${emailDomain}`}
         />
       </div>
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         <Label htmlFor="annualVacationDays">
           Jahresurlaubsanspruch (Pflichtfeld)
         </Label>
@@ -514,14 +533,14 @@ export function InviteForm({
           defaultValue={defaultVacationDays}
         />
       </div>
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         <Label htmlFor="invite-birth-date">Geburtsdatum (optional)</Label>
         <Input id="invite-birth-date" name="birthDate" type="date" />
         <p className="text-xs text-muted-foreground">
           Wird im Kalender als Geburtstag angezeigt — ohne Geburtsjahr.
         </p>
       </div>
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         <Label htmlFor="invite-documents">
           Arbeitsvertrag &amp; weitere Dokumente (optional)
         </Label>
@@ -536,18 +555,288 @@ export function InviteForm({
           PDF/JPG/PNG, max. 10 MB pro Datei — wird verschlüsselt gespeichert.
         </p>
       </div>
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         <Label htmlFor="invite-document-category">Dokument-Kategorie</Label>
         <CategorySelect
           id="invite-document-category"
           name="documentCategory"
         />
       </div>
-      <div className="sm:col-span-2">
-        <Button type="submit" disabled={pending}>
-          {pending ? "Wird versendet …" : "Einladen"}
-        </Button>
-      </div>
-    </form>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tabelle mit Aktionsspalte
+// ---------------------------------------------------------------------------
+
+function EmployeeRowActions({
+  user,
+  supervisorOptions,
+}: {
+  user: EmployeeRow;
+  supervisorOptions: SupervisorOption[];
+}) {
+  return (
+    <RowActions>
+      <PanelDialog
+        trigger={editTrigger}
+        triggerLabel={<Pencil className="h-4 w-4" />}
+        title={`${user.name} bearbeiten`}
+        description="Jeder Abschnitt wird einzeln gespeichert."
+        contentClassName="sm:max-w-2xl"
+      >
+        <div className="space-y-4">
+          <DialogSection title="Urlaubskonto">
+            <VacationEntitlementForm
+              userId={user.id}
+              annualVacationDays={user.annualVacationDays}
+              vacationCarryoverDays={user.vacationCarryoverDays}
+            />
+          </DialogSection>
+          <DialogSection title="Geburtsdatum">
+            <BirthdayForm userId={user.id} birthDate={user.birthDate} />
+          </DialogSection>
+          <DialogSection title="Vorgesetzte">
+            <SupervisorsForm
+              userId={user.id}
+              technicalSupervisorId={user.technicalSupervisorId}
+              disciplinarySupervisorId={user.disciplinarySupervisorId}
+              isManagingDirector={user.isManagingDirector}
+              options={supervisorOptions.filter((o) => o.id !== user.id)}
+            />
+          </DialogSection>
+        </div>
+      </PanelDialog>
+
+      <PanelDialog
+        trigger={iconTrigger("Dokumente")}
+        triggerLabel={<FileText className="h-4 w-4" />}
+        title={`Dokumente — ${user.name}`}
+        description="Verschlüsselt abgelegt; Löschen entfernt Datei und Metadaten endgültig."
+        contentClassName="sm:max-w-2xl"
+      >
+        <EmployeeDocumentsPanel
+          userId={user.id}
+          documents={user.documents}
+        />
+      </PanelDialog>
+
+      {user.status === "eingeladen" && (
+        <IconAction
+          label="Einladung erneut senden"
+          action={() => resendInvitation(user.id)}
+          successMessage="Einladung erneut versendet."
+        >
+          <Mail className="h-4 w-4" />
+        </IconAction>
+      )}
+
+      {!user.isSelf && user.status !== "deaktiviert" && (
+        <ConfirmDialog
+          trigger={iconTrigger("Deaktivieren")}
+          triggerLabel={<UserX className="h-4 w-4" />}
+          title="Zugang deaktivieren?"
+          description={`Der Login von „${user.name}“ wird gesperrt. Anträge und Dokumente bleiben erhalten und der Zugang kann jederzeit reaktiviert werden.`}
+          confirmLabel="Deaktivieren"
+          pendingLabel="Wird deaktiviert …"
+          action={() => setUserStatus(user.id, "deaktiviert")}
+          successMessage="User deaktiviert — Login gesperrt, Antragsdaten bleiben erhalten."
+          variant="destructive"
+        />
+      )}
+
+      {!user.isSelf && user.status === "deaktiviert" && (
+        <IconAction
+          label="Reaktivieren"
+          action={() => setUserStatus(user.id, "aktiv")}
+          successMessage="User reaktiviert."
+        >
+          <UserCheck className="h-4 w-4" />
+        </IconAction>
+      )}
+    </RowActions>
+  );
+}
+
+function EmployeeTable({
+  users,
+  supervisorOptions,
+  defaultVacationDays,
+  emailDomain,
+  hint,
+  emptyLabel,
+}: {
+  users: EmployeeRow[];
+  supervisorOptions: SupervisorOption[];
+  defaultVacationDays: number;
+  emailDomain: string;
+  hint: string;
+  emptyLabel: string;
+}) {
+  return (
+    <TabSection
+      hint={hint}
+      isEmpty={users.length === 0}
+      emptyLabel={emptyLabel}
+      columns={
+        <>
+          <TableHead className="pl-4">Name</TableHead>
+          <TableHead>E-Mail</TableHead>
+          <TableHead className="w-32">Status</TableHead>
+          <TableHead className="w-28 text-right">Urlaub</TableHead>
+          <TableHead className="w-32">Geburtstag</TableHead>
+          <TableHead>Vorgesetzte</TableHead>
+          <TableHead className="w-28 text-right">Dokumente</TableHead>
+          <TableHead className="w-40 pr-4 text-right">Aktionen</TableHead>
+        </>
+      }
+      note="Deaktivierte Zugänge behalten ihre Anträge und Dokumente — Offboarding sperrt nur den Login."
+      createAction={
+        <FormDialog
+          trigger={createTrigger}
+          triggerLabel={
+            <>
+              <Plus className="h-4 w-4" />
+              Mitarbeiter/in einladen
+            </>
+          }
+          title="Neue/n Mitarbeiter/in einladen"
+          description="Die Einladung wird per E-Mail versendet; der Zugang gilt bis zur Anmeldung als „Eingeladen“."
+          action={inviteUser}
+          successMessage="Einladung versendet."
+          submitLabel="Einladen"
+        >
+          <InviteFields
+            defaultVacationDays={defaultVacationDays}
+            emailDomain={emailDomain}
+          />
+        </FormDialog>
+      }
+    >
+      {users.map((user) => (
+        <TableRow key={user.id}>
+          <TableCell className="pl-4 font-medium">
+            <div className="flex flex-wrap items-center gap-2">
+              {user.name}
+              {user.isAdmin && <Badge>Admin</Badge>}
+              {user.isManagingDirector && (
+                <Badge variant="secondary">GF</Badge>
+              )}
+            </div>
+          </TableCell>
+          <TableCell>
+            <span className="block max-w-[14rem] truncate text-muted-foreground 2xl:max-w-[20rem]">
+              {user.email}
+            </span>
+          </TableCell>
+          <TableCell>
+            <StatusBadge status={user.status} />
+          </TableCell>
+          <TableCell className="text-right tabular-nums text-muted-foreground">
+            {user.annualVacationDays}
+            {user.vacationCarryoverDays !== 0 &&
+              ` + ${user.vacationCarryoverDays}`}{" "}
+            T
+          </TableCell>
+          <TableCell className="tabular-nums text-muted-foreground">
+            {user.birthdayLabel}
+          </TableCell>
+          <TableCell>
+            <span className="block max-w-[16rem] truncate text-muted-foreground 2xl:max-w-[24rem]">
+              {user.supervisorsLabel}
+            </span>
+          </TableCell>
+          <TableCell className="text-right tabular-nums text-muted-foreground">
+            {user.documents.length}
+          </TableCell>
+          <TableCell className="pr-4">
+            <EmployeeRowActions
+              user={user}
+              supervisorOptions={supervisorOptions}
+            />
+          </TableCell>
+        </TableRow>
+      ))}
+    </TabSection>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Seiteneinstieg
+// ---------------------------------------------------------------------------
+
+export function UserAdminTabs({
+  users,
+  supervisorOptions,
+  defaultVacationDays,
+  emailDomain,
+}: {
+  users: EmployeeRow[];
+  supervisorOptions: SupervisorOption[];
+  defaultVacationDays: number;
+  emailDomain: string;
+}) {
+  const active = users.filter((u) => u.status === "aktiv");
+  const invited = users.filter((u) => u.status === "eingeladen");
+  const deactivated = users.filter((u) => u.status === "deaktiviert");
+
+  const tabs = [
+    {
+      value: "alle",
+      label: "Alle",
+      rows: users,
+      hint: "Bearbeiten öffnet Urlaubskonto, Geburtsdatum und Vorgesetzte; Dokumente liegen in einem eigenen Dialog.",
+      emptyLabel: "Noch keine Mitarbeitenden angelegt.",
+    },
+    {
+      value: "aktiv",
+      label: "Aktiv",
+      rows: active,
+      hint: "Angemeldete Mitarbeitende mit Zugang zum Intranet.",
+      emptyLabel: "Keine aktiven Mitarbeitenden.",
+    },
+    {
+      value: "eingeladen",
+      label: "Eingeladen",
+      rows: invited,
+      hint: "Einladung versendet, aber noch keine Anmeldung erfolgt — die Einladung lässt sich erneut senden.",
+      emptyLabel: "Keine offenen Einladungen.",
+    },
+    {
+      value: "deaktiviert",
+      label: "Deaktiviert",
+      rows: deactivated,
+      hint: "Login gesperrt (Offboarding) — Anträge und Dokumente bleiben erhalten.",
+      emptyLabel: "Keine deaktivierten Zugänge.",
+    },
+  ];
+
+  return (
+    <Tabs defaultValue="alle" className="gap-6">
+      <TabsList>
+        {tabs.map((tab) => (
+          <TabsTrigger key={tab.value} value={tab.value}>
+            {tab.label}
+            <span className="tabular-nums text-muted-foreground">
+              {tab.rows.length}
+            </span>
+          </TabsTrigger>
+        ))}
+      </TabsList>
+
+      {tabs.map((tab) => (
+        <TabsContent key={tab.value} value={tab.value}>
+          <EmployeeTable
+            users={tab.rows}
+            supervisorOptions={supervisorOptions}
+            defaultVacationDays={defaultVacationDays}
+            emailDomain={emailDomain}
+            hint={tab.hint}
+            emptyLabel={tab.emptyLabel}
+          />
+        </TabsContent>
+      ))}
+    </Tabs>
   );
 }

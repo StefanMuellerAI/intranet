@@ -1,8 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { Pencil, Plus } from "lucide-react";
 import {
   createHelpfulLink,
   createNewsItem,
@@ -17,28 +15,19 @@ import {
   updateNewsItem,
   updateTeamEvent,
 } from "@/app/(app)/inhalte/actions";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  DeleteDialog,
+  FormDialog,
+  RowActions,
+  TabSection,
+  VisibilityBadge,
+  VisibilityToggle,
+  createTrigger,
+  editTrigger,
+} from "@/components/admin-ui";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { TableCell, TableHead, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -67,242 +56,6 @@ export type TeamEventView = {
   active: boolean;
   rangeLabel: string;
 };
-
-// ---------------------------------------------------------------------------
-// Bausteine
-// ---------------------------------------------------------------------------
-
-/**
- * Führt eine Server Action aus, meldet das Ergebnis als Toast und liefert
- * `true` zurück, wenn sie ohne Fehler durchgelaufen ist. Dialoge nutzen den
- * Rückgabewert, um sich nur bei Erfolg zu schließen.
- */
-function useAction() {
-  const [pending, startTransition] = useTransition();
-  const run = (fn: () => Promise<unknown>, msg?: string) =>
-    new Promise<boolean>((resolve) => {
-      startTransition(async () => {
-        try {
-          await fn();
-          if (msg) toast.success(msg);
-          resolve(true);
-        } catch (err) {
-          toast.error(err instanceof Error ? err.message : "Fehler");
-          resolve(false);
-        }
-      });
-    });
-  return { pending, run };
-}
-
-function FormDialog({
-  trigger,
-  triggerLabel,
-  title,
-  description,
-  action,
-  successMessage,
-  submitLabel,
-  children,
-}: {
-  trigger: React.ReactElement;
-  triggerLabel: React.ReactNode;
-  title: string;
-  description?: string;
-  action: (formData: FormData) => Promise<void>;
-  successMessage: string;
-  submitLabel: string;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(false);
-  const { pending, run } = useAction();
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={trigger}>{triggerLabel}</DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          {description && <DialogDescription>{description}</DialogDescription>}
-        </DialogHeader>
-        <form
-          action={async (formData) => {
-            if (await run(() => action(formData), successMessage)) setOpen(false);
-          }}
-          aria-busy={pending}
-          className="grid gap-4"
-        >
-          <div className="grid gap-3 sm:grid-cols-2">{children}</div>
-          <DialogFooter>
-            <DialogClose render={<Button type="button" variant="outline" />}>
-              Abbrechen
-            </DialogClose>
-            <Button type="submit" disabled={pending}>
-              {pending ? "Wird gespeichert …" : submitLabel}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function DeleteDialog({
-  entityLabel,
-  itemTitle,
-  action,
-  successMessage,
-}: {
-  entityLabel: string;
-  itemTitle: string;
-  action: () => Promise<unknown>;
-  successMessage: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const { pending, run } = useAction();
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Löschen"
-            title="Löschen"
-            className="text-muted-foreground hover:text-destructive"
-          />
-        }
-      >
-        <Trash2 className="h-4 w-4" />
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{entityLabel} löschen?</DialogTitle>
-          <DialogDescription>
-            „{itemTitle}“ wird endgültig entfernt. Dieser Schritt lässt sich
-            nicht rückgängig machen.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>
-            Abbrechen
-          </DialogClose>
-          <Button
-            variant="destructive"
-            disabled={pending}
-            onClick={async () => {
-              if (await run(action, successMessage)) setOpen(false);
-            }}
-          >
-            {pending ? "Wird gelöscht …" : "Endgültig löschen"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function VisibilityToggle({
-  active,
-  action,
-  hiddenMessage,
-  shownMessage,
-}: {
-  active: boolean;
-  action: () => Promise<unknown>;
-  hiddenMessage: string;
-  shownMessage: string;
-}) {
-  const { pending, run } = useAction();
-  const label = active ? "Ausblenden" : "Einblenden";
-
-  return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      aria-label={label}
-      title={label}
-      disabled={pending}
-      className="text-muted-foreground hover:text-foreground"
-      onClick={() => run(action, active ? hiddenMessage : shownMessage)}
-    >
-      {active ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-    </Button>
-  );
-}
-
-function StatusBadge({ active }: { active: boolean }) {
-  return (
-    <Badge variant={active ? "secondary" : "outline"}>
-      {active ? "sichtbar" : "ausgeblendet"}
-    </Badge>
-  );
-}
-
-function RowActions({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-end gap-0.5">{children}</div>
-  );
-}
-
-/** Icon-Button, der in einer Tabellenzeile den Bearbeiten-Dialog öffnet. */
-const editTrigger = (
-  <Button
-    variant="ghost"
-    size="icon-sm"
-    aria-label="Bearbeiten"
-    title="Bearbeiten"
-    className="text-muted-foreground hover:text-foreground"
-  />
-);
-
-/** Button unterhalb einer Tabelle, der den Anlegen-Dialog öffnet. */
-const createTrigger = <Button variant="outline" size="sm" />;
-
-function TabSection({
-  hint,
-  isEmpty,
-  emptyLabel,
-  columns,
-  createAction,
-  note,
-  children,
-}: {
-  hint: string;
-  isEmpty: boolean;
-  emptyLabel: string;
-  columns: React.ReactNode;
-  createAction: React.ReactNode;
-  note?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">{hint}</p>
-
-      <div className="overflow-hidden rounded-xl ring-1 ring-foreground/10">
-        {isEmpty ? (
-          <p className="px-4 py-10 text-center text-sm text-muted-foreground">
-            {emptyLabel}
-          </p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/40 hover:bg-muted/40">
-                {columns}
-              </TableRow>
-            </TableHeader>
-            <TableBody>{children}</TableBody>
-          </Table>
-        )}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">{createAction}</div>
-      {note && <p className="text-xs text-muted-foreground">{note}</p>}
-    </div>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Formularfelder — von Anlegen- und Bearbeiten-Dialog gemeinsam genutzt
@@ -503,7 +256,7 @@ function HelpfulLinksTable({ links }: { links: HelpfulLinkView[] }) {
             </span>
           </TableCell>
           <TableCell>
-            <StatusBadge active={link.active} />
+            <VisibilityBadge active={link.active} />
           </TableCell>
           <TableCell className="pr-4">
             <RowActions>
@@ -587,7 +340,7 @@ function NewsTable({ news }: { news: NewsItemView[] }) {
             {item.createdLabel}
           </TableCell>
           <TableCell>
-            <StatusBadge active={item.active} />
+            <VisibilityBadge active={item.active} />
           </TableCell>
           <TableCell className="pr-4">
             <RowActions>
@@ -666,7 +419,7 @@ function TeamEventsTable({ events }: { events: TeamEventView[] }) {
             {event.rangeLabel}
           </TableCell>
           <TableCell>
-            <StatusBadge active={event.active} />
+            <VisibilityBadge active={event.active} />
           </TableCell>
           <TableCell className="pr-4">
             <RowActions>
