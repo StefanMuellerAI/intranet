@@ -492,13 +492,13 @@ function HelpfulLinksTable({ links }: { links: HelpfulLinkView[] }) {
               href={link.url}
               target="_blank"
               rel="noreferrer"
-              className="block max-w-[16rem] truncate text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              className="block max-w-[16rem] truncate text-muted-foreground underline underline-offset-2 hover:text-foreground 2xl:max-w-[26rem]"
             >
               {link.url}
             </a>
           </TableCell>
           <TableCell>
-            <span className="block max-w-[18rem] truncate text-muted-foreground">
+            <span className="block max-w-[18rem] truncate text-muted-foreground 2xl:max-w-[30rem]">
               {link.description || "—"}
             </span>
           </TableCell>
@@ -579,7 +579,7 @@ function NewsTable({ news }: { news: NewsItemView[] }) {
         <TableRow key={item.id}>
           <TableCell className="pl-4 font-medium">{item.title}</TableCell>
           <TableCell>
-            <span className="block max-w-[28rem] truncate text-muted-foreground">
+            <span className="block max-w-[28rem] truncate text-muted-foreground 2xl:max-w-[44rem]">
               {item.body}
             </span>
           </TableCell>
