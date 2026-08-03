@@ -1,7 +1,7 @@
 import { asc, desc } from "drizzle-orm";
 import { db, employeeDocuments, users } from "@/db";
 import { fullName, requireAdmin, ALLOWED_EMAIL_DOMAIN } from "@/lib/auth";
-import { formatDateDE } from "@/lib/dates";
+import { formatDateDE, toISODate } from "@/lib/dates";
 import { DOCUMENT_CATEGORY_LABELS } from "@/lib/documents";
 import { getSettings } from "@/lib/settings";
 import { PageHeader } from "@/components/page-header";
@@ -65,6 +65,8 @@ export default async function MitarbeitendePage() {
     return parts.length > 0 ? parts.join(" · ") : "—";
   }
 
+  const today = toISODate(new Date());
+
   const rows: EmployeeRow[] = allUsers.map((u) => ({
     id: u.id,
     name: fullName(u),
@@ -75,6 +77,10 @@ export default async function MitarbeitendePage() {
     isManagingDirector: u.isManagingDirector,
     annualVacationDays: u.annualVacationDays,
     vacationCarryoverDays: u.vacationCarryoverDays,
+    entryDate: u.entryDate,
+    entryYearVacationDays: u.entryYearVacationDays,
+    entryLabel: u.entryDate ? formatDateDE(u.entryDate) : "—",
+    entryPending: u.entryDate !== null && u.entryDate > today,
     birthDate: u.birthDate,
     birthdayLabel: u.birthDate ? formatDateDE(u.birthDate) : "—",
     technicalSupervisorId: u.technicalSupervisorId,

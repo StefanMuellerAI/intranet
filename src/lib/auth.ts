@@ -11,41 +11,85 @@ export function isAllowedEmail(email: string): boolean {
   return email.toLowerCase().endsWith(`@${ALLOWED_EMAIL_DOMAIN.toLowerCase()}`);
 }
 
+/** Zugang gilt erst ab dem Eintrittsdatum; ohne Eintrittsdatum sofort. */
+export function hasEntered(
+  user: Pick<User, "entryDate">,
+  today: string = toISODate(new Date())
+): boolean {
+  return !user.entryDate || user.entryDate <= today;
+}
+
+export type AccessResult =
+  | { user: User }
+  | {
+      user: null;
+      reason: "kein_konto" | "deaktiviert" | "vor_eintritt";
+      entryDate?: string;
+    };
+
+/** Zugangsentscheidung für einen bereits verknüpften DB-User. */
+function accessFor(user: User): AccessResult {
+  if (user.status === "deaktiviert") return { user: null, reason: "deaktiviert" };
+  if (!hasEntered(user))
+    return {
+      user: null,
+      reason: "vor_eintritt",
+      entryDate: user.entryDate ?? undefined,
+    };
+  return { user };
+}
+
 /**
- * Liefert den DB-User zum angemeldeten Clerk-User.
- * Verknüpft beim ersten Login den Clerk-Account mit dem eingeladenen DB-User
- * (Abgleich über die E-Mail-Adresse) und setzt den Status auf "aktiv".
+ * Liefert den DB-User zum angemeldeten Clerk-User — inklusive Begründung,
+ * falls der Zugang verweigert wird (für die Meldung im App-Layout).
+ * Verknüpft beim ersten Login ab dem Eintrittstag den Clerk-Account mit dem
+ * eingeladenen DB-User (Abgleich über die E-Mail-Adresse) und setzt den Status
+ * auf "aktiv".
  */
-export async function getCurrentUser(): Promise<User | null> {
+export async function resolveAccess(): Promise<AccessResult> {
   const { userId: clerkId } = await auth();
-  if (!clerkId) return null;
+  if (!clerkId) return { user: null, reason: "kein_konto" };
 
   const existing = await db.query.users.findFirst({
     where: eq(users.clerkId, clerkId),
   });
-  if (existing) return existing.status === "deaktiviert" ? null : existing;
+  if (existing) return accessFor(existing);
 
   // Erster Login nach Einladung: über E-Mail verknüpfen
   const clerkUser = await currentUser();
   const email = clerkUser?.primaryEmailAddress?.emailAddress?.toLowerCase();
-  if (!email || !isAllowedEmail(email)) return null;
+  if (!email || !isAllowedEmail(email))
+    return { user: null, reason: "kein_konto" };
 
   const invited = await db.query.users.findFirst({
     where: eq(users.email, email),
   });
-  if (!invited || invited.status === "deaktiviert") return null;
+  if (!invited) return { user: null, reason: "kein_konto" };
+
+  // Vor dem Eintritt wird bewusst nicht verknüpft: der Status bleibt
+  // "eingeladen", bis sich die Person ab dem Eintrittstag erstmals anmeldet.
+  const access = accessFor(invited);
+  if (access.user === null) return access;
 
   const [linked] = await db
     .update(users)
     .set({ clerkId, status: "aktiv", updatedAt: new Date() })
     .where(eq(users.id, invited.id))
     .returning();
-  return linked ?? null;
+  return linked ? { user: linked } : { user: null, reason: "kein_konto" };
+}
+
+/** Liefert den DB-User zum angemeldeten Clerk-User oder null. */
+export async function getCurrentUser(): Promise<User | null> {
+  return (await resolveAccess()).user;
 }
 
 export async function requireUser(): Promise<User> {
   const user = await getCurrentUser();
-  if (!user) throw new Error("Nicht angemeldet oder Konto deaktiviert.");
+  if (!user)
+    throw new Error(
+      "Nicht angemeldet, Konto deaktiviert oder Eintrittsdatum noch nicht erreicht."
+    );
   return user;
 }
 

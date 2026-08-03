@@ -13,6 +13,9 @@ export default async function NeuerUrlaubPage() {
   const user = await requireUser();
   const year = new Date().getFullYear();
   const account = await getVacationAccount(user, year);
+  // Anträge über den Jahreswechsel hinaus rechnen gegen den Anspruch des
+  // Folgejahres — im Eintrittsjahr sind das andere Werte als im laufenden Jahr.
+  const nextYearAccount = await getVacationAccount(user, year + 1);
   const colleagues = await db
     .select()
     .from(users)
@@ -35,6 +38,11 @@ export default async function NeuerUrlaubPage() {
         action={submitVacationRequest}
         users={colleagues.map((c) => ({ id: c.id, name: fullName(c) }))}
         remainingDays={account.remaining}
+        remainingByYear={{
+          [year]: account.remaining,
+          [year + 1]: nextYearAccount.remaining,
+        }}
+        minDate={user.entryDate ?? undefined}
         absences={absences}
         submitLabel="Antrag einreichen"
       />

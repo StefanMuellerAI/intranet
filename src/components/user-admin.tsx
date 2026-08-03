@@ -32,6 +32,7 @@ import {
   resendInvitation,
   setUserStatus,
   updateUserBirthday,
+  updateUserEntry,
   updateUserSupervisors,
   updateUserVacation,
   uploadEmployeeDocuments,
@@ -63,6 +64,12 @@ export type EmployeeRow = {
   isManagingDirector: boolean;
   annualVacationDays: number;
   vacationCarryoverDays: number;
+  entryDate: string | null;
+  entryYearVacationDays: number | null;
+  /** Eintrittsdatum als deutsches Datum oder „—“ */
+  entryLabel: string;
+  /** true, solange das Eintrittsdatum in der Zukunft liegt */
+  entryPending: boolean;
   birthDate: string | null;
   birthdayLabel: string;
   technicalSupervisorId: string | null;
@@ -254,6 +261,76 @@ export function VacationEntitlementForm({
       <Button size="sm" variant="outline" type="submit" disabled={pending}>
         Speichern
       </Button>
+    </form>
+  );
+}
+
+export function EntryForm({
+  userId,
+  entryDate,
+  entryYearVacationDays,
+}: {
+  userId: string;
+  entryDate: string | null;
+  entryYearVacationDays: number | null;
+}) {
+  const [pending, startTransition] = useTransition();
+  const updateWithId = updateUserEntry.bind(null, userId);
+
+  return (
+    <form
+      action={(fd) =>
+        startTransition(async () => {
+          try {
+            await updateWithId(fd);
+            toast.success("Eintritt gespeichert.");
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Fehler");
+          }
+        })
+      }
+      className="space-y-2"
+    >
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="space-y-1">
+          <Label htmlFor={`entry-date-${userId}`} className="text-xs">
+            Eintrittsdatum
+          </Label>
+          <Input
+            id={`entry-date-${userId}`}
+            name="entryDate"
+            type="date"
+            defaultValue={entryDate ?? ""}
+            className="w-40"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label
+            htmlFor={`entry-year-vacation-${userId}`}
+            className="text-xs"
+          >
+            Resturlaub im Eintrittsjahr (Tage)
+          </Label>
+          <Input
+            id={`entry-year-vacation-${userId}`}
+            name="entryYearVacationDays"
+            type="number"
+            step="1"
+            min="0"
+            defaultValue={entryYearVacationDays ?? ""}
+            className="w-28"
+          />
+        </div>
+        <Button size="sm" variant="outline" type="submit" disabled={pending}>
+          Speichern
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Der Zugang ist erst ab dem Eintrittsdatum freigeschaltet. Im
+        Eintrittsjahr gilt ausschließlich der hier hinterlegte Resturlaub, ab
+        dem Folgejahr der Jahresanspruch. Ohne Eintrittsdatum gilt in jedem Jahr
+        der Jahresanspruch.
+      </p>
     </form>
   );
 }
@@ -534,6 +611,31 @@ function InviteFields({
         />
       </div>
       <div className="space-y-1.5">
+        <Label htmlFor="invite-entry-date">Eintrittsdatum (Pflichtfeld)</Label>
+        <Input id="invite-entry-date" name="entryDate" type="date" required />
+        <p className="text-xs text-muted-foreground">
+          Der Intranet-Zugang ist erst ab diesem Tag freigeschaltet.
+        </p>
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="entryYearVacationDays">
+          Resturlaub im Eintrittsjahr (Pflichtfeld)
+        </Label>
+        <Input
+          id="entryYearVacationDays"
+          name="entryYearVacationDays"
+          type="number"
+          step="1"
+          min="0"
+          required
+          defaultValue={0}
+        />
+        <p className="text-xs text-muted-foreground">
+          Ganze Tage. Im Eintrittsjahr stehen nur diese Tage zur Verfügung; ab
+          dem Folgejahr gilt der Jahresurlaubsanspruch.
+        </p>
+      </div>
+      <div className="space-y-1.5">
         <Label htmlFor="invite-birth-date">Geburtsdatum (optional)</Label>
         <Input id="invite-birth-date" name="birthDate" type="date" />
         <p className="text-xs text-muted-foreground">
@@ -592,6 +694,13 @@ function EmployeeRowActions({
               userId={user.id}
               annualVacationDays={user.annualVacationDays}
               vacationCarryoverDays={user.vacationCarryoverDays}
+            />
+          </DialogSection>
+          <DialogSection title="Eintritt">
+            <EntryForm
+              userId={user.id}
+              entryDate={user.entryDate}
+              entryYearVacationDays={user.entryYearVacationDays}
             />
           </DialogSection>
           <DialogSection title="Geburtsdatum">
@@ -685,6 +794,7 @@ function EmployeeTable({
           <TableHead>E-Mail</TableHead>
           <TableHead className="w-32">Status</TableHead>
           <TableHead className="w-28 text-right">Urlaub</TableHead>
+          <TableHead className="w-36">Eintritt</TableHead>
           <TableHead className="w-32">Geburtstag</TableHead>
           <TableHead>Vorgesetzte</TableHead>
           <TableHead className="w-28 text-right">Dokumente</TableHead>
@@ -702,7 +812,7 @@ function EmployeeTable({
             </>
           }
           title="Neue/n Mitarbeiter/in einladen"
-          description="Die Einladung wird per E-Mail versendet; der Zugang gilt bis zur Anmeldung als „Eingeladen“."
+          description="Die Einladung wird sofort per E-Mail versendet; die Anmeldung ist erst ab dem Eintrittsdatum möglich."
           action={inviteUser}
           successMessage="Einladung versendet."
           submitLabel="Einladen"
@@ -738,6 +848,18 @@ function EmployeeTable({
             {user.vacationCarryoverDays !== 0 &&
               ` + ${user.vacationCarryoverDays}`}{" "}
             T
+          </TableCell>
+          <TableCell className="tabular-nums text-muted-foreground">
+            {user.entryPending ? (
+              <Badge
+                variant="outline"
+                className="bg-amber-100 text-amber-800 border-amber-200"
+              >
+                ab {user.entryLabel}
+              </Badge>
+            ) : (
+              user.entryLabel
+            )}
           </TableCell>
           <TableCell className="tabular-nums text-muted-foreground">
             {user.birthdayLabel}
@@ -786,7 +908,7 @@ export function UserAdminTabs({
       value: "alle",
       label: "Alle",
       rows: users,
-      hint: "Bearbeiten öffnet Urlaubskonto, Geburtsdatum und Vorgesetzte; Dokumente liegen in einem eigenen Dialog.",
+      hint: "Bearbeiten öffnet Urlaubskonto, Eintritt, Geburtsdatum und Vorgesetzte; Dokumente liegen in einem eigenen Dialog.",
       emptyLabel: "Noch keine Mitarbeitenden angelegt.",
     },
     {
@@ -800,7 +922,7 @@ export function UserAdminTabs({
       value: "eingeladen",
       label: "Eingeladen",
       rows: invited,
-      hint: "Einladung versendet, aber noch keine Anmeldung erfolgt — die Einladung lässt sich erneut senden.",
+      hint: "Einladung versendet, aber noch keine Anmeldung erfolgt — vor dem Eintrittsdatum ist die Anmeldung gesperrt. Die Einladung lässt sich erneut senden.",
       emptyLabel: "Keine offenen Einladungen.",
     },
     {

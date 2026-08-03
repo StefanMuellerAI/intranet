@@ -17,12 +17,21 @@ vi.mock("@/db", async (importOriginal) => {
   };
 });
 
-import { getVacationAccount } from "./vacation";
+import { getVacationAccount, getVacationEntitlement } from "./vacation";
 
 const user = {
   id: "user-1",
   annualVacationDays: 30,
   vacationCarryoverDays: 2,
+  entryDate: null,
+  entryYearVacationDays: null,
+} as User;
+
+/** Mitarbeiter/in mit Eintritt am 01.08.2026 und 12 Tagen Resturlaub */
+const newHire = {
+  ...user,
+  entryDate: "2026-08-01",
+  entryYearVacationDays: 12,
 } as User;
 
 function request(
@@ -72,5 +81,37 @@ describe("getVacationAccount", () => {
     );
     const account = await getVacationAccount(user, 2026);
     expect(account.used).toBe(2);
+  });
+
+  it("nutzt im Eintrittsjahr den Resturlaub als Anspruch", async () => {
+    rows.push(request("genehmigt", 4, "2026-09-01"));
+    const account = await getVacationAccount(newHire, 2026);
+    expect(account.entitlement).toBe(12);
+    expect(account.remaining).toBe(8);
+  });
+});
+
+describe("getVacationEntitlement", () => {
+  it("gibt vor dem Eintrittsjahr keinen Anspruch", () => {
+    expect(getVacationEntitlement(newHire, 2025)).toBe(0);
+  });
+
+  it("gibt im Eintrittsjahr nur den Resturlaub, ohne Übertrag", () => {
+    expect(getVacationEntitlement(newHire, 2026)).toBe(12);
+  });
+
+  it("gibt ab dem Folgejahr Jahresanspruch plus Übertrag", () => {
+    expect(getVacationEntitlement(newHire, 2027)).toBe(32);
+  });
+
+  it("behandelt einen fehlenden Resturlaub im Eintrittsjahr als 0 Tage", () => {
+    expect(
+      getVacationEntitlement({ ...newHire, entryYearVacationDays: null }, 2026)
+    ).toBe(0);
+  });
+
+  it("gilt ohne Eintrittsdatum in jedem Jahr voll", () => {
+    expect(getVacationEntitlement(user, 2025)).toBe(32);
+    expect(getVacationEntitlement(user, 2030)).toBe(32);
   });
 });

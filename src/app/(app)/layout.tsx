@@ -7,7 +7,8 @@ import {
   vacationRequests,
   workationRequests,
 } from "@/db";
-import { fullName, getActiveDeputy, getCurrentUser } from "@/lib/auth";
+import { fullName, getActiveDeputy, resolveAccess } from "@/lib/auth";
+import { formatDateDE } from "@/lib/dates";
 import { Sidebar } from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
 
@@ -21,17 +22,22 @@ export default async function AppLayout({
   // abgelaufenem Session-Token übernimmt Clerk den Token-Refresh.
   await auth.protect();
 
-  const user = await getCurrentUser();
+  const access = await resolveAccess();
 
-  if (!user) {
+  if (access.user === null) {
+    const beforeEntry = access.reason === "vor_eintritt";
     return (
       <main className="flex min-h-screen items-center justify-center p-6">
         <div className="max-w-md text-center space-y-4">
-          <h1 className="text-xl font-semibold">Kein Zugang</h1>
+          <h1 className="text-xl font-semibold">
+            {beforeEntry ? "Zugang noch nicht freigeschaltet" : "Kein Zugang"}
+          </h1>
           <p className="text-sm text-muted-foreground">
-            Für Ihr Konto ist kein aktiver Intranet-Zugang hinterlegt oder das
-            Konto wurde deaktiviert. Bitte wenden Sie sich an die
-            Geschäftsführung.
+            {beforeEntry
+              ? `Ihr Intranet-Zugang steht ab Ihrem Eintrittsdatum${
+                  access.entryDate ? ` am ${formatDateDE(access.entryDate)}` : ""
+                } bereit. Bitte melden Sie sich ab diesem Tag erneut an.`
+              : "Für Ihr Konto ist kein aktiver Intranet-Zugang hinterlegt oder das Konto wurde deaktiviert. Bitte wenden Sie sich an die Geschäftsführung."}
           </p>
           <SignOutButton redirectUrl="/anmelden">
             <Button variant="outline">Abmelden</Button>
@@ -40,6 +46,8 @@ export default async function AppLayout({
       </main>
     );
   }
+
+  const user = access.user;
 
   const deputy = await getActiveDeputy();
   const isAdmin = user.role === "admin";

@@ -2,6 +2,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { db, users, type User } from "@/db";
 import { fullName, getActiveDeputy } from "@/lib/auth";
+import { formatDateDE, toISODate } from "@/lib/dates";
 import { sendMail, type MailRecipient } from "@/lib/mail";
 
 export const TYPE_LABELS: Record<string, string> = {
@@ -153,7 +154,13 @@ export async function notifyInvitation(opts: {
   name: string;
   invitationUrl: string;
   resent: boolean;
+  entryDate?: string | null;
 }) {
+  // Vor dem Eintritt ist die Anmeldung gesperrt — ohne Hinweis wirkt das
+  // wie ein Fehler.
+  const beforeEntry =
+    !!opts.entryDate && opts.entryDate > toISODate(new Date());
+
   await sendMail({
     to: [{ email: opts.email, name: opts.name }],
     subject: opts.resent
@@ -163,6 +170,11 @@ export async function notifyInvitation(opts: {
     paragraphs: [
       "Sie wurden zum Mitarbeiter-Intranet der StefanAI Solutions GmbH eingeladen.",
       "Über den folgenden Link vergeben Sie Ihr Passwort und aktivieren Ihren Zugang.",
+      ...(beforeEntry && opts.entryDate
+        ? [
+            `Der Zugang zum Intranet ist ab Ihrem Eintrittsdatum am ${formatDateDE(opts.entryDate)} freigeschaltet — bis dahin ist eine Anmeldung noch nicht möglich.`,
+          ]
+        : []),
     ],
     linkUrl: opts.invitationUrl,
     linkLabel: "Zugang aktivieren",

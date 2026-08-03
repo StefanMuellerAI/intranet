@@ -28,6 +28,14 @@ export const vacationInputSchema = z
 
 export type VacationInput = z.infer<typeof vacationInputSchema>;
 
+/** Urlaub kann frühestens ab dem Eintrittsdatum genommen werden. */
+function assertOnOrAfterEntryDate(user: User, startDate: string): void {
+  if (user.entryDate && startDate < user.entryDate)
+    throw new Error(
+      `Urlaub ist erst ab Ihrem Eintrittsdatum (${formatDateDE(user.entryDate)}) möglich.`
+    );
+}
+
 export async function createVacationRequest(
   user: User,
   raw: VacationInput,
@@ -44,6 +52,8 @@ export async function createVacationRequest(
     throw new Error(
       "Der gewählte Zeitraum enthält keine Arbeitstage (Wochenenden und Feiertage NRW zählen nicht)."
     );
+
+  assertOnOrAfterEntryDate(user, data.startDate);
 
   const year = Number(data.startDate.slice(0, 4));
   const account = await getVacationAccount(user, year);
@@ -116,6 +126,8 @@ export async function resubmitVacationRequestForUser(
   );
   if (days <= 0)
     throw new Error("Der gewählte Zeitraum enthält keine Arbeitstage.");
+
+  assertOnOrAfterEntryDate(user, data.startDate);
 
   await saveHistorySnapshot("urlaub", id, existing.version, { ...existing });
 

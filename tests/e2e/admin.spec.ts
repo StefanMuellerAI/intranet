@@ -76,16 +76,20 @@ test.describe("Administration", () => {
     await admin.locator("#firstName").fill("Nora");
     await admin.locator("#lastName").fill("Neu");
     await admin.locator("#email").fill("e2e-neu@stefanai.de");
+    await admin.locator("#invite-entry-date").fill("2026-01-01");
+    await admin.locator("#entryYearVacationDays").fill("12");
     await admin
       .getByRole("dialog")
       .getByRole("button", { name: "Einladen", exact: true })
       .click();
     await expect(admin.getByText("Einladung versendet.")).toBeVisible();
 
-    // Die neue Zeile trägt Status "Eingeladen" und die Aktion zum Nachfassen
+    // Die neue Zeile trägt Status "Eingeladen", das Eintrittsdatum und die
+    // Aktion zum Nachfassen
     const row = admin.locator("tr", { hasText: "e2e-neu@stefanai.de" }).first();
     await expect(row).toBeVisible();
     await expect(row.getByText("Eingeladen")).toBeVisible();
+    await expect(row.getByText("01.01.2026")).toBeVisible();
     await expect(
       row.getByRole("button", { name: "Einladung erneut senden" })
     ).toBeVisible();
@@ -116,6 +120,7 @@ test.describe("Administration", () => {
     await admin.locator("#firstName").fill("Eve");
     await admin.locator("#lastName").fill("Extern");
     await admin.locator("#email").fill("eve@example.com");
+    await admin.locator("#invite-entry-date").fill("2026-01-01");
     await admin
       .getByRole("dialog")
       .getByRole("button", { name: "Einladen", exact: true })

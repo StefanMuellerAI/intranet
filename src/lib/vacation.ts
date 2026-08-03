@@ -10,7 +10,32 @@ import {
 } from "@/db";
 
 /**
- * Urlaubskonto: Jahresanspruch + Übertrag − verbrauchte Tage.
+ * Anspruch im Kalenderjahr:
+ * - vor dem Eintrittsjahr: 0 Tage
+ * - im Eintrittsjahr: ausschließlich der vereinbarte Resturlaub
+ * - ab dem Folgejahr: Jahresanspruch + Übertrag
+ * Ohne Eintrittsdatum (Bestandsmitarbeitende) gilt immer Jahresanspruch + Übertrag.
+ */
+export function getVacationEntitlement(
+  user: Pick<
+    User,
+    | "entryDate"
+    | "entryYearVacationDays"
+    | "annualVacationDays"
+    | "vacationCarryoverDays"
+  >,
+  year: number
+): number {
+  const full = user.annualVacationDays + user.vacationCarryoverDays;
+  if (!user.entryDate) return full;
+  const entryYear = Number(user.entryDate.slice(0, 4));
+  if (year < entryYear) return 0;
+  if (year === entryYear) return user.entryYearVacationDays ?? 0;
+  return full;
+}
+
+/**
+ * Urlaubskonto: Anspruch des Kalenderjahres − verbrauchte Tage.
  * Verbraucht zählen genehmigte Anträge und Anträge mit beantragtem Storno
  * (Tage erst nach bestätigtem Storno wieder gutgeschrieben); eingereichte
  * Anträge werden als "geplant" separat ausgewiesen.
@@ -29,7 +54,7 @@ export async function getVacationAccount(user: User, year: number) {
     .filter((r) => r.status === "eingereicht")
     .reduce((s, r) => s + r.days, 0);
 
-  const entitlement = user.annualVacationDays + user.vacationCarryoverDays;
+  const entitlement = getVacationEntitlement(user, year);
   return {
     year,
     entitlement,

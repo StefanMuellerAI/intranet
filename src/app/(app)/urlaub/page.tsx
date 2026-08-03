@@ -22,6 +22,8 @@ export default async function UrlaubPage() {
   const user = await requireUser();
   const year = new Date().getFullYear();
   const account = await getVacationAccount(user, year);
+  const isEntryYear =
+    user.entryDate !== null && Number(user.entryDate.slice(0, 4)) === year;
   const requests = await db
     .select()
     .from(vacationRequests)
@@ -45,6 +47,12 @@ export default async function UrlaubPage() {
           </CardHeader>
           <CardContent className="text-2xl font-semibold">
             {account.entitlement} Tage
+            {isEntryYear && (
+              <p className="text-xs font-normal text-muted-foreground">
+                Eintrittsjahr — ab {year + 1} gelten{" "}
+                {user.annualVacationDays} Tage
+              </p>
+            )}
           </CardContent>
         </Card>
         <Card>

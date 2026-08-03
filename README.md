@@ -67,8 +67,18 @@ Kürzung beim Grundsatz (nie negativ) sowie die Workation-Validierungen
 ### Laufender Betrieb
 
 - **Mitarbeitende einladen**: Menü *Mitarbeitende* → Name, E-Mail
-  (`@stefanai.de`) und Jahresurlaubsanspruch (Pflichtfeld) → Einladung wird
-  per Brevo versendet und kann jederzeit erneut versendet werden.
+  (`@stefanai.de`), Jahresurlaubsanspruch, Eintrittsdatum und Resturlaub im
+  Eintrittsjahr (alle Pflichtfelder) → Einladung wird per Brevo versendet und
+  kann jederzeit erneut versendet werden.
+- **Eintritt vor dem ersten Arbeitstag**: Neue Mitarbeitende lassen sich
+  jederzeit vorab anlegen. Die Anmeldung ist bis zum Eintrittsdatum gesperrt
+  (Hinweis im Login und in der Einladungsmail); der Zugang gilt bis dahin als
+  „Eingeladen". Im Eintrittsjahr steht ausschließlich der hinterlegte
+  Resturlaub zur Verfügung, ab dem Folgejahr der volle Jahresanspruch inkl.
+  Übertrag. Urlaub vor dem Eintrittsdatum wird abgelehnt. Eintrittsdatum und
+  Resturlaub sind unter *Mitarbeitende → Bearbeiten → Eintritt* pflegbar;
+  Bestandsmitarbeitende ohne Eintrittsdatum behalten in jedem Jahr den
+  Jahresanspruch.
 - **Vertretung**: Menü *Einstellungen → Vertretung* — Toggle mit optionalem
   Zeitraum (automatisches Ende). Die Vertretung erhält dieselben
   Benachrichtigungen wie der Admin (außer Krankmeldungen) und darf keine

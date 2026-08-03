@@ -38,6 +38,8 @@ export function VacationForm({
   action,
   users,
   remainingDays,
+  remainingByYear,
+  minDate,
   absences,
   defaults,
   submitLabel,
@@ -45,6 +47,10 @@ export function VacationForm({
   action: (formData: FormData) => Promise<void>;
   users: { id: string; name: string }[];
   remainingDays: number;
+  /** Resturlaub je Kalenderjahr — der Hinweis nutzt das Jahr des Startdatums */
+  remainingByYear?: Record<string, number>;
+  /** Frühestes wählbares Datum (Eintrittsdatum) */
+  minDate?: string;
   absences: AbsenceRange[];
   defaults?: VacationFormDefaults;
   submitLabel: string;
@@ -70,7 +76,13 @@ export function VacationForm({
     return absences.filter((a) => a.from <= endDate && a.to >= startDate);
   }, [absences, startDate, endDate]);
 
-  const remainingAfter = days !== null ? remainingDays - days : null;
+  // Maßgeblich ist der Anspruch des Jahres, in dem der Urlaub beginnt
+  const remainingForYear = useMemo(() => {
+    const year = startDate.slice(0, 4);
+    return remainingByYear?.[year] ?? remainingDays;
+  }, [remainingByYear, remainingDays, startDate]);
+
+  const remainingAfter = days !== null ? remainingForYear - days : null;
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
@@ -99,6 +111,7 @@ export function VacationForm({
             name="startDate"
             type="date"
             required
+            min={minDate}
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
           />
@@ -118,6 +131,7 @@ export function VacationForm({
             name="endDate"
             type="date"
             required
+            min={minDate}
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
           />
@@ -141,7 +155,7 @@ export function VacationForm({
           <AlertDescription>
             {remainingAfter !== null && remainingAfter >= 0
               ? `Verbleibender Resturlaub nach diesem Antrag: ${remainingAfter} Tage.`
-              : `Achtung: Dieser Antrag übersteigt Ihren Resturlaub von ${remainingDays} Tagen.`}
+              : `Achtung: Dieser Antrag übersteigt Ihren Resturlaub von ${remainingForYear} Tagen.`}
           </AlertDescription>
         </Alert>
       )}

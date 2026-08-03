@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { ALLOWED_EMAIL_DOMAIN, fullName, isAllowedEmail } from "./auth";
+import type { User } from "@/db";
+import {
+  ALLOWED_EMAIL_DOMAIN,
+  fullName,
+  hasEntered,
+  isAllowedEmail,
+} from "./auth";
 
 describe("isAllowedEmail", () => {
   it("akzeptiert Adressen der erlaubten Domain (case-insensitiv)", () => {
@@ -30,5 +36,27 @@ describe("fullName", () => {
 
   it("trimmt bei fehlendem Nachnamen", () => {
     expect(fullName({ firstName: "Erika", lastName: "" })).toBe("Erika");
+  });
+});
+
+describe("hasEntered", () => {
+  function user(entryDate: string | null): Pick<User, "entryDate"> {
+    return { entryDate };
+  }
+
+  it("gewährt Zugang, wenn kein Eintrittsdatum hinterlegt ist", () => {
+    expect(hasEntered(user(null), "2026-08-03")).toBe(true);
+  });
+
+  it("gewährt Zugang am Eintrittstag selbst", () => {
+    expect(hasEntered(user("2026-08-03"), "2026-08-03")).toBe(true);
+  });
+
+  it("sperrt den Zugang vor dem Eintrittstag", () => {
+    expect(hasEntered(user("2026-09-01"), "2026-08-31")).toBe(false);
+  });
+
+  it("gewährt Zugang nach dem Eintrittstag", () => {
+    expect(hasEntered(user("2020-01-01"), "2026-08-03")).toBe(true);
   });
 });

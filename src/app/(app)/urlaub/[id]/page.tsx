@@ -56,6 +56,9 @@ export default async function UrlaubDetailPage({
   if (canEdit) {
     const year = Number(request.startDate.slice(0, 4));
     const account = await getVacationAccount(user, year);
+    // Korrekturen können in das Folgejahr verschoben werden — dort gilt ein
+    // eigener Anspruch (im Eintrittsjahr weicht er vom Folgejahr ab).
+    const nextYearAccount = await getVacationAccount(user, year + 1);
     const colleagues = await db
       .select()
       .from(users)
@@ -65,7 +68,7 @@ export default async function UrlaubDetailPage({
       `${year}-01-01`,
       `${year + 1}-12-31`
     );
-    editProps = { account, colleagues, absences };
+    editProps = { year, account, nextYearAccount, colleagues, absences };
   }
 
   const resubmitWithId = resubmitVacationRequest.bind(null, id);
@@ -176,6 +179,12 @@ export default async function UrlaubDetailPage({
                 name: fullName(c),
               }))}
               remainingDays={editProps.account.remaining + request.days}
+              remainingByYear={{
+                // Die Tage dieses Antrags stehen für eine Korrektur wieder bereit
+                [editProps.year]: editProps.account.remaining + request.days,
+                [editProps.year + 1]: editProps.nextYearAccount.remaining,
+              }}
+              minDate={user.entryDate ?? undefined}
               absences={editProps.absences}
               defaults={{
                 startDate: request.startDate,

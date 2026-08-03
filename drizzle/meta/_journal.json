@@ -64,6 +64,13 @@
       "when": 1784895723657,
       "tag": "0008_polite_hellion",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785771279897,
+      "tag": "0009_harsh_scourge",
+      "breakpoints": true
     }
   ]
 }

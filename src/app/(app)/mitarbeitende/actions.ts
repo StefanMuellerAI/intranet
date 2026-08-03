@@ -25,6 +25,27 @@ const inviteSchema = z.object({
   annualVacationDays: z.coerce
     .number()
     .min(0.5, "Der Jahresurlaubsanspruch ist Pflichtfeld."),
+  entryDate: z
+    .string()
+    .transform((v) => v.trim())
+    .pipe(
+      z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, "Bitte ein Eintrittsdatum angeben.")
+    ),
+  // Ganze Tage: der leere String und Kommawerte werden bewusst abgelehnt
+  entryYearVacationDays: z
+    .string()
+    .transform((v) => v.trim())
+    .pipe(
+      z
+        .string()
+        .regex(
+          /^\d+$/,
+          "Der Resturlaub im Eintrittsjahr ist als ganze Zahl anzugeben."
+        )
+    )
+    .transform(Number),
   birthDate: z
     .string()
     .transform((v) => v.trim())
@@ -208,6 +229,8 @@ export async function inviteUser(formData: FormData) {
     lastName: String(formData.get("lastName") ?? ""),
     email: String(formData.get("email") ?? "").trim().toLowerCase(),
     annualVacationDays: formData.get("annualVacationDays"),
+    entryDate: String(formData.get("entryDate") ?? ""),
+    entryYearVacationDays: String(formData.get("entryYearVacationDays") ?? ""),
     birthDate: String(formData.get("birthDate") ?? ""),
   });
 
@@ -237,6 +260,8 @@ export async function inviteUser(formData: FormData) {
       firstName: data.firstName,
       lastName: data.lastName,
       annualVacationDays: data.annualVacationDays,
+      entryDate: data.entryDate,
+      entryYearVacationDays: data.entryYearVacationDays,
       birthDate: data.birthDate,
       status: "eingeladen",
     })
@@ -263,6 +288,8 @@ export async function inviteUser(formData: FormData) {
     details: {
       email: data.email,
       jahresurlaub: data.annualVacationDays,
+      eintrittsdatum: data.entryDate,
+      resturlaubEintrittsjahr: data.entryYearVacationDays,
       geburtsdatum: data.birthDate,
     },
   });
@@ -273,6 +300,7 @@ export async function inviteUser(formData: FormData) {
       invitationUrl ??
       `${process.env.APP_BASE_URL ?? "http://localhost:3000"}/anmelden`,
     resent: false,
+    entryDate: data.entryDate,
   });
 
   revalidatePath("/mitarbeitende");
@@ -303,6 +331,7 @@ export async function resendInvitation(userId: string) {
       invitationUrl ??
       `${process.env.APP_BASE_URL ?? "http://localhost:3000"}/anmelden`,
     resent: true,
+    entryDate: user.entryDate,
   });
 
   revalidatePath("/mitarbeitende");
@@ -333,6 +362,52 @@ export async function updateUserVacation(userId: string, formData: FormData) {
     actorLabel: fullName(admin),
     source: "web",
     details: { jahresurlaub: annual, uebertrag: carryover },
+  });
+  revalidatePath("/mitarbeitende");
+}
+
+/**
+ * Eintrittsdatum und Resturlaub im Eintrittsjahr pflegen (nur Admin).
+ * Solange ein Eintrittsdatum gesetzt ist, ist der Resturlaub Pflicht — sonst
+ * stünden im Eintrittsjahr unbeabsichtigt 0 Tage zur Verfügung.
+ */
+export async function updateUserEntry(userId: string, formData: FormData) {
+  const admin = await requireAdmin();
+  const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
+  if (!user) throw new Error("User nicht gefunden.");
+
+  const rawDate = String(formData.get("entryDate") ?? "").trim();
+  const rawDays = String(formData.get("entryYearVacationDays") ?? "").trim();
+
+  let entryDate: string | null = null;
+  let entryYearVacationDays: number | null = null;
+  if (rawDate.length > 0) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(rawDate))
+      throw new Error("Ungültiges Eintrittsdatum.");
+    if (!/^\d+$/.test(rawDays))
+      throw new Error(
+        "Der Resturlaub im Eintrittsjahr ist als ganze Zahl anzugeben."
+      );
+    entryDate = rawDate;
+    entryYearVacationDays = Number(rawDays);
+  }
+
+  await db
+    .update(users)
+    .set({ entryDate, entryYearVacationDays, updatedAt: new Date() })
+    .where(eq(users.id, userId));
+
+  await writeAudit({
+    objectType: "user",
+    objectId: userId,
+    action: "eintritt_geaendert",
+    actorUserId: admin.id,
+    actorLabel: fullName(admin),
+    source: "web",
+    details: {
+      eintrittsdatum: entryDate,
+      resturlaubEintrittsjahr: entryYearVacationDays,
+    },
   });
   revalidatePath("/mitarbeitende");
 }

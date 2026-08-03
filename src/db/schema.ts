@@ -31,6 +31,10 @@ export const users = pgTable("users", {
     .default("eingeladen"),
   /** Geburtsdatum — optional, wird im Kalender ohne Jahr angezeigt */
   birthDate: date("birth_date"),
+  /** Offizielles Eintrittsdatum — Zugang und Urlaubsanspruch gelten ab diesem Tag */
+  entryDate: date("entry_date"),
+  /** Resturlaub im Eintrittsjahr in ganzen Tagen (gilt nur für dieses Kalenderjahr) */
+  entryYearVacationDays: integer("entry_year_vacation_days"),
   /** Individueller Jahresurlaubsanspruch in Tagen (0,5er-Schritte möglich) */
   annualVacationDays: doublePrecision("annual_vacation_days").notNull(),
   /** Manueller Übertrag aus dem Vorjahr in Tagen */
