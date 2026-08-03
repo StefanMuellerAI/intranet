@@ -722,6 +722,69 @@ export const fakturaTimesheets = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// IT-Management — Ausstattung der Mitarbeitenden (nur Admin)
+// ---------------------------------------------------------------------------
+
+/** Ausstattungsarten (Laptop, Maus, …) — vom Admin pflegbare Liste. */
+export const itEquipmentTypes = pgTable("it_equipment_types", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull().unique(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  /** Ausgeblendete Arten stehen für neue Einträge nicht mehr zur Auswahl */
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+/**
+ * Ein Ausstattungsgegenstand, der genau einer/einem Mitarbeitenden übergeben
+ * wurde. Der Status wird nicht gespeichert, sondern aus `returnDate`
+ * abgeleitet — so können Status und Datum nicht auseinanderlaufen.
+ */
+export const itEquipment = pgTable("it_equipment", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id),
+  typeId: uuid("type_id")
+    .notNull()
+    .references(() => itEquipmentTypes.id),
+  /** Optionale Seriennummer des Geräts */
+  serialNumber: text("serial_number"),
+  /** Freitextfeld für Zusatzinformationen */
+  notes: text("notes"),
+  /** Tag, an dem die/der Mitarbeitende die Ausstattung übernommen hat */
+  handoverDate: date("handover_date").notNull(),
+  /** Gesetzt, sobald die Ausstattung zurückgegeben wurde */
+  returnDate: date("return_date"),
+  createdById: uuid("created_by_id")
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+/** Übergabeprotokolle — verschlüsselt im Blob-Store, Zugriff nur für Admins. */
+export const itEquipmentDocuments = pgTable("it_equipment_documents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  equipmentId: uuid("equipment_id")
+    .notNull()
+    .references(() => itEquipment.id, { onDelete: "cascade" }),
+  filename: text("filename").notNull(),
+  /** Original-MIME-Typ für die entschlüsselte Auslieferung */
+  contentType: text("content_type").notNull(),
+  /** Klartextgröße in Bytes */
+  sizeBytes: integer("size_bytes").notNull(),
+  /** URL des AES-256-GCM-verschlüsselten Payloads in Vercel Blob */
+  blobUrl: text("blob_url").notNull(),
+  keyVersion: integer("key_version").notNull().default(1),
+  uploadedById: uuid("uploaded_by_id")
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ---------------------------------------------------------------------------
 // Typen
 // ---------------------------------------------------------------------------
 
@@ -746,3 +809,6 @@ export type FakturaProject = typeof fakturaProjects.$inferSelect;
 export type FakturaTimeEntry = typeof fakturaTimeEntries.$inferSelect;
 export type FakturaWeekApproval = typeof fakturaWeekApprovals.$inferSelect;
 export type FakturaTimesheet = typeof fakturaTimesheets.$inferSelect;
+export type ItEquipmentType = typeof itEquipmentTypes.$inferSelect;
+export type ItEquipment = typeof itEquipment.$inferSelect;
+export type ItEquipmentDocument = typeof itEquipmentDocuments.$inferSelect;

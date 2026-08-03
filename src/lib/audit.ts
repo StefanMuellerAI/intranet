@@ -22,7 +22,10 @@ export interface AuditEntry {
     | "faktura_projekt"
     | "faktura_buchung"
     | "faktura_freigabe"
-    | "faktura_stundenzettel";
+    | "faktura_stundenzettel"
+    | "it_ausstattung"
+    | "it_ausstattungsart"
+    | "it_dokument";
   objectId?: string;
   action: string;
   actorUserId?: string | null;

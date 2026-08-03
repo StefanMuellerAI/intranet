@@ -12,6 +12,7 @@ import {
   FileText,
   HandCoins,
   HeartPulse,
+  Laptop,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -72,6 +73,7 @@ export function Sidebar({
     ...(isAdmin
       ? [
           { href: "/mitarbeitende", label: "Mitarbeitende", icon: Users },
+          { href: "/it-management", label: "IT-Management", icon: Laptop },
           { href: "/inhalte", label: "Inhalte", icon: Newspaper },
           { href: "/einstellungen", label: "Einstellungen", icon: Settings },
         ]

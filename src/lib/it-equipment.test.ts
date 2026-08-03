@@ -1,0 +1,114 @@
+import { describe, expect, it } from "vitest";
+import {
+  equipmentStatus,
+  parseEquipmentDates,
+  parseEquipmentInput,
+  parseEquipmentTypeName,
+} from "./it-equipment";
+
+const USER_ID = "3f1d0f6a-1f4e-4a71-9d0c-4c1f1a2b3c4d";
+const TYPE_ID = "8b2c5e10-7d3a-4f52-b6a1-9e8d7c6b5a40";
+
+function input(overrides: Partial<Parameters<typeof parseEquipmentInput>[0]> = {}) {
+  return parseEquipmentInput({
+    userId: USER_ID,
+    typeId: TYPE_ID,
+    serialNumber: "",
+    notes: "",
+    handoverDate: "2026-08-03",
+    returnDate: "",
+    ...overrides,
+  });
+}
+
+describe("equipmentStatus", () => {
+  it("leitet den Status allein aus dem Rückgabedatum ab", () => {
+    expect(equipmentStatus(null)).toBe("im_einsatz");
+    expect(equipmentStatus("2026-08-03")).toBe("zurueckgegeben");
+  });
+});
+
+describe("parseEquipmentDates", () => {
+  it("akzeptiert eine Übernahme ohne Rückgabe", () => {
+    expect(parseEquipmentDates("2026-08-03", "")).toEqual({
+      handoverDate: "2026-08-03",
+      returnDate: null,
+    });
+  });
+
+  it("akzeptiert die Rückgabe am Tag der Übernahme", () => {
+    expect(parseEquipmentDates("2026-08-03", "2026-08-03")).toEqual({
+      handoverDate: "2026-08-03",
+      returnDate: "2026-08-03",
+    });
+  });
+
+  it("lehnt eine Rückgabe vor der Übernahme ab", () => {
+    expect(() => parseEquipmentDates("2026-08-03", "2026-08-02")).toThrow(
+      "Das Rückgabedatum darf nicht vor dem Übernahmedatum liegen."
+    );
+  });
+
+  it("verlangt ein Übernahmedatum", () => {
+    expect(() => parseEquipmentDates("", "")).toThrow(
+      "Übernahmedatum ist erforderlich."
+    );
+  });
+
+  it("lehnt ungültige Kalendertage ab", () => {
+    expect(() => parseEquipmentDates("2026-02-30", "")).toThrow(
+      "Übernahmedatum ist ungültig."
+    );
+  });
+});
+
+describe("parseEquipmentInput", () => {
+  it("wandelt leere Freitextfelder in null", () => {
+    const parsed = input();
+    expect(parsed.serialNumber).toBeNull();
+    expect(parsed.notes).toBeNull();
+    expect(parsed.returnDate).toBeNull();
+  });
+
+  it("trimmt Seriennummer und Zusatzinformationen", () => {
+    const parsed = input({
+      serialNumber: "  C02XL0THJGH5  ",
+      notes: "  Mit Netzteil  ",
+    });
+    expect(parsed.serialNumber).toBe("C02XL0THJGH5");
+    expect(parsed.notes).toBe("Mit Netzteil");
+  });
+
+  it("verlangt eine Mitarbeiter- und eine Art-Auswahl", () => {
+    expect(() => input({ userId: "" })).toThrow(
+      "Bitte eine/n Mitarbeiter/in auswählen."
+    );
+    expect(() => input({ typeId: "" })).toThrow(
+      "Bitte eine Ausstattungsart auswählen."
+    );
+  });
+
+  it("lehnt eine überlange Seriennummer ab", () => {
+    expect(() => input({ serialNumber: "X".repeat(121) })).toThrow(
+      "Die Seriennummer ist zu lang (max. 120 Zeichen)."
+    );
+  });
+});
+
+describe("parseEquipmentTypeName", () => {
+  it("trimmt die Bezeichnung", () => {
+    expect(parseEquipmentTypeName("  Dockingstation ")).toBe("Dockingstation");
+  });
+
+  it("verlangt eine Bezeichnung", () => {
+    expect(() => parseEquipmentTypeName("   ")).toThrow(
+      "Bezeichnung ist erforderlich."
+    );
+  });
+
+  it("lehnt zu lange Bezeichnungen ab", () => {
+    expect(() => parseEquipmentTypeName("A".repeat(81))).toThrow(
+      "Die Bezeichnung ist zu lang (max. 80 Zeichen)."
+    );
+  });
+});

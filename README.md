@@ -99,6 +99,13 @@ Kürzung beim Grundsatz (nie negativ) sowie die Workation-Validierungen
   „löschbare Datensätze" (Reisekosten 8 Jahre, Krankmeldungen 5 Jahre,
   Urlaub/Workation 3 Jahre; konfigurierbar). Es wird nichts automatisch
   gelöscht.
+- **IT-Ausstattung**: Menü *IT-Management* (nur Admin) — je Mitarbeiter/in
+  Ausstattungsart, optionale Seriennummer, Zusatzinformationen,
+  Übernahmedatum und optionales Übergabeprotokoll. Reiter *Im Einsatz* und
+  *Zurückgegeben* trennen nach Rückgabedatum; der Reiter
+  *Ausstattungsarten* pflegt die Auswahlliste (Startwerte: Laptop, Maus,
+  Kopfhörer, Peripherie, Rucksack, Koffer). Bereits verwendete Arten lassen
+  sich nur ausblenden, nicht löschen.
 
 ## Freigabe-API (v1)
 
@@ -136,6 +143,10 @@ bleibt davon getrennt.
   Diagnose-Angaben, Sichtbarkeit für Dritte nur „abwesend".
 - Zugriffskontrolle serverseitig in der Datenzugriffsschicht; Belege nur
   über authentifizierte bzw. signierte, ablaufende URLs.
+- Übergabeprotokolle der IT-Ausstattung liegen wie Personaldokumente
+  AES-256-GCM-verschlüsselt im Blob-Store; entschlüsselt wird
+  ausschließlich in `/api/it-dokumente/[id]`, und zwar nur für Admins.
+  Jeder Abruf wird im Audit-Log protokolliert.
 - Audit-Log append-only; Backups über Neon Point-in-Time-Recovery
   (Wiederherstellung: Neon Console → Branch/Restore auf Zeitpunkt,
   `DATABASE_URL` umhängen).
