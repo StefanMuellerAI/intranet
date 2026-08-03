@@ -184,7 +184,7 @@ export default async function KalenderPage({
       : { year, month: month + 1 };
 
   return (
-    <div data-page-width="wide">
+    <div>
       <PageHeader
         title="Abwesenheitskalender"
         description="Genehmigte Urlaube, Workations, Krankheitszeiten, Geburtstage und Teamevents"

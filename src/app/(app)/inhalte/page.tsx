@@ -26,7 +26,7 @@ export default async function InhaltePage() {
   ]);
 
   return (
-    <div data-page-width="wide">
+    <div>
       <PageHeader
         title="Inhalte"
         description="Hilfreiche Links, Neuigkeiten und Teamevents für Dashboard und Kalender"

@@ -32,7 +32,7 @@ export default async function OrganigrammPage() {
   }));
 
   return (
-    <div className="space-y-6" data-page-width="wide">
+    <div className="space-y-6">
       <PageHeader
         title="Organigramm"
         description="Hierarchie der Mitarbeitenden — fachliche und disziplinarische Vorgesetzten-Beziehungen"

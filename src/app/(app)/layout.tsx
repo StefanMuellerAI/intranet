@@ -87,11 +87,11 @@ export default async function AppLayout({
         openApprovals={openApprovals}
       />
       {/*
-        Standardbreite ist max-w-5xl (1024px). Seiten mit breiten Tabellen
-        können mehr Platz anfordern, indem ihr äußerstes Element das Attribut
-        data-page-width="wide" trägt — dann greift max-w-[90rem] (1440px).
+        Einheitliche Inhaltsbreite für alle Seiten: max-w-[90rem] (1440px).
+        Die Seitenbreite wird nicht mehr pro Seite gesteuert; Formulare
+        begrenzen ihre Lesebreite weiterhin selbst (z. B. max-w-xl).
       */}
-      <main className="flex-1 p-4 md:p-8 max-w-5xl w-full mx-auto has-[[data-page-width=wide]]:max-w-[90rem]">
+      <main className="flex-1 p-4 md:p-8 max-w-[90rem] w-full mx-auto">
         {children}
       </main>
     </div>

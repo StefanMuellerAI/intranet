@@ -22,7 +22,7 @@ export default async function FakturaExportPage() {
   ]);
 
   return (
-    <div data-page-width="wide">
+    <div>
       <PageHeader
         title="Export & Stundenzettel"
         description="Rohdaten-Export (CSV) für interne Zwecke und unterschriftsfähige Stundenzettel (PDF) pro Kunde und Zeitraum — revisionssicher archiviert mit Dokumentnummer, Version und Prüfsumme."

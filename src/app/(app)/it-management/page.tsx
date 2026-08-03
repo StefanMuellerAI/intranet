@@ -107,7 +107,7 @@ export default async function ITManagementPage() {
   }));
 
   return (
-    <div data-page-width="wide">
+    <div>
       <PageHeader
         title="IT-Management"
         description="Ausstattung der Mitarbeitenden inklusive Seriennummern, Übernahme, Rückgabe und Übergabeprotokollen"

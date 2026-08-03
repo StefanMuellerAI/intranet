@@ -90,7 +90,7 @@ export default async function MitarbeitendePage() {
   }));
 
   return (
-    <div data-page-width="wide">
+    <div>
       <PageHeader
         title="Mitarbeitende"
         description={`User-Verwaltung — zulässig sind ausschließlich Adressen der Domain @${ALLOWED_EMAIL_DOMAIN}`}
