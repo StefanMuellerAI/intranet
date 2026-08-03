@@ -19,6 +19,7 @@ import {
   DeleteDialog,
   FormDialog,
   RowActions,
+  SectionTabsList,
   TabSection,
   VisibilityBadge,
   VisibilityToggle,
@@ -28,7 +29,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 
 export type HelpfulLinkView = {
@@ -468,26 +469,13 @@ export function ContentTabs({
 }) {
   return (
     <Tabs defaultValue="links" className="gap-6">
-      <TabsList>
-        <TabsTrigger value="links">
-          Hilfreiche Links
-          <span className="tabular-nums text-muted-foreground">
-            {links.length}
-          </span>
-        </TabsTrigger>
-        <TabsTrigger value="news">
-          Neuigkeiten
-          <span className="tabular-nums text-muted-foreground">
-            {news.length}
-          </span>
-        </TabsTrigger>
-        <TabsTrigger value="events">
-          Teamevents
-          <span className="tabular-nums text-muted-foreground">
-            {events.length}
-          </span>
-        </TabsTrigger>
-      </TabsList>
+      <SectionTabsList
+        tabs={[
+          { value: "links", label: "Hilfreiche Links", count: links.length },
+          { value: "news", label: "Neuigkeiten", count: news.length },
+          { value: "events", label: "Teamevents", count: events.length },
+        ]}
+      />
 
       <TabsContent value="links">
         <HelpfulLinksTable links={links} />

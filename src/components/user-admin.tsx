@@ -9,6 +9,7 @@ import {
   FormDialog,
   PanelDialog,
   RowActions,
+  SectionTabsList,
   TabSection,
   createTrigger,
   editTrigger,
@@ -21,7 +22,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import {
   DOCUMENT_CATEGORY_LABELS,
   DOCUMENT_CATEGORY_OPTIONS,
@@ -936,16 +937,13 @@ export function UserAdminTabs({
 
   return (
     <Tabs defaultValue="alle" className="gap-6">
-      <TabsList>
-        {tabs.map((tab) => (
-          <TabsTrigger key={tab.value} value={tab.value}>
-            {tab.label}
-            <span className="tabular-nums text-muted-foreground">
-              {tab.rows.length}
-            </span>
-          </TabsTrigger>
-        ))}
-      </TabsList>
+      <SectionTabsList
+        tabs={tabs.map((tab) => ({
+          value: tab.value,
+          label: tab.label,
+          count: tab.rows.length,
+        }))}
+      />
 
       {tabs.map((tab) => (
         <TabsContent key={tab.value} value={tab.value}>

@@ -8,6 +8,7 @@ import {
   FormDialog,
   PanelDialog,
   RowActions,
+  SectionTabsList,
   TabSection,
   VisibilityBadge,
   VisibilityToggle,
@@ -21,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   createEquipment,
@@ -691,26 +692,17 @@ export function ITEquipmentTabs({
 }) {
   return (
     <Tabs defaultValue="aktiv" className="gap-6">
-      <TabsList>
-        <TabsTrigger value="aktiv">
-          Im Einsatz
-          <span className="tabular-nums text-muted-foreground">
-            {active.length}
-          </span>
-        </TabsTrigger>
-        <TabsTrigger value="zurueck">
-          Zurückgegeben
-          <span className="tabular-nums text-muted-foreground">
-            {returned.length}
-          </span>
-        </TabsTrigger>
-        <TabsTrigger value="arten">
-          Ausstattungsarten
-          <span className="tabular-nums text-muted-foreground">
-            {typeRows.length}
-          </span>
-        </TabsTrigger>
-      </TabsList>
+      <SectionTabsList
+        tabs={[
+          { value: "aktiv", label: "Im Einsatz", count: active.length },
+          { value: "zurueck", label: "Zurückgegeben", count: returned.length },
+          {
+            value: "arten",
+            label: "Ausstattungsarten",
+            count: typeRows.length,
+          },
+        ]}
+      />
 
       <TabsContent value="aktiv">
         <EquipmentTable

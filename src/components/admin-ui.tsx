@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // ---------------------------------------------------------------------------
 // Gemeinsame Bausteine der Admin-Oberflächen (Inhalte, Mitarbeitende, …):
@@ -322,6 +323,41 @@ export const editTrigger = iconTrigger("Bearbeiten");
 
 /** Button unterhalb einer Tabelle, der den Anlegen-Dialog öffnet. */
 export const createTrigger = <Button variant="outline" size="sm" />;
+
+/**
+ * Reiterleiste der Admin-Seiten: Unterstrich-Tabs mit Zähler-Badge.
+ *
+ * Die Präfixe `group-data-horizontal/tabs:` müssen mit denen der Basisklassen
+ * in ui/tabs.tsx übereinstimmen, sonst greift tailwind-merge nicht und die
+ * höhere Spezifität der Basisvariante gewinnt. Der Unterstrich sitzt bei
+ * `after:bottom-0` innerhalb der Liste, weil `overflow-x-auto` die vertikale
+ * Achse implizit ebenfalls auf `auto` setzt und ihn sonst abschneiden würde.
+ */
+export function SectionTabsList({
+  tabs,
+}: {
+  tabs: { value: string; label: string; count: number }[];
+}) {
+  return (
+    <TabsList
+      variant="line"
+      className="w-full justify-start gap-6 overflow-x-auto border-b border-border p-0 group-data-horizontal/tabs:h-auto"
+    >
+      {tabs.map((tab) => (
+        <TabsTrigger
+          key={tab.value}
+          value={tab.value}
+          className="group/tab h-auto flex-none gap-2 px-0 pb-2.5 group-data-horizontal/tabs:after:bottom-0"
+        >
+          {tab.label}
+          <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium tabular-nums text-muted-foreground transition-colors group-data-active/tab:bg-foreground/10 group-data-active/tab:text-foreground">
+            {tab.count}
+          </span>
+        </TabsTrigger>
+      ))}
+    </TabsList>
+  );
+}
 
 /**
  * Tabellenabschnitt mit Hinweistext, gerahmter Tabelle, Leerzustand und
