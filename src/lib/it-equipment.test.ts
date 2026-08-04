@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   equipmentStatus,
+  parseDeviceId,
   parseEquipmentDates,
   parseEquipmentInput,
   parseEquipmentTypeName,
@@ -13,6 +14,7 @@ function input(overrides: Partial<Parameters<typeof parseEquipmentInput>[0]> = {
   return parseEquipmentInput({
     userId: USER_ID,
     typeId: TYPE_ID,
+    deviceId: "IT-0042",
     serialNumber: "",
     notes: "",
     handoverDate: "2026-08-03",
@@ -62,7 +64,46 @@ describe("parseEquipmentDates", () => {
   });
 });
 
+describe("parseDeviceId", () => {
+  it("trimmt die Eingabe", () => {
+    expect(parseDeviceId("  IT-0042 ")).toBe("IT-0042");
+  });
+
+  it("erlaubt Ziffern, Buchstaben und Bindestriche", () => {
+    expect(parseDeviceId("Laptop-2026-07")).toBe("Laptop-2026-07");
+    expect(parseDeviceId("4711")).toBe("4711");
+  });
+
+  it("verlangt eine Geräte-ID", () => {
+    expect(() => parseDeviceId("   ")).toThrow("Geräte-ID ist erforderlich.");
+  });
+
+  it("lehnt Leerzeichen und Sonderzeichen ab", () => {
+    for (const invalid of ["IT 0042", "IT_0042", "IT/0042", "IT.0042", "IT+ä"]) {
+      expect(() => parseDeviceId(invalid)).toThrow(
+        "Die Geräte-ID darf nur Ziffern, Buchstaben und Bindestriche enthalten."
+      );
+    }
+  });
+
+  it("lehnt eine überlange Geräte-ID ab", () => {
+    expect(() => parseDeviceId("A".repeat(41))).toThrow(
+      "Die Geräte-ID ist zu lang (max. 40 Zeichen)."
+    );
+  });
+});
+
 describe("parseEquipmentInput", () => {
+  it("übernimmt die Geräte-ID", () => {
+    expect(input({ deviceId: " IT-0001 " }).deviceId).toBe("IT-0001");
+  });
+
+  it("verlangt eine Geräte-ID", () => {
+    expect(() => input({ deviceId: "" })).toThrow(
+      "Geräte-ID ist erforderlich."
+    );
+  });
+
   it("wandelt leere Freitextfelder in null", () => {
     const parsed = input();
     expect(parsed.serialNumber).toBeNull();

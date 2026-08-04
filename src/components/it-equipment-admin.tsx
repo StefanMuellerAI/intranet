@@ -1,12 +1,19 @@
 "use client";
 
-import { useRef, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { FileText, PackageCheck, Pencil, Plus, Undo2 } from "lucide-react";
+import {
+  Download,
+  FileText,
+  PackageCheck,
+  Pencil,
+  Plus,
+  Undo2,
+  Upload,
+} from "lucide-react";
 import {
   DeleteDialog,
   FormDialog,
-  PanelDialog,
   RowActions,
   SectionTabsList,
   TabSection,
@@ -24,18 +31,24 @@ import { Label } from "@/components/ui/label";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { DEVICE_ID_PATTERN } from "@/lib/it-equipment";
+import type { HandoverProtocolKind } from "@/db/schema";
 import {
+  analyzeEquipmentImport,
+  applyEquipmentImport,
   createEquipment,
   createEquipmentType,
   deleteEquipment,
-  deleteEquipmentDocument,
   deleteEquipmentType,
+  deleteHandoverProtocol,
   markEquipmentReturned,
   toggleEquipmentType,
   undoEquipmentReturn,
   updateEquipment,
   updateEquipmentType,
-  uploadEquipmentDocuments,
+  uploadHandoverProtocol,
+  type ImportOutcome,
+  type ImportSummary,
 } from "@/app/(app)/it-management/actions";
 
 export interface EmployeeOption {
@@ -52,10 +65,20 @@ export interface EquipmentTypeOption {
   selectable: boolean;
 }
 
-export interface EquipmentDocumentItem {
+export interface HandoverProtocolItem {
   id: string;
   filename: string;
   createdAtLabel: string;
+}
+
+/** Eine Person mit ihren beiden Protokollen und der Zahl aktiver Geräte. */
+export interface EmployeeProtocolRow {
+  userId: string;
+  userName: string;
+  active: boolean;
+  activeDevices: number;
+  uebergabe: HandoverProtocolItem | null;
+  ruecknahme: HandoverProtocolItem | null;
 }
 
 export interface EquipmentRow {
@@ -64,13 +87,13 @@ export interface EquipmentRow {
   userName: string;
   typeId: string;
   typeName: string;
+  deviceId: string;
   serialNumber: string | null;
   notes: string | null;
   handoverDate: string;
   handoverLabel: string;
   returnDate: string | null;
   returnLabel: string;
-  documents: EquipmentDocumentItem[];
 }
 
 export interface EquipmentTypeRow {
@@ -182,13 +205,11 @@ function EquipmentFields({
   employees,
   types,
   item,
-  withUpload,
 }: {
   idPrefix: string;
   employees: EmployeeOption[];
   types: EquipmentTypeOption[];
   item?: EquipmentRow;
-  withUpload?: boolean;
 }) {
   return (
     <>
@@ -213,7 +234,19 @@ function EquipmentFields({
           options={types}
         />
       </div>
-      <div className="space-y-1.5 sm:col-span-2">
+      <div className="space-y-1.5">
+        <Label htmlFor={`${idPrefix}-device`}>Geräte-ID</Label>
+        <Input
+          id={`${idPrefix}-device`}
+          name="deviceId"
+          required
+          pattern={DEVICE_ID_PATTERN}
+          title="Nur Ziffern, Buchstaben und Bindestriche"
+          defaultValue={item?.deviceId ?? ""}
+          placeholder="z. B. IT-0042"
+        />
+      </div>
+      <div className="space-y-1.5">
         <Label htmlFor={`${idPrefix}-serial`}>Seriennummer (optional)</Label>
         <Input
           id={`${idPrefix}-serial`}
@@ -253,21 +286,6 @@ function EquipmentFields({
           placeholder="z. B. Modell, Zubehör, Zustand bei Übergabe"
         />
       </div>
-      {withUpload && (
-        <div className="space-y-1.5 sm:col-span-2">
-          <Label htmlFor={`${idPrefix}-documents`}>
-            Übergabeprotokoll(e) (optional)
-          </Label>
-          <Input
-            id={`${idPrefix}-documents`}
-            name="documents"
-            type="file"
-            multiple
-            accept={FILE_ACCEPT}
-          />
-          <p className="text-xs text-muted-foreground">{FILE_HINT}</p>
-        </div>
-      )}
     </>
   );
 }
@@ -307,89 +325,140 @@ function EquipmentTypeFields({
 }
 
 // ---------------------------------------------------------------------------
-// Übergabeprotokolle
+// Übergabe- und Rücknahmeprotokolle (je Person genau eines pro Art)
 // ---------------------------------------------------------------------------
 
-function ProtocolsPanel({
-  equipmentId,
-  documents,
+const PROTOCOL_LABELS = {
+  uebergabe: "Übergabeprotokoll",
+  ruecknahme: "Rücknahmeprotokoll",
+} as const;
+
+/** Zelle mit dem hinterlegten Protokoll samt Upload-, Ersetzen- und Löschweg. */
+function ProtocolCell({
+  row,
+  kind,
 }: {
-  equipmentId: string;
-  documents: EquipmentDocumentItem[];
+  row: EmployeeProtocolRow;
+  kind: HandoverProtocolKind;
 }) {
-  const [pending, startTransition] = useTransition();
-  const formRef = useRef<HTMLFormElement>(null);
-  const uploadWithId = uploadEquipmentDocuments.bind(null, equipmentId);
+  const document = kind === "uebergabe" ? row.uebergabe : row.ruecknahme;
+  const label = PROTOCOL_LABELS[kind];
+  const idPrefix = `protocol-${kind}-${row.userId}`;
 
   return (
-    <div className="space-y-4">
-      {documents.length > 0 ? (
-        <ul className="space-y-1">
-          {documents.map((doc) => (
-            <li
-              key={doc.id}
-              className="flex flex-wrap items-center gap-2 text-sm"
-            >
-              <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <a
-                href={`/api/it-dokumente/${doc.id}`}
-                target="_blank"
-                rel="noreferrer"
-                className="underline underline-offset-2 hover:text-primary"
-              >
-                {doc.filename}
-              </a>
-              <span className="text-xs text-muted-foreground">
-                {doc.createdAtLabel}
-              </span>
-              <DeleteDialog
-                entityLabel="Protokoll"
-                itemTitle={doc.filename}
-                action={() => deleteEquipmentDocument(doc.id)}
-                successMessage="Protokoll gelöscht."
-              />
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          Noch kein Übergabeprotokoll hinterlegt.
-        </p>
-      )}
-
-      <form
-        ref={formRef}
-        action={(fd) =>
-          startTransition(async () => {
-            try {
-              await uploadWithId(fd);
-              formRef.current?.reset();
-              toast.success("Protokoll(e) verschlüsselt gespeichert.");
-            } catch (err) {
-              toast.error(err instanceof Error ? err.message : "Fehler");
-            }
-          })
-        }
-        className="grid items-end gap-3 border-t pt-4 sm:grid-cols-2"
-      >
-        <div className="space-y-1">
-          <Label htmlFor={`protocol-files-${equipmentId}`} className="text-xs">
-            Datei(en) — PDF/JPG/PNG, max. 10 MB
-          </Label>
-          <Input
-            id={`protocol-files-${equipmentId}`}
-            name="documents"
-            type="file"
-            multiple
-            required
-            accept={FILE_ACCEPT}
+    <div className="flex flex-wrap items-center gap-2">
+      {document ? (
+        <>
+          <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <a
+            href={`/api/it-dokumente/${document.id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="block max-w-[12rem] truncate text-sm underline underline-offset-2 hover:text-primary 2xl:max-w-[18rem]"
+          >
+            {document.filename}
+          </a>
+          <span className="text-xs text-muted-foreground">
+            {document.createdAtLabel}
+          </span>
+          <FormDialog
+            trigger={iconTrigger(`${label} ersetzen`)}
+            triggerLabel={<Upload className="h-4 w-4" />}
+            title={`${label} ersetzen`}
+            description={`Für ${row.userName} ist „${document.filename}“ hinterlegt. Beim Speichern wird diese Datei endgültig gelöscht und durch die neue ersetzt.`}
+            action={uploadHandoverProtocol.bind(null, row.userId, kind)}
+            successMessage={`${label} ersetzt.`}
+            submitLabel="Ersetzen"
+          >
+            <ProtocolFileField idPrefix={idPrefix} />
+          </FormDialog>
+          <DeleteDialog
+            entityLabel={label}
+            itemTitle={document.filename}
+            action={() => deleteHandoverProtocol(document.id)}
+            successMessage={`${label} gelöscht.`}
           />
-        </div>
-        <Button size="sm" variant="outline" type="submit" disabled={pending}>
-          {pending ? "Wird hochgeladen …" : "Hochladen"}
-        </Button>
-      </form>
+        </>
+      ) : (
+        <>
+          <span className="text-sm text-muted-foreground">—</span>
+          <FormDialog
+            trigger={iconTrigger(`${label} hochladen`)}
+            triggerLabel={<Upload className="h-4 w-4" />}
+            title={`${label} hochladen`}
+            description={`Verschlüsselt abgelegt und ausschließlich für den Admin abrufbar — für ${row.userName}.`}
+            action={uploadHandoverProtocol.bind(null, row.userId, kind)}
+            successMessage={`${label} gespeichert.`}
+            submitLabel="Hochladen"
+          >
+            <ProtocolFileField idPrefix={idPrefix} />
+          </FormDialog>
+        </>
+      )}
     </div>
+  );
+}
+
+function ProtocolFileField({ idPrefix }: { idPrefix: string }) {
+  return (
+    <div className="space-y-1.5 sm:col-span-2">
+      <Label htmlFor={`${idPrefix}-file`}>Datei</Label>
+      <Input
+        id={`${idPrefix}-file`}
+        name="document"
+        type="file"
+        required
+        accept={FILE_ACCEPT}
+      />
+      <p className="text-xs text-muted-foreground">{FILE_HINT}</p>
+    </div>
+  );
+}
+
+function HandoverProtocolsTable({ rows }: { rows: EmployeeProtocolRow[] }) {
+  return (
+    <TabSection
+      hint="Die Ausstattung wird gesammelt übergeben — deshalb gibt es je Person genau ein Übergabe- und ein Rücknahmeprotokoll."
+      isEmpty={rows.length === 0}
+      emptyLabel="Noch keine Mitarbeitenden angelegt."
+      columns={
+        <>
+          <TableHead className="pl-4">Mitarbeiter/in</TableHead>
+          <TableHead className="w-32 text-right">Im Einsatz</TableHead>
+          <TableHead>Übergabeprotokoll</TableHead>
+          <TableHead className="pr-4">Rücknahmeprotokoll</TableHead>
+        </>
+      }
+      note="Ein neuer Upload ersetzt das bisherige Protokoll und löscht dessen Datei endgültig. Jeder Abruf wird im Audit-Log vermerkt."
+      createAction={null}
+    >
+      {rows.map((row) => (
+        <TableRow key={row.userId}>
+          <TableCell className="pl-4 font-medium">
+            <span className="flex flex-wrap items-center gap-2">
+              {row.userName}
+              {!row.active && (
+                <Badge
+                  variant="outline"
+                  className="border-gray-200 bg-gray-100 text-gray-600"
+                >
+                  deaktiviert
+                </Badge>
+              )}
+            </span>
+          </TableCell>
+          <TableCell className="text-right tabular-nums text-muted-foreground">
+            {row.activeDevices}
+          </TableCell>
+          <TableCell>
+            <ProtocolCell row={row} kind="uebergabe" />
+          </TableCell>
+          <TableCell className="pr-4">
+            <ProtocolCell row={row} kind="ruecknahme" />
+          </TableCell>
+        </TableRow>
+      ))}
+    </TabSection>
   );
 }
 
@@ -424,16 +493,6 @@ function EquipmentRowActions({
           item={item}
         />
       </FormDialog>
-
-      <PanelDialog
-        trigger={iconTrigger("Übergabeprotokolle")}
-        triggerLabel={<FileText className="h-4 w-4" />}
-        title={`Übergabeprotokolle — ${item.typeName}`}
-        description="Verschlüsselt abgelegt; Löschen entfernt Datei und Metadaten endgültig."
-        contentClassName="sm:max-w-2xl"
-      >
-        <ProtocolsPanel equipmentId={item.id} documents={item.documents} />
-      </PanelDialog>
 
       {item.returnDate === null ? (
         <FormDialog
@@ -502,13 +561,13 @@ function EquipmentTable({
       emptyLabel={emptyLabel}
       columns={
         <>
-          <TableHead className="pl-4">Mitarbeiter/in</TableHead>
+          <TableHead className="w-32 pl-4">Geräte-ID</TableHead>
+          <TableHead>Mitarbeiter/in</TableHead>
           <TableHead>Ausstattung</TableHead>
           <TableHead>Seriennummer</TableHead>
           <TableHead className="w-32">Übernahme</TableHead>
           <TableHead className="w-32">Rückgabe</TableHead>
           <TableHead>Zusatzinfo</TableHead>
-          <TableHead className="w-28 text-right">Protokolle</TableHead>
           <TableHead className="w-36">Status</TableHead>
           <TableHead className="w-40 pr-4 text-right">Aktionen</TableHead>
         </>
@@ -535,7 +594,6 @@ function EquipmentTable({
                 idPrefix="eq-new"
                 employees={employees}
                 types={types}
-                withUpload
               />
             </FormDialog>
           ) : (
@@ -548,7 +606,10 @@ function EquipmentTable({
     >
       {items.map((item) => (
         <TableRow key={item.id}>
-          <TableCell className="pl-4 font-medium">{item.userName}</TableCell>
+          <TableCell className="pl-4 font-medium tabular-nums">
+            {item.deviceId}
+          </TableCell>
+          <TableCell className="font-medium">{item.userName}</TableCell>
           <TableCell>{item.typeName}</TableCell>
           <TableCell className="text-muted-foreground">
             <span className="block max-w-[10rem] truncate 2xl:max-w-[16rem]">
@@ -565,9 +626,6 @@ function EquipmentTable({
             <span className="block max-w-[14rem] truncate text-muted-foreground 2xl:max-w-[24rem]">
               {item.notes || "—"}
             </span>
-          </TableCell>
-          <TableCell className="text-right tabular-nums text-muted-foreground">
-            {item.documents.length}
           </TableCell>
           <TableCell>
             <EquipmentStatusBadge returnDate={item.returnDate} />
@@ -674,6 +732,177 @@ function EquipmentTypesTable({ types }: { types: EquipmentTypeRow[] }) {
 }
 
 // ---------------------------------------------------------------------------
+// CSV-Export und -Import
+// ---------------------------------------------------------------------------
+
+const SUMMARY_PREVIEW_LIMIT = 20;
+
+function SummaryLine({ label, items }: { label: string; items: string[] }) {
+  const shown = items.slice(0, SUMMARY_PREVIEW_LIMIT);
+  const rest = items.length - shown.length;
+
+  return (
+    <div className="space-y-0.5">
+      <p className="text-sm">
+        {label}: <span className="font-medium tabular-nums">{items.length}</span>
+      </p>
+      {shown.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {shown.join(", ")}
+          {rest > 0 && ` … und ${rest} weitere`}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function EquipmentImportExport() {
+  const [file, setFile] = useState<File | null>(null);
+  const [fileKey, setFileKey] = useState(0);
+  const [summary, setSummary] = useState<ImportSummary | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [pending, startTransition] = useTransition();
+
+  const run = (
+    action: (formData: FormData) => Promise<ImportOutcome>,
+    onSuccess: (summary: ImportSummary) => void
+  ) => {
+    if (!file) return;
+    const formData = new FormData();
+    formData.set("file", file);
+    startTransition(async () => {
+      const outcome = await action(formData);
+      if (!outcome.ok) {
+        setSummary(null);
+        setErrors(outcome.errors);
+        return;
+      }
+      setErrors([]);
+      onSuccess(outcome.summary);
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <section className="space-y-3">
+        <h3 className="text-sm font-medium">Exportieren</h3>
+        <p className="text-sm text-muted-foreground">
+          Lädt alle Geräte — im Einsatz und zurückgegeben — als CSV-Datei mit
+          Semikolon als Trennzeichen. Excel öffnet sie per Doppelklick, und sie
+          dient gleichzeitig als Vorlage für den Import.
+        </p>
+        <Button
+          variant="outline"
+          onClick={() => {
+            window.location.href = "/api/exports/it-ausstattung";
+          }}
+        >
+          <Download className="h-4 w-4" />
+          Liste als CSV herunterladen
+        </Button>
+      </section>
+
+      <section className="space-y-3 border-t pt-6">
+        <h3 className="text-sm font-medium">Importieren</h3>
+        <p className="text-sm text-muted-foreground">
+          Der Import gleicht über die Spalte „Geräte-ID“ ab: bekannte IDs werden
+          aktualisiert, neue Zeilen angelegt, und Geräte, die in der Datei
+          fehlen, werden gelöscht. Zum Umbenennen eines Geräts die Spalte
+          „Geräte-ID neu (optional)“ füllen. Die Übergabeprotokolle bleiben
+          unberührt, da sie an der Person hängen.
+        </p>
+
+        <div className="grid items-end gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="equipment-import-file">CSV-Datei (max. 1 MB)</Label>
+            <Input
+              key={fileKey}
+              id="equipment-import-file"
+              type="file"
+              accept=".csv,text/csv"
+              onChange={(event) => {
+                setFile(event.target.files?.[0] ?? null);
+                setSummary(null);
+                setErrors([]);
+              }}
+            />
+          </div>
+          <Button
+            variant="outline"
+            disabled={!file || pending}
+            onClick={() => run(analyzeEquipmentImport, setSummary)}
+          >
+            {pending ? "Wird geprüft …" : "Datei prüfen"}
+          </Button>
+        </div>
+
+        {errors.length > 0 && (
+          <div className="space-y-2 rounded-lg border border-destructive/40 bg-destructive/5 p-4">
+            <p className="text-sm font-medium">
+              Die Datei wurde nicht übernommen
+              {errors.length > 1 && ` (${errors.length} Hinweise)`}:
+            </p>
+            <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+              {errors.slice(0, SUMMARY_PREVIEW_LIMIT).map((message) => (
+                <li key={message}>{message}</li>
+              ))}
+            </ul>
+            {errors.length > SUMMARY_PREVIEW_LIMIT && (
+              <p className="text-xs text-muted-foreground">
+                … und {errors.length - SUMMARY_PREVIEW_LIMIT} weitere Meldungen.
+              </p>
+            )}
+          </div>
+        )}
+
+        {summary && (
+          <div className="space-y-4 rounded-lg ring-1 ring-foreground/10 p-4">
+            <div className="space-y-2">
+              <SummaryLine label="Neu angelegt" items={summary.create} />
+              <SummaryLine label="Aktualisiert" items={summary.update} />
+              <SummaryLine label="Gelöscht" items={summary.remove} />
+              <p className="text-sm">
+                Unverändert:{" "}
+                <span className="font-medium tabular-nums">
+                  {summary.unchanged.length}
+                </span>
+              </p>
+            </div>
+
+            {summary.remove.length > 0 && (
+              <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                {summary.remove.length === 1
+                  ? "Ein Gerät fehlt in der Datei und wird endgültig gelöscht."
+                  : `${summary.remove.length} Geräte fehlen in der Datei und werden endgültig gelöscht.`}{" "}
+                Fehlt eine Zeile nur versehentlich, bitte die Datei ergänzen und
+                erneut prüfen.
+              </p>
+            )}
+
+            <Button
+              variant="destructive"
+              disabled={pending}
+              onClick={() =>
+                run(applyEquipmentImport, (applied) => {
+                  toast.success(
+                    `Import übernommen: ${applied.create.length} neu, ${applied.update.length} aktualisiert, ${applied.remove.length} gelöscht.`
+                  );
+                  setSummary(null);
+                  setFile(null);
+                  setFileKey((key) => key + 1);
+                })
+              }
+            >
+              {pending ? "Wird übernommen …" : "Import jetzt anwenden"}
+            </Button>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Seiteneinstieg
 // ---------------------------------------------------------------------------
 
@@ -683,12 +912,14 @@ export function ITEquipmentTabs({
   employees,
   types,
   typeRows,
+  protocolRows,
 }: {
   active: EquipmentRow[];
   returned: EquipmentRow[];
   employees: EmployeeOption[];
   types: EquipmentTypeOption[];
   typeRows: EquipmentTypeRow[];
+  protocolRows: EmployeeProtocolRow[];
 }) {
   return (
     <Tabs defaultValue="aktiv" className="gap-6">
@@ -697,10 +928,16 @@ export function ITEquipmentTabs({
           { value: "aktiv", label: "Im Einsatz", count: active.length },
           { value: "zurueck", label: "Zurückgegeben", count: returned.length },
           {
+            value: "personen",
+            label: "Mitarbeitende",
+            count: protocolRows.length,
+          },
+          {
             value: "arten",
             label: "Ausstattungsarten",
             count: typeRows.length,
           },
+          { value: "austausch", label: "Export & Import" },
         ]}
       />
 
@@ -709,9 +946,8 @@ export function ITEquipmentTabs({
           items={active}
           employees={employees}
           types={types}
-          hint="Aktuell ausgegebene Ausstattung — sortiert nach Mitarbeiter/in."
+          hint="Aktuell ausgegebene Ausstattung — sortiert nach Geräte-ID."
           emptyLabel="Aktuell ist keine Ausstattung ausgegeben."
-          note="Übergabeprotokolle liegen verschlüsselt im Blob-Store und sind ausschließlich hier abrufbar."
           showCreate
         />
       </TabsContent>
@@ -725,8 +961,14 @@ export function ITEquipmentTabs({
           showCreate={false}
         />
       </TabsContent>
+      <TabsContent value="personen">
+        <HandoverProtocolsTable rows={protocolRows} />
+      </TabsContent>
       <TabsContent value="arten">
         <EquipmentTypesTable types={typeRows} />
+      </TabsContent>
+      <TabsContent value="austausch">
+        <EquipmentImportExport />
       </TabsContent>
     </Tabs>
   );

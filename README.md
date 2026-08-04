@@ -99,13 +99,30 @@ Kürzung beim Grundsatz (nie negativ) sowie die Workation-Validierungen
   „löschbare Datensätze" (Reisekosten 8 Jahre, Krankmeldungen 5 Jahre,
   Urlaub/Workation 3 Jahre; konfigurierbar). Es wird nichts automatisch
   gelöscht.
-- **IT-Ausstattung**: Menü *IT-Management* (nur Admin) — je Mitarbeiter/in
-  Ausstattungsart, optionale Seriennummer, Zusatzinformationen,
-  Übernahmedatum und optionales Übergabeprotokoll. Reiter *Im Einsatz* und
-  *Zurückgegeben* trennen nach Rückgabedatum; der Reiter
-  *Ausstattungsarten* pflegt die Auswahlliste (Startwerte: Laptop, Maus,
-  Kopfhörer, Peripherie, Rucksack, Koffer). Bereits verwendete Arten lassen
-  sich nur ausblenden, nicht löschen.
+- **IT-Ausstattung**: Menü *IT-Management* (nur Admin) — je Gerät eine selbst
+  vergebene **Geräte-ID** (Pflichtfeld, nur Ziffern, Buchstaben und
+  Bindestriche, projektweit eindeutig), dazu Mitarbeiter/in,
+  Ausstattungsart, optionale Seriennummer, Zusatzinformationen sowie
+  Übernahme- und Rückgabedatum. Reiter *Im Einsatz* und *Zurückgegeben*
+  trennen nach Rückgabedatum; der Reiter *Ausstattungsarten* pflegt die
+  Auswahlliste (Startwerte: Laptop, Maus, Kopfhörer, Peripherie, Rucksack,
+  Koffer). Bereits verwendete Arten lassen sich nur ausblenden, nicht
+  löschen.
+- **Übergabeprotokolle**: Reiter *Mitarbeitende* im IT-Management — da die
+  Ausstattung gesammelt übergeben wird, gibt es je Person genau ein
+  Übergabe- und ein Rücknahmeprotokoll. Ein neuer Upload ersetzt das
+  bisherige Dokument. Deaktivierte Zugänge bleiben gelistet, damit sich das
+  Rücknahmeprotokoll beim Offboarding noch hinterlegen lässt.
+- **Ausstattungsliste als CSV**: Reiter *Export & Import* im IT-Management —
+  Export aller Geräte (Semikolon, UTF-8 mit BOM, öffnet direkt in Excel);
+  dieselbe Datei dient als Import-Vorlage. Der Import gleicht über die
+  Spalte *Geräte-ID* ab: bekannte IDs werden aktualisiert, neue Zeilen
+  angelegt, in der Datei fehlende Geräte gelöscht. Umbenennen läuft über die
+  Spalte *Geräte-ID neu (optional)*; ein Ringtausch zweier IDs in einem
+  Durchgang wird abgelehnt. Vor dem Schreiben erscheint immer eine Vorschau,
+  Fehler werden mit Zeilennummer gemeldet und der Import greift ganz oder
+  gar nicht. Übergabeprotokolle sind nicht betroffen, da sie an der Person
+  hängen.
 
 ## Freigabe-API (v1)
 
@@ -143,10 +160,14 @@ bleibt davon getrennt.
   Diagnose-Angaben, Sichtbarkeit für Dritte nur „abwesend".
 - Zugriffskontrolle serverseitig in der Datenzugriffsschicht; Belege nur
   über authentifizierte bzw. signierte, ablaufende URLs.
-- Übergabeprotokolle der IT-Ausstattung liegen wie Personaldokumente
-  AES-256-GCM-verschlüsselt im Blob-Store; entschlüsselt wird
-  ausschließlich in `/api/it-dokumente/[id]`, und zwar nur für Admins.
-  Jeder Abruf wird im Audit-Log protokolliert.
+- Übergabe- und Rücknahmeprotokolle der IT-Ausstattung liegen wie
+  Personaldokumente AES-256-GCM-verschlüsselt im Blob-Store; entschlüsselt
+  wird ausschließlich in `/api/it-dokumente/[id]`, und zwar nur für Admins.
+  Jeder Abruf wird im Audit-Log protokolliert. Die Protokolle hängen an der
+  Person (je eines für Übergabe und Rücknahme); ein neuer Upload löscht die
+  bisherige Datei endgültig und wird als „ersetzt" auditiert.
+- Der CSV-Export der Ausstattungsliste enthält Namen und E-Mail-Adressen und
+  ist deshalb nur für Admins abrufbar; jeder Export wird auditiert.
 - Audit-Log append-only; Backups über Neon Point-in-Time-Recovery
   (Wiederherstellung: Neon Console → Branch/Restore auf Zeitpunkt,
   `DATABASE_URL` umhängen).

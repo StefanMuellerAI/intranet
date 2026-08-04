@@ -336,7 +336,8 @@ export const createTrigger = <Button variant="outline" size="sm" />;
 export function SectionTabsList({
   tabs,
 }: {
-  tabs: { value: string; label: string; count: number }[];
+  /** Ohne `count` erscheint der Reiter ohne Zähler-Badge. */
+  tabs: { value: string; label: string; count?: number }[];
 }) {
   return (
     <TabsList
@@ -350,9 +351,11 @@ export function SectionTabsList({
           className="group/tab h-auto flex-none gap-2 px-0 pb-2.5 group-data-horizontal/tabs:after:bottom-0"
         >
           {tab.label}
-          <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium tabular-nums text-muted-foreground transition-colors group-data-active/tab:bg-foreground/10 group-data-active/tab:text-foreground">
-            {tab.count}
-          </span>
+          {tab.count !== undefined && (
+            <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium tabular-nums text-muted-foreground transition-colors group-data-active/tab:bg-foreground/10 group-data-active/tab:text-foreground">
+              {tab.count}
+            </span>
+          )}
         </TabsTrigger>
       ))}
     </TabsList>

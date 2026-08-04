@@ -749,6 +749,12 @@ export const itEquipment = pgTable("it_equipment", {
   typeId: uuid("type_id")
     .notNull()
     .references(() => itEquipmentTypes.id),
+  /**
+   * Vom Admin vergebene Inventar-ID (Ziffern, Buchstaben, Bindestriche).
+   * Dient beim CSV-Import als Schlüssel, über den bestehende Geräte
+   * wiedererkannt werden — deshalb eindeutig und Pflichtfeld.
+   */
+  deviceId: text("device_id").notNull().unique(),
   /** Optionale Seriennummer des Geräts */
   serialNumber: text("serial_number"),
   /** Freitextfeld für Zusatzinformationen */
@@ -764,25 +770,41 @@ export const itEquipment = pgTable("it_equipment", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-/** Übergabeprotokolle — verschlüsselt im Blob-Store, Zugriff nur für Admins. */
-export const itEquipmentDocuments = pgTable("it_equipment_documents", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  equipmentId: uuid("equipment_id")
-    .notNull()
-    .references(() => itEquipment.id, { onDelete: "cascade" }),
-  filename: text("filename").notNull(),
-  /** Original-MIME-Typ für die entschlüsselte Auslieferung */
-  contentType: text("content_type").notNull(),
-  /** Klartextgröße in Bytes */
-  sizeBytes: integer("size_bytes").notNull(),
-  /** URL des AES-256-GCM-verschlüsselten Payloads in Vercel Blob */
-  blobUrl: text("blob_url").notNull(),
-  keyVersion: integer("key_version").notNull().default(1),
-  uploadedById: uuid("uploaded_by_id")
-    .notNull()
-    .references(() => users.id),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+export const HANDOVER_PROTOCOL_KINDS = ["uebergabe", "ruecknahme"] as const;
+export type HandoverProtocolKind = (typeof HANDOVER_PROTOCOL_KINDS)[number];
+
+/**
+ * Übergabe- und Rücknahmeprotokoll je Mitarbeiter/in. Die Ausstattung wird
+ * immer gesammelt übergeben, deshalb hängen die Protokolle an der Person und
+ * nicht am einzelnen Gerät — pro Person existiert genau ein Dokument je Art,
+ * abgesichert über den Unique-Index. Verschlüsselt im Blob-Store, Zugriff
+ * ausschließlich für Admins.
+ */
+export const itEquipmentDocuments = pgTable(
+  "it_equipment_documents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: HANDOVER_PROTOCOL_KINDS }).notNull(),
+    filename: text("filename").notNull(),
+    /** Original-MIME-Typ für die entschlüsselte Auslieferung */
+    contentType: text("content_type").notNull(),
+    /** Klartextgröße in Bytes */
+    sizeBytes: integer("size_bytes").notNull(),
+    /** URL des AES-256-GCM-verschlüsselten Payloads in Vercel Blob */
+    blobUrl: text("blob_url").notNull(),
+    keyVersion: integer("key_version").notNull().default(1),
+    uploadedById: uuid("uploaded_by_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("it_equipment_documents_user_kind_idx").on(t.userId, t.kind),
+  ]
+);
 
 // ---------------------------------------------------------------------------
 // Typen

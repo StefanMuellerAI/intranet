@@ -23,6 +23,31 @@ export function equipmentStatus(returnDate: string | null): EquipmentStatus {
   return returnDate === null ? "im_einsatz" : "zurueckgegeben";
 }
 
+/**
+ * Erlaubte Zeichen der Geräte-ID — dient auch als HTML-pattern im Formular,
+ * damit der Browser abweichende Eingaben schon vor dem Absenden blockiert.
+ */
+export const DEVICE_ID_PATTERN = "[A-Za-z0-9-]+";
+
+export const DEVICE_ID_MAX_LENGTH = 40;
+
+/**
+ * Vom Admin vergebene Geräte-ID. Sie ist der Schlüssel des CSV-Imports, über
+ * den bestehende Geräte wiedererkannt werden, und daher Pflichtfeld.
+ */
+export function parseDeviceId(raw: string): string {
+  const value = requireNonEmpty(raw, "Geräte-ID");
+  if (!new RegExp(`^${DEVICE_ID_PATTERN}$`).test(value))
+    throw new Error(
+      "Die Geräte-ID darf nur Ziffern, Buchstaben und Bindestriche enthalten."
+    );
+  if (value.length > DEVICE_ID_MAX_LENGTH)
+    throw new Error(
+      `Die Geräte-ID ist zu lang (max. ${DEVICE_ID_MAX_LENGTH} Zeichen).`
+    );
+  return value;
+}
+
 export const equipmentInputSchema = z.object({
   userId: z.string().uuid("Bitte eine/n Mitarbeiter/in auswählen."),
   typeId: z.string().uuid("Bitte eine Ausstattungsart auswählen."),
@@ -39,6 +64,7 @@ export const equipmentInputSchema = z.object({
 });
 
 export type EquipmentInput = z.infer<typeof equipmentInputSchema> & {
+  deviceId: string;
   handoverDate: string;
   returnDate: string | null;
 };
@@ -67,6 +93,7 @@ export function parseEquipmentDates(
 export function parseEquipmentInput(raw: {
   userId: string;
   typeId: string;
+  deviceId: string;
   serialNumber: string;
   notes: string;
   handoverDate: string;
@@ -78,7 +105,11 @@ export function parseEquipmentInput(raw: {
     serialNumber: raw.serialNumber,
     notes: raw.notes,
   });
-  return { ...base, ...parseEquipmentDates(raw.handoverDate, raw.returnDate) };
+  return {
+    ...base,
+    deviceId: parseDeviceId(raw.deviceId),
+    ...parseEquipmentDates(raw.handoverDate, raw.returnDate),
+  };
 }
 
 /** Name einer Ausstattungsart — Pflichtfeld, auf 80 Zeichen begrenzt. */

@@ -8,9 +8,9 @@ import { decryptDocument } from "@/lib/document-crypto";
 export const preferredRegion = "fra1";
 
 /**
- * Download eines Übergabeprotokolls — der Blob-Store enthält nur Ciphertext,
- * entschlüsselt wird ausschließlich hier. Das IT-Management ist reine
- * Admin-Verwaltung, deshalb gibt es bewusst keinen Zugriff für die
+ * Download eines Übergabe- oder Rücknahmeprotokolls — der Blob-Store enthält
+ * nur Ciphertext, entschlüsselt wird ausschließlich hier. Das IT-Management
+ * ist reine Admin-Verwaltung, deshalb gibt es bewusst keinen Zugriff für die
  * betroffenen Mitarbeitenden und keine HMAC-Links.
  */
 export async function GET(
@@ -57,7 +57,7 @@ export async function GET(
     actorUserId: user.id,
     actorLabel: fullName(user),
     source: "web",
-    details: { equipmentId: doc.equipmentId, filename: doc.filename },
+    details: { userId: doc.userId, kind: doc.kind, filename: doc.filename },
   });
 
   return new NextResponse(new Uint8Array(plain), {

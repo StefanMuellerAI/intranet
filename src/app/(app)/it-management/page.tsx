@@ -1,4 +1,4 @@
-import { asc, desc } from "drizzle-orm";
+import { asc } from "drizzle-orm";
 import {
   db,
   itEquipment,
@@ -12,10 +12,11 @@ import { PageHeader } from "@/components/page-header";
 import {
   ITEquipmentTabs,
   type EmployeeOption,
-  type EquipmentDocumentItem,
+  type EmployeeProtocolRow,
   type EquipmentRow,
   type EquipmentTypeOption,
   type EquipmentTypeRow,
+  type HandoverProtocolItem,
 } from "@/components/it-equipment-admin";
 
 export const metadata = { title: "IT-Management" };
@@ -30,16 +31,13 @@ export default async function ITManagementPage() {
       .from(itEquipmentTypes)
       .orderBy(asc(itEquipmentTypes.sortOrder), asc(itEquipmentTypes.name)),
     db.select().from(itEquipment),
-    db
-      .select()
-      .from(itEquipmentDocuments)
-      .orderBy(desc(itEquipmentDocuments.createdAt)),
+    db.select().from(itEquipmentDocuments),
   ]);
 
-  const documentsByEquipment = new Map<string, EquipmentDocumentItem[]>();
+  // Je Person und Art existiert genau ein Protokoll (Unique-Index)
+  const protocolByUserAndKind = new Map<string, HandoverProtocolItem>();
   for (const doc of documents) {
-    const list = documentsByEquipment.get(doc.equipmentId) ?? [];
-    list.push({
+    protocolByUserAndKind.set(`${doc.userId}:${doc.kind}`, {
       id: doc.id,
       filename: doc.filename,
       createdAtLabel: doc.createdAt.toLocaleDateString("de-DE", {
@@ -48,7 +46,6 @@ export default async function ITManagementPage() {
         year: "numeric",
       }),
     });
-    documentsByEquipment.set(doc.equipmentId, list);
   }
 
   const userById = new Map(allUsers.map((u) => [u.id, u]));
@@ -63,20 +60,19 @@ export default async function ITManagementPage() {
         userName: user ? fullName(user) : "Unbekannt",
         typeId: item.typeId,
         typeName: typeById.get(item.typeId)?.name ?? "Unbekannt",
+        deviceId: item.deviceId,
         serialNumber: item.serialNumber,
         notes: item.notes,
         handoverDate: item.handoverDate,
         handoverLabel: formatDateDE(item.handoverDate),
         returnDate: item.returnDate,
         returnLabel: item.returnDate ? formatDateDE(item.returnDate) : "—",
-        documents: documentsByEquipment.get(item.id) ?? [],
       };
     })
-    .sort(
-      (a, b) =>
-        a.userName.localeCompare(b.userName, "de") ||
-        a.typeName.localeCompare(b.typeName, "de") ||
-        a.handoverDate.localeCompare(b.handoverDate)
+    // Primär nach Geräte-ID, damit die Liste dieselbe Ordnung hat wie der
+    // CSV-Export und sich Zeilen darüber wiederfinden lassen.
+    .sort((a, b) =>
+      a.deviceId.localeCompare(b.deviceId, "de", { numeric: true })
     );
 
   // Deaktivierte Zugänge behalten ihre Ausstattung, stehen für neue
@@ -106,11 +102,31 @@ export default async function ITManagementPage() {
     usageCount: usageByType.get(t.id) ?? 0,
   }));
 
+  const activeDevicesByUser = new Map<string, number>();
+  for (const item of equipment) {
+    if (item.returnDate === null)
+      activeDevicesByUser.set(
+        item.userId,
+        (activeDevicesByUser.get(item.userId) ?? 0) + 1
+      );
+  }
+
+  // Auch deaktivierte Zugänge werden gelistet — gerade beim Offboarding wird
+  // das Rücknahmeprotokoll gebraucht.
+  const protocolRows: EmployeeProtocolRow[] = allUsers.map((u) => ({
+    userId: u.id,
+    userName: fullName(u),
+    active: u.status !== "deaktiviert",
+    activeDevices: activeDevicesByUser.get(u.id) ?? 0,
+    uebergabe: protocolByUserAndKind.get(`${u.id}:uebergabe`) ?? null,
+    ruecknahme: protocolByUserAndKind.get(`${u.id}:ruecknahme`) ?? null,
+  }));
+
   return (
     <div>
       <PageHeader
         title="IT-Management"
-        description="Ausstattung der Mitarbeitenden inklusive Seriennummern, Übernahme, Rückgabe und Übergabeprotokollen"
+        description="Ausstattung der Mitarbeitenden inklusive Geräte-IDs, Übernahme, Rückgabe und Übergabeprotokollen"
       />
 
       <ITEquipmentTabs
@@ -119,6 +135,7 @@ export default async function ITManagementPage() {
         employees={employees}
         types={typeOptions}
         typeRows={typeRows}
+        protocolRows={protocolRows}
       />
     </div>
   );
