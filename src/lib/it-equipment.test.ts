@@ -5,6 +5,7 @@ import {
   parseEquipmentDates,
   parseEquipmentInput,
   parseEquipmentTypeName,
+  suggestNextDeviceId,
 } from "./it-equipment";
 
 const USER_ID = "3f1d0f6a-1f4e-4a71-9d0c-4c1f1a2b3c4d";
@@ -90,6 +91,43 @@ describe("parseDeviceId", () => {
     expect(() => parseDeviceId("A".repeat(41))).toThrow(
       "Die Geräte-ID ist zu lang (max. 40 Zeichen)."
     );
+  });
+});
+
+describe("suggestNextDeviceId", () => {
+  it("beginnt bei 01 im laufenden Jahr", () => {
+    expect(suggestNextDeviceId([], 2026)).toBe("SA-IT-2026-01");
+  });
+
+  it("zählt die laufende Nummer über den Jahreswechsel hinweg weiter", () => {
+    expect(
+      suggestNextDeviceId(
+        ["SA-IT-2025-01", "SA-IT-2025-02", "SA-IT-2025-03"],
+        2026
+      )
+    ).toBe("SA-IT-2026-04");
+  });
+
+  it("nimmt die höchste Nummer unabhängig von der Reihenfolge", () => {
+    expect(
+      suggestNextDeviceId(["SA-IT-2026-07", "SA-IT-2025-02"], 2026)
+    ).toBe("SA-IT-2026-08");
+  });
+
+  it("ignoriert IDs außerhalb des Schemas", () => {
+    expect(
+      suggestNextDeviceId(["Laptop-07", "IT-0042", "SA-IT-2026-02"], 2026)
+    ).toBe("SA-IT-2026-03");
+  });
+
+  it("wächst über zwei Stellen hinaus", () => {
+    expect(suggestNextDeviceId(["SA-IT-2026-99"], 2026)).toBe(
+      "SA-IT-2026-100"
+    );
+  });
+
+  it("liefert eine gültige Geräte-ID", () => {
+    expect(parseDeviceId(suggestNextDeviceId([], 2026))).toBe("SA-IT-2026-01");
   });
 });
 

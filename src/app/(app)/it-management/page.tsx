@@ -8,6 +8,7 @@ import {
 } from "@/db";
 import { fullName, requireAdmin } from "@/lib/auth";
 import { formatDateDE } from "@/lib/dates";
+import { suggestNextDeviceId } from "@/lib/it-equipment";
 import { PageHeader } from "@/components/page-header";
 import {
   ITEquipmentTabs,
@@ -102,6 +103,13 @@ export default async function ITManagementPage() {
     usageCount: usageByType.get(t.id) ?? 0,
   }));
 
+  // Vorschlag für das Anlegen-Formular — über alle Geräte hinweg, damit eine
+  // Nummer auch nach der Rückgabe eines Geräts nicht erneut vergeben wird.
+  const nextDeviceId = suggestNextDeviceId(
+    equipment.map((item) => item.deviceId),
+    new Date().getFullYear()
+  );
+
   const activeDevicesByUser = new Map<string, number>();
   for (const item of equipment) {
     if (item.returnDate === null)
@@ -136,6 +144,7 @@ export default async function ITManagementPage() {
         types={typeOptions}
         typeRows={typeRows}
         protocolRows={protocolRows}
+        nextDeviceId={nextDeviceId}
       />
     </div>
   );

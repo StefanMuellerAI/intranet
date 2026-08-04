@@ -48,6 +48,28 @@ export function parseDeviceId(raw: string): string {
   return value;
 }
 
+/** Feste Vorsilbe des hauseigenen Nummernkreises. */
+export const DEVICE_ID_PREFIX = "SA-IT";
+
+/**
+ * Nächste freie Geräte-ID im Schema `SA-IT-<Jahr>-<lfd. Nummer>`. Die Nummer
+ * zählt bewusst über den Jahreswechsel hinweg weiter (auf 2025-03 folgt
+ * 2026-04), damit sie das Gerät für sich allein eindeutig bezeichnet; das
+ * Jahr sagt nur, wann es aufgenommen wurde. Von Hand vergebene IDs außerhalb
+ * des Schemas bleiben unberücksichtigt.
+ */
+export function suggestNextDeviceId(
+  existingIds: string[],
+  year: number
+): string {
+  const schema = new RegExp(`^${DEVICE_ID_PREFIX}-\\d{4}-(\\d+)$`);
+  const highest = existingIds.reduce((max, id) => {
+    const match = id.trim().match(schema);
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 0);
+  return `${DEVICE_ID_PREFIX}-${year}-${String(highest + 1).padStart(2, "0")}`;
+}
+
 export const equipmentInputSchema = z.object({
   userId: z.string().uuid("Bitte eine/n Mitarbeiter/in auswählen."),
   typeId: z.string().uuid("Bitte eine Ausstattungsart auswählen."),

@@ -205,11 +205,14 @@ function EquipmentFields({
   employees,
   types,
   item,
+  suggestedDeviceId,
 }: {
   idPrefix: string;
   employees: EmployeeOption[];
   types: EquipmentTypeOption[];
   item?: EquipmentRow;
+  /** Vorbelegung beim Anlegen — beim Bearbeiten gilt die bestehende ID */
+  suggestedDeviceId?: string;
 }) {
   return (
     <>
@@ -237,13 +240,16 @@ function EquipmentFields({
       <div className="space-y-1.5">
         <Label htmlFor={`${idPrefix}-device`}>Geräte-ID</Label>
         <Input
+          // Neu einhängen, sobald sich der Vorschlag ändert: Base UI übernimmt
+          // einen nachträglich geänderten Default sonst nur unter Warnung.
+          key={item?.deviceId ?? suggestedDeviceId}
           id={`${idPrefix}-device`}
           name="deviceId"
           required
           pattern={DEVICE_ID_PATTERN}
           title="Nur Ziffern, Buchstaben und Bindestriche"
-          defaultValue={item?.deviceId ?? ""}
-          placeholder="z. B. IT-0042"
+          defaultValue={item?.deviceId ?? suggestedDeviceId ?? ""}
+          placeholder="z. B. SA-IT-2026-08"
         />
       </div>
       <div className="space-y-1.5">
@@ -543,6 +549,7 @@ function EquipmentTable({
   emptyLabel,
   note,
   showCreate,
+  nextDeviceId,
 }: {
   items: EquipmentRow[];
   employees: EmployeeOption[];
@@ -551,6 +558,7 @@ function EquipmentTable({
   emptyLabel: string;
   note?: string;
   showCreate: boolean;
+  nextDeviceId: string;
 }) {
   const hasSelectableTypes = types.some((t) => t.selectable);
 
@@ -585,7 +593,7 @@ function EquipmentTable({
                 </>
               }
               title="Ausstattung erfassen"
-              description="Ohne Rückgabedatum gilt die Ausstattung als im Einsatz."
+              description="Die Geräte-ID ist vorgeschlagen und lässt sich überschreiben. Ohne Rückgabedatum gilt die Ausstattung als im Einsatz."
               action={createEquipment}
               successMessage="Ausstattung erfasst."
               submitLabel="Ausstattung speichern"
@@ -594,6 +602,7 @@ function EquipmentTable({
                 idPrefix="eq-new"
                 employees={employees}
                 types={types}
+                suggestedDeviceId={nextDeviceId}
               />
             </FormDialog>
           ) : (
@@ -913,6 +922,7 @@ export function ITEquipmentTabs({
   types,
   typeRows,
   protocolRows,
+  nextDeviceId,
 }: {
   active: EquipmentRow[];
   returned: EquipmentRow[];
@@ -920,6 +930,8 @@ export function ITEquipmentTabs({
   types: EquipmentTypeOption[];
   typeRows: EquipmentTypeRow[];
   protocolRows: EmployeeProtocolRow[];
+  /** Nächste freie ID im Schema SA-IT-<Jahr>-<lfd. Nummer> */
+  nextDeviceId: string;
 }) {
   return (
     <Tabs defaultValue="aktiv" className="gap-6">
@@ -949,6 +961,7 @@ export function ITEquipmentTabs({
           hint="Aktuell ausgegebene Ausstattung — sortiert nach Geräte-ID."
           emptyLabel="Aktuell ist keine Ausstattung ausgegeben."
           showCreate
+          nextDeviceId={nextDeviceId}
         />
       </TabsContent>
       <TabsContent value="zurueck">
@@ -959,6 +972,7 @@ export function ITEquipmentTabs({
           hint="Bereits zurückgegebene Ausstattung — bleibt als Nachweis erhalten."
           emptyLabel="Noch keine Rückgaben erfasst."
           showCreate={false}
+          nextDeviceId={nextDeviceId}
         />
       </TabsContent>
       <TabsContent value="personen">

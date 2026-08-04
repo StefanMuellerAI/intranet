@@ -101,7 +101,11 @@ Kürzung beim Grundsatz (nie negativ) sowie die Workation-Validierungen
   gelöscht.
 - **IT-Ausstattung**: Menü *IT-Management* (nur Admin) — je Gerät eine selbst
   vergebene **Geräte-ID** (Pflichtfeld, nur Ziffern, Buchstaben und
-  Bindestriche, projektweit eindeutig), dazu Mitarbeiter/in,
+  Bindestriche, projektweit eindeutig). Das Anlegen-Formular schlägt die
+  nächste ID im Nummernkreis `SA-IT-<Jahr>-<lfd. Nummer>` vor; die Nummer
+  zählt über den Jahreswechsel hinweg weiter (auf `SA-IT-2025-03` folgt
+  `SA-IT-2026-04`) und wird auch nach einer Rückgabe nicht neu vergeben. Der
+  Vorschlag lässt sich überschreiben. Dazu kommen Mitarbeiter/in,
   Ausstattungsart, optionale Seriennummer, Zusatzinformationen sowie
   Übernahme- und Rückgabedatum. Reiter *Im Einsatz* und *Zurückgegeben*
   trennen nach Rückgabedatum; der Reiter *Ausstattungsarten* pflegt die
