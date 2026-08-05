@@ -35,7 +35,26 @@ test.describe("Dashboard-Inhalte", () => {
     await expect(admin.getByText("Neuigkeit veröffentlicht.")).toBeVisible();
     await expect(admin.getByText("E2E Büro-Hinweis").first()).toBeVisible();
 
-    // Dashboard zeigt beide Inhalte
+    // Sales-Nachricht veröffentlichen
+    await admin.getByRole("tab", { name: "Sales-Nachrichten" }).click();
+    await admin.getByRole("button", { name: "Neue Sales-Nachricht" }).click();
+    await admin.locator("#sales-customer").fill("E2E Kunde AG");
+    await admin.locator("#sales-volume").fill("25000");
+    await admin
+      .locator("#sales-soldBy")
+      .selectOption({ label: "Max Mitarbeiter" });
+    await admin.locator("#sales-deliveryStart").fill("2027-01-11");
+    await admin.locator("#sales-deliveryEnd").fill("2027-03-31");
+    await admin
+      .getByRole("dialog")
+      .getByRole("button", { name: "Sales-Nachricht veröffentlichen" })
+      .click();
+    await expect(
+      admin.getByText("Sales-Nachricht veröffentlicht.")
+    ).toBeVisible();
+    await expect(admin.getByText("E2E Kunde AG").first()).toBeVisible();
+
+    // Dashboard zeigt alle Inhalte
     await admin.goto("/dashboard");
     await expect(admin.getByText("Hilfreiche Links")).toBeVisible();
     await expect(admin.getByRole("link", { name: /E2E Wiki/ })).toBeVisible();
@@ -45,6 +64,17 @@ test.describe("Dashboard-Inhalte", () => {
     await expect(admin.getByText(/E2E Büro-Hinweis/).first()).toBeVisible();
     await expect(
       admin.getByText(/Morgen um 10 Uhr Team-Meeting/).first()
+    ).toBeVisible();
+
+    // Feierliche Sales-Karte mit Kunde, Volumen, Mitarbeiter und Zeitraum
+    const salesCard = admin.getByTestId("sales-nachrichten");
+    await expect(salesCard).toBeVisible();
+    await expect(salesCard.getByText("Gewonnene Aufträge")).toBeVisible();
+    await expect(salesCard.getByText("E2E Kunde AG")).toBeVisible();
+    await expect(salesCard.getByText("25.000,00 €")).toBeVisible();
+    await expect(salesCard.getByText("Max Mitarbeiter")).toBeVisible();
+    await expect(
+      salesCard.getByText("Leistung vsl. 11.01.2027 – 31.03.2027")
     ).toBeVisible();
   });
 
@@ -66,9 +96,17 @@ test.describe("Dashboard-Inhalte", () => {
     await newsRow.getByRole("button", { name: "Ausblenden" }).click();
     await expect(admin.getByText("Neuigkeit ausgeblendet.")).toBeVisible();
 
+    await admin.getByRole("tab", { name: "Sales-Nachrichten" }).click();
+    const salesRow = admin.locator("tr", { hasText: "E2E Kunde AG" }).first();
+    await expect(salesRow).toBeVisible();
+    await salesRow.getByRole("button", { name: "Ausblenden" }).click();
+    await expect(admin.getByText("Sales-Nachricht ausgeblendet.")).toBeVisible();
+
     await admin.goto("/dashboard");
     await expect(admin.getByRole("link", { name: /E2E Wiki/ })).toHaveCount(0);
     await expect(admin.getByText(/E2E Büro-Hinweis/)).toHaveCount(0);
+    // Ohne sichtbare Sales-Nachricht verschwindet die ganze Karte
+    await expect(admin.getByTestId("sales-nachrichten")).toHaveCount(0);
   });
 
   test("Mitarbeiter sieht Inhalte-Nav nicht und darf /inhalte nicht öffnen", async ({

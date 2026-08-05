@@ -54,6 +54,32 @@
   }
 }
 
+/* Feierlicher Lichtstreif über der Karte „Gewonnene Aufträge“ */
+@keyframes sales-news-shine {
+  0% {
+    transform: translateX(-100%) skewX(-12deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  35%,
+  100% {
+    transform: translateX(400%) skewX(-12deg);
+    opacity: 0;
+  }
+}
+
+.sales-news-shine {
+  animation: sales-news-shine 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sales-news-shine {
+    display: none;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

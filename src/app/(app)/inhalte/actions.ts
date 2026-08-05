@@ -2,10 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
-import { db, helpfulLinks, newsItems, teamEvents } from "@/db";
+import { db, helpfulLinks, newsItems, salesNews, teamEvents, users } from "@/db";
 import { writeAudit } from "@/lib/audit";
 import { fullName, requireAdmin } from "@/lib/auth";
 import {
+  parseDeliveryRange,
+  parseEuroVolume,
   parseEventRange,
   parseExternalUrl,
   parseSortOrder,
@@ -300,4 +302,126 @@ export async function deleteTeamEvent(id: string) {
     source: "web",
   });
   revalidateTeamEvents();
+}
+
+// ---------------------------------------------------------------------------
+// Sales-Nachrichten
+// ---------------------------------------------------------------------------
+
+/** Prüft, dass die/der ursächliche Mitarbeiter/in existiert, und liefert sie/ihn. */
+async function requireSeller(id: string) {
+  const seller = await db.query.users.findFirst({ where: eq(users.id, id) });
+  if (!seller) throw new Error("Mitarbeiter/in nicht gefunden.");
+  return seller;
+}
+
+/** Liest und validiert die Formularfelder einer Sales-Nachricht. */
+function parseSalesNewsInput(formData: FormData) {
+  const customerName = requireNonEmpty(
+    String(formData.get("customerName") ?? ""),
+    "Kundenname"
+  );
+  const volumeCents = parseEuroVolume(String(formData.get("volume") ?? ""));
+  const soldById = requireNonEmpty(
+    String(formData.get("soldById") ?? ""),
+    "Ursächliche/r Mitarbeiter/in"
+  );
+  const { deliveryStart, deliveryEnd } = parseDeliveryRange(
+    String(formData.get("deliveryStart") ?? ""),
+    String(formData.get("deliveryEnd") ?? "")
+  );
+  return { customerName, volumeCents, soldById, deliveryStart, deliveryEnd };
+}
+
+export async function createSalesNews(formData: FormData) {
+  const admin = await requireAdmin();
+  const input = parseSalesNewsInput(formData);
+  const seller = await requireSeller(input.soldById);
+
+  const [row] = await db
+    .insert(salesNews)
+    .values({ ...input, createdById: admin.id })
+    .returning();
+
+  await writeAudit({
+    objectType: "sales_nachricht",
+    objectId: row.id,
+    action: "erstellt",
+    actorUserId: admin.id,
+    actorLabel: fullName(admin),
+    source: "web",
+    details: {
+      customerName: input.customerName,
+      volumeCents: input.volumeCents,
+      soldBy: fullName(seller),
+    },
+  });
+  revalidateContent();
+}
+
+export async function updateSalesNews(formData: FormData) {
+  const admin = await requireAdmin();
+  const id = requireNonEmpty(String(formData.get("id") ?? ""), "ID");
+  const input = parseSalesNewsInput(formData);
+  const seller = await requireSeller(input.soldById);
+
+  await db
+    .update(salesNews)
+    .set({ ...input, updatedAt: new Date() })
+    .where(eq(salesNews.id, id));
+
+  await writeAudit({
+    objectType: "sales_nachricht",
+    objectId: id,
+    action: "aktualisiert",
+    actorUserId: admin.id,
+    actorLabel: fullName(admin),
+    source: "web",
+    details: {
+      customerName: input.customerName,
+      volumeCents: input.volumeCents,
+      soldBy: fullName(seller),
+    },
+  });
+  revalidateContent();
+}
+
+export async function toggleSalesNews(id: string) {
+  const admin = await requireAdmin();
+  const [row] = await db
+    .select()
+    .from(salesNews)
+    .where(eq(salesNews.id, id))
+    .limit(1);
+  if (!row) throw new Error("Sales-Nachricht nicht gefunden.");
+
+  await db
+    .update(salesNews)
+    .set({ active: !row.active, updatedAt: new Date() })
+    .where(eq(salesNews.id, id));
+
+  await writeAudit({
+    objectType: "sales_nachricht",
+    objectId: id,
+    action: row.active ? "deaktiviert" : "aktiviert",
+    actorUserId: admin.id,
+    actorLabel: fullName(admin),
+    source: "web",
+  });
+  revalidateContent();
+}
+
+export async function deleteSalesNews(id: string) {
+  const admin = await requireAdmin();
+  await db.delete(salesNews).where(eq(salesNews.id, id));
+
+  await writeAudit({
+    objectType: "sales_nachricht",
+    objectId: id,
+    action: "geloescht",
+    actorUserId: admin.id,
+    actorLabel: fullName(admin),
+    source: "web",
+  });
+  revalidateContent();
 }
