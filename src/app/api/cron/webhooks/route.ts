@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
-import { retryDueDeliveries } from "@/lib/webhooks";
+import { pruneOldWebhookDeliveries, retryDueDeliveries } from "@/lib/webhooks";
 
 export const preferredRegion = "fra1";
 
@@ -27,5 +27,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ fehler: "Kein Zugriff." }, { status: 401 });
 
   const retried = await retryDueDeliveries();
-  return NextResponse.json({ wiederholt: retried });
+  const geloescht = await pruneOldWebhookDeliveries();
+  return NextResponse.json({ wiederholt: retried, geloescht });
 }

@@ -119,6 +119,39 @@ describe("GET /api/cron/webhooks", () => {
     expect(last?.signature).toBe(expectedSig);
   });
 
+  it("löscht abgelaufene Zustellungen samt Payload (Retention)", async () => {
+    const db = testDb();
+    const [config] = await db
+      .insert(webhookConfigs)
+      .values({
+        category: "urlaub",
+        event: "genehmigt",
+        url: `${baseUrl}/hook`,
+        secret: WEBHOOK_SECRET,
+      })
+      .returning();
+    const fortyDaysAgo = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000);
+    const [oldDelivery] = await db
+      .insert(webhookDeliveries)
+      .values({
+        configId: config.id,
+        event: "genehmigt",
+        payload: { kategorie: "urlaub", ereignis: "genehmigt" },
+        status: "erfolgreich",
+        attempts: 1,
+        createdAt: fortyDaysAgo,
+      })
+      .returning();
+
+    await cron(cronRequest(process.env.CRON_SECRET));
+
+    const rows = await db
+      .select()
+      .from(webhookDeliveries)
+      .where(eq(webhookDeliveries.id, oldDelivery.id));
+    expect(rows).toHaveLength(0);
+  });
+
   it("markiert Zustellungen nach dem dritten Fehlversuch als fehlgeschlagen", async () => {
     respondWith = 500;
     const delivery = await insertDelivery({ attempts: 2 });

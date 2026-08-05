@@ -433,6 +433,12 @@ export const webhookConfigs = pgTable("webhook_configs", {
   category: text("category", { enum: WEBHOOK_CATEGORIES }).notNull(),
   event: text("event", { enum: WEBHOOK_EVENTS }).notNull(),
   url: text("url").notNull(),
+  /**
+   * HMAC-Secret für die Signatur ausgehender Payloads. Bewusst im Klartext:
+   * es muss bei jeder Zustellung zum Signieren lesbar sein, wird nur zwischen
+   * App und n8n geteilt und ist admin-verwaltet. Die DB ist die Vertrauens-
+   * grenze; bei Verdacht auf DB-Leak das Secret rotieren.
+   */
   secret: text("secret").notNull(),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
