@@ -609,6 +609,33 @@ export const teamEvents = pgTable("team_events", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+/**
+ * Sales-Nachrichten — gewonnene Aufträge für die feierliche Anzeige auf dem
+ * Dashboard. Dort erscheinen nur aktive Einträge, die jünger als 14 Tage sind
+ * (SALES_NEWS_DASHBOARD_DAYS in lib/content.ts); in der Pflege unter
+ * „Inhalte" bleiben auch ältere sichtbar.
+ */
+export const salesNews = pgTable("sales_news", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** Kunde, dessen Auftrag gewonnen wurde */
+  customerName: text("customer_name").notNull(),
+  /** Auftragsvolumen in Cents */
+  volumeCents: integer("volume_cents").notNull(),
+  /** Ursächliche/r Mitarbeiter/in — hat den Auftrag gewonnen */
+  soldById: uuid("sold_by_id")
+    .notNull()
+    .references(() => users.id),
+  /** Wahrscheinlicher Leistungszeitraum — eintägig: Ende = Beginn */
+  deliveryStart: date("delivery_start").notNull(),
+  deliveryEnd: date("delivery_end").notNull(),
+  active: boolean("active").notNull().default(true),
+  createdById: uuid("created_by_id")
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // ---------------------------------------------------------------------------
 // Faktura — projektbezogene Zeiterfassung
 // ---------------------------------------------------------------------------
@@ -840,6 +867,7 @@ export type WebhookConfig = typeof webhookConfigs.$inferSelect;
 export type HelpfulLink = typeof helpfulLinks.$inferSelect;
 export type NewsItem = typeof newsItems.$inferSelect;
 export type TeamEvent = typeof teamEvents.$inferSelect;
+export type SalesNewsItem = typeof salesNews.$inferSelect;
 export type FakturaCustomer = typeof fakturaCustomers.$inferSelect;
 export type FakturaProject = typeof fakturaProjects.$inferSelect;
 export type FakturaTimeEntry = typeof fakturaTimeEntries.$inferSelect;

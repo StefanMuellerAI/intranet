@@ -4,17 +4,22 @@ import { Pencil, Plus } from "lucide-react";
 import {
   createHelpfulLink,
   createNewsItem,
+  createSalesNews,
   createTeamEvent,
   deleteHelpfulLink,
   deleteNewsItem,
+  deleteSalesNews,
   deleteTeamEvent,
   toggleHelpfulLink,
   toggleNewsItem,
+  toggleSalesNews,
   toggleTeamEvent,
   updateHelpfulLink,
   updateNewsItem,
+  updateSalesNews,
   updateTeamEvent,
 } from "@/app/(app)/inhalte/actions";
+import { SALES_NEWS_DASHBOARD_DAYS } from "@/lib/content";
 import {
   DeleteDialog,
   FormDialog,
@@ -56,6 +61,30 @@ export type TeamEventView = {
   endDate: string;
   active: boolean;
   rangeLabel: string;
+};
+
+export type SalesNewsView = {
+  id: string;
+  customerName: string;
+  /** Vorbelegung für das Zahlenfeld, z. B. "12500.5" */
+  volumeEuro: string;
+  /** Formatiert für die Tabelle, z. B. "12.500,50 €" */
+  volumeLabel: string;
+  soldById: string;
+  soldByName: string;
+  deliveryStart: string;
+  deliveryEnd: string;
+  deliveryLabel: string;
+  active: boolean;
+  /** Bis wann die Nachricht auf dem Dashboard erscheint — null: abgelaufen */
+  dashboardUntilLabel: string | null;
+};
+
+export type SalesEmployeeOption = {
+  id: string;
+  name: string;
+  /** Deaktivierte Zugänge stehen für neue Nachrichten nicht zur Auswahl */
+  selectable: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -190,6 +219,89 @@ function TeamEventFields({
           name="endDate"
           type="date"
           defaultValue={event?.endDate}
+        />
+      </div>
+    </>
+  );
+}
+
+function SalesNewsFields({
+  idPrefix,
+  employees,
+  item,
+}: {
+  idPrefix: string;
+  employees: SalesEmployeeOption[];
+  item?: SalesNewsView;
+}) {
+  // Nicht mehr auswählbare Mitarbeitende bleiben sichtbar, solange sie der
+  // Nachricht bereits zugeordnet sind (sonst bräche die Vorbelegung).
+  const visible = employees.filter(
+    (e) => e.selectable || e.id === item?.soldById
+  );
+
+  return (
+    <>
+      {item && <input type="hidden" name="id" value={item.id} />}
+      <div className="space-y-1.5 sm:col-span-2">
+        <Label htmlFor={`${idPrefix}-customer`}>Kundenname</Label>
+        <Input
+          id={`${idPrefix}-customer`}
+          name="customerName"
+          required
+          defaultValue={item?.customerName}
+          placeholder="z. B. Musterfirma GmbH"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor={`${idPrefix}-volume`}>Volumen (€)</Label>
+        <Input
+          id={`${idPrefix}-volume`}
+          name="volume"
+          type="number"
+          step="0.01"
+          min="0.01"
+          required
+          defaultValue={item?.volumeEuro}
+          placeholder="z. B. 25000"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor={`${idPrefix}-soldBy`}>Ursächliche/r Mitarbeiter/in</Label>
+        <select
+          id={`${idPrefix}-soldBy`}
+          name="soldById"
+          required
+          defaultValue={item?.soldById ?? ""}
+          className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+        >
+          <option value="" disabled>
+            Bitte wählen …
+          </option>
+          {visible.map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor={`${idPrefix}-deliveryStart`}>Leistungsbeginn (vsl.)</Label>
+        <Input
+          id={`${idPrefix}-deliveryStart`}
+          name="deliveryStart"
+          type="date"
+          required
+          defaultValue={item?.deliveryStart}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor={`${idPrefix}-deliveryEnd`}>Leistungsende (optional)</Label>
+        <Input
+          id={`${idPrefix}-deliveryEnd`}
+          name="deliveryEnd"
+          type="date"
+          defaultValue={item?.deliveryEnd}
         />
       </div>
     </>
@@ -455,6 +567,107 @@ function TeamEventsTable({ events }: { events: TeamEventView[] }) {
 }
 
 // ---------------------------------------------------------------------------
+// Sales-Nachrichten
+// ---------------------------------------------------------------------------
+
+function SalesNewsTable({
+  sales,
+  employees,
+}: {
+  sales: SalesNewsView[];
+  employees: SalesEmployeeOption[];
+}) {
+  return (
+    <TabSection
+      hint={`Gewonnene Aufträge — erscheinen ${SALES_NEWS_DASHBOARD_DAYS} Tage lang feierlich auf dem Dashboard.`}
+      isEmpty={sales.length === 0}
+      emptyLabel="Noch keine Sales-Nachrichten angelegt."
+      columns={
+        <>
+          <TableHead className="pl-4">Kunde</TableHead>
+          <TableHead className="text-right">Volumen</TableHead>
+          <TableHead>Gewonnen von</TableHead>
+          <TableHead>Leistungszeitraum (vsl.)</TableHead>
+          <TableHead className="w-36">Dashboard bis</TableHead>
+          <TableHead className="w-32">Status</TableHead>
+          <TableHead className="w-32 pr-4 text-right">Aktionen</TableHead>
+        </>
+      }
+      note={`Sales-Nachrichten verschwinden ${SALES_NEWS_DASHBOARD_DAYS} Tage nach Veröffentlichung automatisch vom Dashboard, bleiben hier aber pflegbar.`}
+      createAction={
+        <FormDialog
+          trigger={createTrigger}
+          triggerLabel={
+            <>
+              <Plus className="h-4 w-4" />
+              Neue Sales-Nachricht
+            </>
+          }
+          title="Sales-Nachricht veröffentlichen"
+          description="Der gewonnene Auftrag erscheint anschließend feierlich auf dem Dashboard."
+          action={createSalesNews}
+          successMessage="Sales-Nachricht veröffentlicht."
+          submitLabel="Sales-Nachricht veröffentlichen"
+        >
+          <SalesNewsFields idPrefix="sales" employees={employees} />
+        </FormDialog>
+      }
+    >
+      {sales.map((item) => (
+        <TableRow key={item.id}>
+          <TableCell className="pl-4 font-medium">
+            {item.customerName}
+          </TableCell>
+          <TableCell className="text-right tabular-nums">
+            {item.volumeLabel}
+          </TableCell>
+          <TableCell>{item.soldByName}</TableCell>
+          <TableCell className="tabular-nums text-muted-foreground">
+            {item.deliveryLabel}
+          </TableCell>
+          <TableCell className="tabular-nums text-muted-foreground">
+            {item.dashboardUntilLabel ?? "abgelaufen"}
+          </TableCell>
+          <TableCell>
+            <VisibilityBadge active={item.active} />
+          </TableCell>
+          <TableCell className="pr-4">
+            <RowActions>
+              <VisibilityToggle
+                active={item.active}
+                action={() => toggleSalesNews(item.id)}
+                hiddenMessage="Sales-Nachricht ausgeblendet."
+                shownMessage="Sales-Nachricht eingeblendet."
+              />
+              <FormDialog
+                trigger={editTrigger}
+                triggerLabel={<Pencil className="h-4 w-4" />}
+                title="Sales-Nachricht bearbeiten"
+                action={updateSalesNews}
+                successMessage="Sales-Nachricht aktualisiert."
+                submitLabel="Speichern"
+              >
+                <SalesNewsFields
+                  idPrefix={`sales-${item.id}`}
+                  employees={employees}
+                  item={item}
+                />
+              </FormDialog>
+              <DeleteDialog
+                entityLabel="Sales-Nachricht"
+                itemTitle={item.customerName}
+                action={() => deleteSalesNews(item.id)}
+                successMessage="Sales-Nachricht gelöscht."
+              />
+            </RowActions>
+          </TableCell>
+        </TableRow>
+      ))}
+    </TabSection>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Seiteneinstieg
 // ---------------------------------------------------------------------------
 
@@ -462,10 +675,14 @@ export function ContentTabs({
   links,
   news,
   events,
+  sales,
+  employees,
 }: {
   links: HelpfulLinkView[];
   news: NewsItemView[];
   events: TeamEventView[];
+  sales: SalesNewsView[];
+  employees: SalesEmployeeOption[];
 }) {
   return (
     <Tabs defaultValue="links" className="gap-6">
@@ -474,6 +691,7 @@ export function ContentTabs({
           { value: "links", label: "Hilfreiche Links", count: links.length },
           { value: "news", label: "Neuigkeiten", count: news.length },
           { value: "events", label: "Teamevents", count: events.length },
+          { value: "sales", label: "Sales-Nachrichten", count: sales.length },
         ]}
       />
 
@@ -485,6 +703,9 @@ export function ContentTabs({
       </TabsContent>
       <TabsContent value="events">
         <TeamEventsTable events={events} />
+      </TabsContent>
+      <TabsContent value="sales">
+        <SalesNewsTable sales={sales} employees={employees} />
       </TabsContent>
     </Tabs>
   );

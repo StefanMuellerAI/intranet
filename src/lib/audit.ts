@@ -19,6 +19,7 @@ export interface AuditEntry {
     | "hilfreicher_link"
     | "neuigkeit"
     | "teamevent"
+    | "sales_nachricht"
     | "faktura_kunde"
     | "faktura_projekt"
     | "faktura_buchung"

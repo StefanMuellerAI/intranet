@@ -6,11 +6,14 @@ import {
   fakturaTimeEntries,
   helpfulLinks,
   newsItems,
+  salesNews,
+  users,
   vacationRequests,
   workationRequests,
 } from "@/db";
 import { getCalendarAbsences } from "@/lib/absences";
 import { getActiveDeputy, requireUser } from "@/lib/auth";
+import { salesNewsDashboardCutoff } from "@/lib/content";
 import { formatDateDE, toISODate } from "@/lib/dates";
 import {
   addDaysISO,
@@ -26,6 +29,7 @@ import { getUsedWorkationDays, getVacationAccount } from "@/lib/vacation";
 import { DashboardBriefing } from "@/components/dashboard-briefing";
 import { DashboardHelpfulLinks } from "@/components/dashboard-helpful-links";
 import { DashboardNewsTicker } from "@/components/dashboard-news-ticker";
+import { DashboardSalesNews } from "@/components/dashboard-sales-news";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,6 +78,7 @@ export default async function DashboardPage() {
     myExpenses,
     activeLinks,
     activeNews,
+    activeSales,
     briefingAbsences,
   ] = await Promise.all([
     getVacationAccount(user, year),
@@ -107,8 +112,47 @@ export default async function DashboardPage() {
       .where(eq(newsItems.active, true))
       .orderBy(desc(newsItems.createdAt))
       .limit(10),
+    db
+      .select({
+        id: salesNews.id,
+        customerName: salesNews.customerName,
+        volumeCents: salesNews.volumeCents,
+        deliveryStart: salesNews.deliveryStart,
+        deliveryEnd: salesNews.deliveryEnd,
+        createdAt: salesNews.createdAt,
+        sellerFirstName: users.firstName,
+        sellerLastName: users.lastName,
+      })
+      .from(salesNews)
+      .leftJoin(users, eq(salesNews.soldById, users.id))
+      .where(
+        and(
+          eq(salesNews.active, true),
+          // Nach 14 Tagen verschwindet die Nachricht automatisch
+          gte(salesNews.createdAt, salesNewsDashboardCutoff(now))
+        )
+      )
+      .orderBy(desc(salesNews.createdAt)),
     getCalendarAbsences(user, todayISO, briefingEndISO),
   ]);
+
+  const salesItems = activeSales.map((s) => ({
+    id: s.id,
+    customerName: s.customerName,
+    volumeLabel: formatEuro(s.volumeCents),
+    soldByName: s.sellerFirstName
+      ? `${s.sellerFirstName} ${s.sellerLastName ?? ""}`.trim()
+      : "Unbekannt",
+    deliveryLabel:
+      s.deliveryStart === s.deliveryEnd
+        ? formatDateDE(s.deliveryStart)
+        : `${formatDateDE(s.deliveryStart)} – ${formatDateDE(s.deliveryEnd)}`,
+    wonLabel: s.createdAt.toLocaleDateString("de-DE", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }),
+  }));
 
   let openApprovals: { label: string; href: string; status: string }[] = [];
   if (canApprove) {
@@ -198,6 +242,8 @@ export default async function DashboardPage() {
           </Link>
         </div>
       )}
+
+      <DashboardSalesNews items={salesItems} />
 
       <DashboardBriefing
         absences={briefingAbsences}
