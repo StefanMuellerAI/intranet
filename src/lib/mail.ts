@@ -57,8 +57,18 @@ export async function sendMail(opts: {
 
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) {
+    // Den Link niemals loggen: er kann ein Einladungs-/Passwort-Ticket sein
+    // (Clerk-Invitation), das Log-Zugriff in eine Kontoübernahme verwandeln
+    // würde. In Produktion ist ein fehlender Key zudem eine Fehlkonfiguration
+    // und wird laut als Fehler gemeldet (Ops-Alarm), statt still zu schlucken.
+    if (process.env.NODE_ENV === "production") {
+      console.error(
+        `[Mail] BREVO_API_KEY fehlt — E-Mail an ${opts.to.length} Empfänger:in(nen) NICHT versendet (Betreff: ${opts.subject}).`
+      );
+      return;
+    }
     console.log(
-      `[Mail-Stub] An: ${opts.to.map((t) => t.email).join(", ")} — Betreff: ${opts.subject}${link ? ` — Link: ${link}` : ""}`
+      `[Mail-Stub] An: ${opts.to.map((t) => t.email).join(", ")} — Betreff: ${opts.subject}`
     );
     return;
   }

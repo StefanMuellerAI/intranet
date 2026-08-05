@@ -55,10 +55,18 @@ export async function resolveAccess(): Promise<AccessResult> {
   });
   if (existing) return accessFor(existing);
 
-  // Erster Login nach Einladung: über E-Mail verknüpfen
+  // Erster Login nach Einladung: über E-Mail verknüpfen — aber nur, wenn die
+  // primäre Adresse von Clerk verifiziert ist. Ohne diesen Check könnte ein
+  // Konto mit (noch) unbestätigter Adresse den DB-Datensatz eines eingeladenen,
+  // aber noch nicht angemeldeten Mitarbeitenden übernehmen (Kontoübernahme).
   const clerkUser = await currentUser();
-  const email = clerkUser?.primaryEmailAddress?.emailAddress?.toLowerCase();
-  if (!email || !isAllowedEmail(email))
+  const primaryEmail = clerkUser?.primaryEmailAddress;
+  const email = primaryEmail?.emailAddress?.toLowerCase();
+  if (
+    !email ||
+    !isAllowedEmail(email) ||
+    primaryEmail?.verification?.status !== "verified"
+  )
     return { user: null, reason: "kein_konto" };
 
   const invited = await db.query.users.findFirst({
