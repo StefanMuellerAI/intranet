@@ -593,7 +593,7 @@ function SalesNewsTable({
           <TableHead className="w-32 pr-4 text-right">Aktionen</TableHead>
         </>
       }
-      note={`Sales-Nachrichten verschwinden ${SALES_NEWS_DASHBOARD_DAYS} Tage nach Veröffentlichung automatisch vom Dashboard, bleiben hier aber pflegbar.`}
+      note={`Sales-Nachrichten verschwinden ${SALES_NEWS_DASHBOARD_DAYS} Tage nach Veröffentlichung automatisch vom Dashboard, bleiben hier aber pflegbar. Mitarbeitende können einzelne Meldungen auf ihrem Dashboard zusätzlich für sich schließen.`}
       createAction={
         <FormDialog
           trigger={createTrigger}
