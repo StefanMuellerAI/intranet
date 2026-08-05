@@ -123,8 +123,11 @@ export async function attemptDelivery(deliveryId: string): Promise<void> {
   let responseBody = "";
   let ok = false;
   try {
-    // Defense-in-depth: auch gespeicherte Ziel-URLs vor jeder Zustellung prüfen.
-    assertSafeWebhookUrl(config.url);
+    // Defense-in-depth in Produktion: gespeicherte Ziel-URLs vor jeder
+    // Zustellung erneut gegen SSRF prüfen. In Tests/Entwicklung nicht, damit
+    // lokale Empfänger (127.0.0.1/http) nutzbar bleiben — neue Configs werden
+    // ohnehin schon beim Anlegen (addWebhook) validiert.
+    if (process.env.NODE_ENV === "production") assertSafeWebhookUrl(config.url);
     const res = await fetch(config.url, {
       method: "POST",
       headers: {
