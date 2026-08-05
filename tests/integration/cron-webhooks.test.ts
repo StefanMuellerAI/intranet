@@ -82,6 +82,19 @@ describe("GET /api/cron/webhooks", () => {
     expect((await cron(cronRequest("falsches-secret"))).status).toBe(401);
   });
 
+  it("verweigert den Zugriff fail-closed, wenn CRON_SECRET nicht gesetzt ist", async () => {
+    const original = process.env.CRON_SECRET;
+    delete process.env.CRON_SECRET;
+    try {
+      // Ohne Header und mit beliebigem Bearer muss die Route ablehnen —
+      // sonst wäre sie bei fehlender Env-Variable öffentlich erreichbar.
+      expect((await cron(cronRequest())).status).toBe(401);
+      expect((await cron(cronRequest("irgendwas"))).status).toBe(401);
+    } finally {
+      process.env.CRON_SECRET = original;
+    }
+  });
+
   it("stellt fällige Zustellungen erneut zu und signiert den Payload", async () => {
     respondWith = 200;
     const delivery = await insertDelivery({ attempts: 1 });

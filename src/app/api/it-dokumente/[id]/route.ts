@@ -63,7 +63,10 @@ export async function GET(
   return new NextResponse(new Uint8Array(plain), {
     headers: {
       "content-type": doc.contentType,
-      "content-disposition": `inline; filename="${doc.filename.replaceAll('"', "")}"`,
+      // attachment + nosniff: hochgeladene Inhalte nie inline im App-Origin
+      // rendern lassen (verhindert Stored-XSS über getarnte Uploads).
+      "content-disposition": `attachment; filename="${doc.filename.replaceAll('"', "")}"`,
+      "x-content-type-options": "nosniff",
       "cache-control": "private, no-store",
     },
   });
