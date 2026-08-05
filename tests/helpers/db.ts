@@ -107,7 +107,8 @@ export async function seedTestData(): Promise<SeedResult> {
  */
 export async function createTestApiKey(
   createdById: string,
-  name = "Integrationstest"
+  name = "Integrationstest",
+  scope: "readonly" | "full" = "full"
 ): Promise<{ key: string; id: string }> {
   const db = testDb();
   const key = `sk_test_${randomBytes(24).toString("hex")}`;
@@ -117,6 +118,7 @@ export async function createTestApiKey(
       name,
       keyHash: createHash("sha256").update(key).digest("hex"),
       keyPrefix: key.slice(0, 12),
+      scope,
       createdById,
     })
     .returning();

@@ -467,6 +467,14 @@ export const apiKeys = pgTable("api_keys", {
   name: text("name").notNull(),
   keyHash: text("key_hash").notNull().unique(),
   keyPrefix: text("key_prefix").notNull(),
+  /**
+   * Berechtigungsumfang: "readonly" darf nur lesen, "full" auch Freigaben
+   * (genehmigen/beanstanden/Woche freigeben) auslösen. Default readonly, damit
+   * ein geleakter Key im schlimmsten Fall nur lesenden Zugriff gewährt.
+   */
+  scope: text("scope", { enum: ["readonly", "full"] })
+    .notNull()
+    .default("readonly"),
   createdById: uuid("created_by_id")
     .notNull()
     .references(() => users.id),

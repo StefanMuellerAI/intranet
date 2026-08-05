@@ -130,6 +130,29 @@ describe("POST /api/v1/requests/{id}/approve", () => {
     expect(audits[0]).toMatchObject({ action: "genehmigt", source: "api" });
   });
 
+  it("lehnt Freigaben mit einem readonly-Key ab (403)", async () => {
+    const vacation = await insertVacation(seed.employee.id);
+    const { key: readonlyKey } = await createTestApiKey(
+      seed.admin.id,
+      "Nur-Lesen",
+      "readonly"
+    );
+    const res = await approve(
+      new Request(`http://localhost/api/v1/requests/${vacation.id}/approve`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${readonlyKey}` },
+      }),
+      ctx(vacation.id)
+    );
+    expect(res.status).toBe(403);
+    // Der Antrag bleibt offen — kein Statuswechsel durch den readonly-Key.
+    const [row] = await testDb()
+      .select()
+      .from(vacationRequests)
+      .where(eq(vacationRequests.id, vacation.id));
+    expect(row.status).toBe("eingereicht");
+  });
+
   it("verweigert die Genehmigung eigener Anträge (Vier-Augen-Prinzip)", async () => {
     const ownRequest = await insertVacation(seed.admin.id);
     const res = await approve(

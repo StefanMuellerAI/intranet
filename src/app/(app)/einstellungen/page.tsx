@@ -452,6 +452,7 @@ export default async function EinstellungenPage() {
               id: k.id,
               name: k.name,
               keyPrefix: k.keyPrefix,
+              scope: k.scope,
               createdAt: k.createdAt.toLocaleDateString("de-DE"),
               revokedAt: k.revokedAt
                 ? k.revokedAt.toLocaleDateString("de-DE")

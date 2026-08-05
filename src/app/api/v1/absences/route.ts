@@ -20,6 +20,11 @@ export async function GET(req: Request) {
   const auth = await authenticateApiRequest(req);
   if (!auth.ok) return auth.response;
 
+  // Die Krankheitsart (eigene_erkrankung/kind_krank) ist ein Gesundheitsdatum
+  // nach Art. 9 DSGVO und wird nur an "full"-Keys ausgeliefert. readonly-Keys
+  // erhalten die neutrale Abwesenheit (von/bis) ohne Art.
+  const includeHealthDetail = auth.context.apiKey.scope === "full";
+
   const [vacations, workations, sick, allUsers] = await Promise.all([
     db
       .select()
@@ -64,7 +69,7 @@ export async function GET(req: Request) {
         user: userInfo(s.userId),
         von: s.startDate,
         bis: s.endDate,
-        typ: s.type,
+        ...(includeHealthDetail ? { typ: s.type } : {}),
         status: s.status,
       })),
     ],
