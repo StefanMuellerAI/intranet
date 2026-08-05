@@ -284,6 +284,14 @@ export async function generateTimesheet(
  * Unveränderliche Archivierung in Vercel Blob — nie überschreiben (FA-7.3).
  * Ohne BLOB_READ_WRITE_TOKEN (lokale Entwicklung/Tests) wird das PDF als
  * data-URL persistiert, damit der Download-Proxy identisch funktioniert.
+ *
+ * SICHERHEIT — bewusste Ausnahme: Anders als Personaldokumente und Belege
+ * werden Stundenzettel NICHT verschlüsselt abgelegt. Der Blob ist öffentlich;
+ * der Schutz vor unbefugtem Zugriff hängt damit allein am nicht-erratbaren
+ * Zufallssuffix (`addRandomSuffix: true`). Dieses Flag ist sicherheitskritisch
+ * und darf nicht auf false gesetzt werden — sonst wären die Zettel über die
+ * fortlaufenden Dokumentnummern (SZ-JJJJ-NNNN) enumerierbar. Eine spätere
+ * Verschlüsselung analog zu document-crypto ist als Härtung vorgemerkt.
  */
 async function storePdf(pathname: string, pdf: Buffer): Promise<string> {
   if (!process.env.BLOB_READ_WRITE_TOKEN)
@@ -291,7 +299,7 @@ async function storePdf(pathname: string, pdf: Buffer): Promise<string> {
   const blob = await put(pathname, pdf, {
     access: "public",
     contentType: "application/pdf",
-    addRandomSuffix: true,
+    addRandomSuffix: true, // sicherheitskritisch — siehe Kommentar oben
   });
   return blob.url;
 }

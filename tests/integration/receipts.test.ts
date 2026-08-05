@@ -2,7 +2,10 @@ import { createServer, type Server } from "node:http";
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { GET as getReceipt } from "@/app/api/receipts/[id]/route";
+import { encryptDocument } from "@/lib/document-crypto";
 import { signReceiptUrl } from "@/lib/signed-url";
+
+const RECEIPT_PLAINTEXT = "PDF-TESTDATEN";
 import { expenseReports, receipts } from "../../src/db/schema";
 import {
   resetDb,
@@ -29,9 +32,11 @@ beforeAll(async () => {
   await resetDb();
   seed = await seedTestData();
 
+  // Belege liegen verschlüsselt im Blob-Store; der Proxy entschlüsselt.
+  const encrypted = encryptDocument(Buffer.from(RECEIPT_PLAINTEXT));
   server = createServer((_req, res) => {
-    res.setHeader("content-type", "application/pdf");
-    res.end("PDF-TESTDATEN");
+    res.setHeader("content-type", "application/octet-stream");
+    res.end(encrypted);
   });
   await new Promise<void>((resolve) => server.listen(0, resolve));
   const address = server.address();
@@ -79,7 +84,9 @@ describe("GET /api/receipts/{id}", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("application/pdf");
     expect(res.headers.get("content-disposition")).toContain("hotel.pdf");
-    expect(await res.text()).toBe("PDF-TESTDATEN");
+    expect(res.headers.get("content-disposition")).toContain("attachment");
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(await res.text()).toBe(RECEIPT_PLAINTEXT);
   });
 
   it("verweigert manipulierte Signaturen", async () => {
