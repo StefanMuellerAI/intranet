@@ -636,6 +636,32 @@ export const salesNews = pgTable("sales_news", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+/**
+ * Persönliche „Geschlossen“-Markierungen: Wer eine Sales-Nachricht auf dem
+ * eigenen Dashboard schließt, blendet nur sie und nur für sich aus — für
+ * alle anderen bleibt sie sichtbar. Kein globaler Effekt, daher bewusst
+ * ohne Audit-Log.
+ */
+export const salesNewsDismissals = pgTable(
+  "sales_news_dismissals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    salesNewsId: uuid("sales_news_id")
+      .notNull()
+      .references(() => salesNews.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("sales_news_dismissals_item_user_idx").on(
+      t.salesNewsId,
+      t.userId
+    ),
+  ]
+);
+
 // ---------------------------------------------------------------------------
 // Faktura — projektbezogene Zeiterfassung
 // ---------------------------------------------------------------------------
@@ -868,6 +894,7 @@ export type HelpfulLink = typeof helpfulLinks.$inferSelect;
 export type NewsItem = typeof newsItems.$inferSelect;
 export type TeamEvent = typeof teamEvents.$inferSelect;
 export type SalesNewsItem = typeof salesNews.$inferSelect;
+export type SalesNewsDismissal = typeof salesNewsDismissals.$inferSelect;
 export type FakturaCustomer = typeof fakturaCustomers.$inferSelect;
 export type FakturaProject = typeof fakturaProjects.$inferSelect;
 export type FakturaTimeEntry = typeof fakturaTimeEntries.$inferSelect;

@@ -1,4 +1,10 @@
-import { CalendarRange, PartyPopper, Trophy } from "lucide-react";
+"use client";
+
+import { useTransition } from "react";
+import { CalendarRange, PartyPopper, Trophy, X } from "lucide-react";
+import { toast } from "sonner";
+import { dismissSalesNews } from "@/app/(app)/dashboard/actions";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export type DashboardSalesNewsItem = {
@@ -10,10 +16,38 @@ export type DashboardSalesNewsItem = {
   wonLabel: string;
 };
 
+/** Schließt eine Meldung nur für die angemeldete Person (bleibt gespeichert). */
+function DismissButton({ id }: { id: string }) {
+  const [pending, startTransition] = useTransition();
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      aria-label="Meldung schließen"
+      title="Meldung schließen"
+      disabled={pending}
+      className="absolute right-1.5 top-1.5 text-muted-foreground hover:text-foreground"
+      onClick={() =>
+        startTransition(async () => {
+          try {
+            await dismissSalesNews(id);
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Fehler");
+          }
+        })
+      }
+    >
+      <X className="h-4 w-4" />
+    </Button>
+  );
+}
+
 /**
  * Feierliche Anzeige gewonnener Aufträge auf dem Dashboard. Erscheint nur,
  * solange es Sales-Nachrichten der letzten 14 Tage gibt — ohne aktuelle
- * Erfolge wird die Karte komplett ausgeblendet.
+ * Erfolge (oder wenn alle persönlich geschlossen wurden) wird die Karte
+ * komplett ausgeblendet.
  */
 export function DashboardSalesNews({
   items,
@@ -48,8 +82,9 @@ export function DashboardSalesNews({
           {items.map((item) => (
             <li
               key={item.id}
-              className="rounded-lg bg-background/70 p-4 ring-1 ring-amber-500/25 dark:bg-background/40"
+              className="relative rounded-lg bg-background/70 p-4 pr-10 ring-1 ring-amber-500/25 dark:bg-background/40"
             >
+              <DismissButton id={item.id} />
               <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                 <p className="text-base font-semibold">{item.customerName}</p>
                 <p className="text-xl font-bold tabular-nums text-amber-700 dark:text-amber-300">

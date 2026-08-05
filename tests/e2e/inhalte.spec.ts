@@ -124,4 +124,45 @@ test.describe("Dashboard-Inhalte", () => {
       employee.getByRole("heading", { name: "Inhalte" })
     ).toHaveCount(0);
   });
+
+  test("Mitarbeiter schließt eine Sales-Nachricht nur für sich", async ({
+    browser,
+  }) => {
+    // Admin legt eine frische Sales-Nachricht an (die erste wurde ausgeblendet)
+    const admin = await pageAs(browser, ADMIN_STATE);
+    await admin.goto("/inhalte");
+    await admin.getByRole("tab", { name: "Sales-Nachrichten" }).click();
+    await admin.getByRole("button", { name: "Neue Sales-Nachricht" }).click();
+    await admin.locator("#sales-customer").fill("E2E Kunde Zwei GmbH");
+    await admin.locator("#sales-volume").fill("12345.67");
+    await admin.locator("#sales-soldBy").selectOption({ label: "Erika Admin" });
+    await admin.locator("#sales-deliveryStart").fill("2027-05-03");
+    await admin
+      .getByRole("dialog")
+      .getByRole("button", { name: "Sales-Nachricht veröffentlichen" })
+      .click();
+    await expect(
+      admin.getByText("Sales-Nachricht veröffentlicht.")
+    ).toBeVisible();
+
+    // Mitarbeiter sieht die Meldung und schließt sie
+    const employee = await pageAs(browser, USER_STATE);
+    await employee.goto("/dashboard");
+    const employeeCard = employee.getByTestId("sales-nachrichten");
+    await expect(employeeCard.getByText("E2E Kunde Zwei GmbH")).toBeVisible();
+    await employeeCard
+      .getByRole("button", { name: "Meldung schließen" })
+      .click();
+    await expect(employee.getByTestId("sales-nachrichten")).toHaveCount(0);
+
+    // Auch nach einem Reload bleibt die Meldung für den Mitarbeiter geschlossen
+    await employee.reload();
+    await expect(employee.getByTestId("sales-nachrichten")).toHaveCount(0);
+
+    // Für den Admin bleibt sie sichtbar — das Schließen wirkt nur persönlich
+    await admin.goto("/dashboard");
+    await expect(
+      admin.getByTestId("sales-nachrichten").getByText("E2E Kunde Zwei GmbH")
+    ).toBeVisible();
+  });
 });

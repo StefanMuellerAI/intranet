@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, asc, desc, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lte } from "drizzle-orm";
 import {
   db,
   expenseReports,
@@ -7,6 +7,7 @@ import {
   helpfulLinks,
   newsItems,
   salesNews,
+  salesNewsDismissals,
   users,
   vacationRequests,
   workationRequests,
@@ -125,11 +126,20 @@ export default async function DashboardPage() {
       })
       .from(salesNews)
       .leftJoin(users, eq(salesNews.soldById, users.id))
+      // Persönlich geschlossene Meldungen dieser Person ausblenden
+      .leftJoin(
+        salesNewsDismissals,
+        and(
+          eq(salesNewsDismissals.salesNewsId, salesNews.id),
+          eq(salesNewsDismissals.userId, user.id)
+        )
+      )
       .where(
         and(
           eq(salesNews.active, true),
           // Nach 14 Tagen verschwindet die Nachricht automatisch
-          gte(salesNews.createdAt, salesNewsDashboardCutoff(now))
+          gte(salesNews.createdAt, salesNewsDashboardCutoff(now)),
+          isNull(salesNewsDismissals.id)
         )
       )
       .orderBy(desc(salesNews.createdAt)),
