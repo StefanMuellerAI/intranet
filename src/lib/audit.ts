@@ -7,6 +7,7 @@ export interface AuditEntry {
     | "urlaub"
     | "workation"
     | "reisekosten"
+    | "beleg"
     | "krankmeldung"
     | "provision"
     | "user"

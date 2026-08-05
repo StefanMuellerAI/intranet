@@ -82,6 +82,19 @@ describe("GET /api/cron/webhooks", () => {
     expect((await cron(cronRequest("falsches-secret"))).status).toBe(401);
   });
 
+  it("verweigert den Zugriff fail-closed, wenn CRON_SECRET nicht gesetzt ist", async () => {
+    const original = process.env.CRON_SECRET;
+    delete process.env.CRON_SECRET;
+    try {
+      // Ohne Header und mit beliebigem Bearer muss die Route ablehnen —
+      // sonst wäre sie bei fehlender Env-Variable öffentlich erreichbar.
+      expect((await cron(cronRequest())).status).toBe(401);
+      expect((await cron(cronRequest("irgendwas"))).status).toBe(401);
+    } finally {
+      process.env.CRON_SECRET = original;
+    }
+  });
+
   it("stellt fällige Zustellungen erneut zu und signiert den Payload", async () => {
     respondWith = 200;
     const delivery = await insertDelivery({ attempts: 1 });
@@ -104,6 +117,39 @@ describe("GET /api/cron/webhooks", () => {
       .update(last?.body ?? "")
       .digest("hex");
     expect(last?.signature).toBe(expectedSig);
+  });
+
+  it("löscht abgelaufene Zustellungen samt Payload (Retention)", async () => {
+    const db = testDb();
+    const [config] = await db
+      .insert(webhookConfigs)
+      .values({
+        category: "urlaub",
+        event: "genehmigt",
+        url: `${baseUrl}/hook`,
+        secret: WEBHOOK_SECRET,
+      })
+      .returning();
+    const fortyDaysAgo = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000);
+    const [oldDelivery] = await db
+      .insert(webhookDeliveries)
+      .values({
+        configId: config.id,
+        event: "genehmigt",
+        payload: { kategorie: "urlaub", ereignis: "genehmigt" },
+        status: "erfolgreich",
+        attempts: 1,
+        createdAt: fortyDaysAgo,
+      })
+      .returning();
+
+    await cron(cronRequest(process.env.CRON_SECRET));
+
+    const rows = await db
+      .select()
+      .from(webhookDeliveries)
+      .where(eq(webhookDeliveries.id, oldDelivery.id));
+    expect(rows).toHaveLength(0);
   });
 
   it("markiert Zustellungen nach dem dritten Fehlversuch als fehlgeschlagen", async () => {

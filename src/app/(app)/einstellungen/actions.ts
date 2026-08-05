@@ -15,6 +15,7 @@ import {
 import { hashApiKey } from "@/lib/api-keys";
 import { writeAudit } from "@/lib/audit";
 import { fullName, requireAdmin } from "@/lib/auth";
+import { assertSafeWebhookUrl } from "@/lib/webhooks";
 
 // ---------------------------------------------------------------------------
 // Sätze und Kontingente
@@ -209,8 +210,7 @@ export async function addWebhook(formData: FormData) {
     throw new Error("Ungültige Kategorie.");
   if (!(WEBHOOK_EVENTS as readonly string[]).includes(event))
     throw new Error("Ungültiges Ereignis.");
-  if (!url.startsWith("https://"))
-    throw new Error("Die Webhook-URL muss mit https:// beginnen.");
+  assertSafeWebhookUrl(url);
   if (secret.length < 16)
     throw new Error("Das Secret muss mindestens 16 Zeichen lang sein.");
 
@@ -272,12 +272,16 @@ export async function createApiKey(formData: FormData): Promise<string> {
   const admin = await requireAdmin();
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("Bitte einen Namen für den Key angeben.");
+  // Standard ist der geringstmögliche Umfang (readonly); "full" nur, wenn der
+  // Admin es beim Anlegen bewusst wählt.
+  const scope = formData.get("scope") === "full" ? "full" : "readonly";
 
   const plaintext = `sk_stefanai_${randomBytes(32).toString("hex")}`;
   await db.insert(apiKeys).values({
     name,
     keyHash: hashApiKey(plaintext),
     keyPrefix: plaintext.slice(0, 16),
+    scope,
     createdById: admin.id,
   });
 
@@ -287,7 +291,7 @@ export async function createApiKey(formData: FormData): Promise<string> {
     actorUserId: admin.id,
     actorLabel: fullName(admin),
     source: "web",
-    details: { name },
+    details: { name, scope },
   });
   revalidatePath("/einstellungen");
   return plaintext;

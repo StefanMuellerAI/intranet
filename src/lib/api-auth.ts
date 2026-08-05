@@ -23,9 +23,14 @@ function errorResponse(status: number, message: string): NextResponse {
 /**
  * Authentifiziert eine API-Anfrage per Bearer-Key und wendet ein
  * Rate Limit (Fixed Window, 60 Anfragen/Minute je Key) an.
+ *
+ * Mit `requireScope: "full"` werden nur Keys mit vollem Berechtigungsumfang
+ * zugelassen — für Freigabe-/Schreibendpunkte. Lese-Endpunkte lassen den
+ * Parameter weg und akzeptieren auch readonly-Keys.
  */
 export async function authenticateApiRequest(
-  req: Request
+  req: Request,
+  opts?: { requireScope?: "full" }
 ): Promise<ApiAuthResult> {
   const header = req.headers.get("authorization") ?? "";
   const match = header.match(/^Bearer\s+(.+)$/i);
@@ -72,7 +77,20 @@ export async function authenticateApiRequest(
     })
     .where(eq(apiKeys.id, key.id));
 
-  // API-Keys agieren mit vollen Admin-Freigaberechten im Namen des Erstellers
+  // Scope-Prüfung: Freigabe-/Schreibendpunkte verlangen einen "full"-Key.
+  if (opts?.requireScope === "full" && key.scope !== "full")
+    return {
+      ok: false,
+      response: errorResponse(
+        403,
+        "Dieser API-Key ist nur lesend (readonly) und darf keine Freigaben auslösen."
+      ),
+    };
+
+  // Der Key agiert im Namen seines Erstellers. Rolle und Status werden bei
+  // jeder Anfrage neu geprüft — ein später deaktivierter oder herabgestufter
+  // Admin verliert damit sofort die API-Rechte (Revocation ist sonst nur
+  // key-, nicht personenbezogen).
   const actor = await db.query.users.findFirst({
     where: eq(users.id, key.createdById),
   });
@@ -80,6 +98,14 @@ export async function authenticateApiRequest(
     return {
       ok: false,
       response: errorResponse(401, "Zugehöriges Admin-Konto nicht gefunden."),
+    };
+  if (actor.role !== "admin" || actor.status === "deaktiviert")
+    return {
+      ok: false,
+      response: errorResponse(
+        401,
+        "Das zugehörige Konto ist deaktiviert oder nicht mehr berechtigt."
+      ),
     };
 
   console.log(

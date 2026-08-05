@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { put } from "@vercel/blob";
 import { z } from "zod";
 import {
@@ -12,6 +12,7 @@ import {
 import { writeAudit } from "@/lib/audit";
 import { fullName } from "@/lib/auth";
 import { formatDateDE } from "@/lib/dates";
+import { encryptDocument } from "@/lib/document-crypto";
 import {
   calcCarCents,
   calcEmployerSupplementCents,
@@ -45,7 +46,7 @@ const belegItemSchema = z.object({
   description: z.string().min(1),
   amountCents: z.number().int().min(0),
   fileIndex: z.number().int().optional(),
-  existingReceiptId: z.string().optional(),
+  existingReceiptId: z.string().uuid().optional(),
 });
 
 export const expenseReportInputSchema = z
@@ -202,10 +203,19 @@ async function persistReport(
       for (const [idx, item] of block.items.entries()) {
         const key = `${block.kind}_${idx}`;
         if (item.existingReceiptId) {
+          // Nur eigene Belege desselben Berichts dürfen neu zugeordnet werden.
+          // Ohne die userId-/reportId-Bindung könnte ein fremder Beleg per
+          // untergeschobener ID an den eigenen Bericht umgehängt werden (IDOR).
           await db
             .update(receipts)
             .set({ itemId: itemIdByBelegKey.get(key) })
-            .where(eq(receipts.id, item.existingReceiptId));
+            .where(
+              and(
+                eq(receipts.id, item.existingReceiptId),
+                eq(receipts.userId, userId),
+                eq(receipts.reportId, reportId)
+              )
+            );
           continue;
         }
         if (item.fileIndex === undefined) continue;
@@ -215,10 +225,19 @@ async function persistReport(
           throw new Error(
             `Beleg "${file.name}": Nur PDF, JPG oder PNG sind zulässig.`
           );
+        // Belege AES-256-GCM-verschlüsselt ablegen (wie Personaldokumente):
+        // der Blob-Store ist öffentlich, Klartext dürfte bei einem Leak der
+        // Roh-URL nicht abgreifbar sein. Entschlüsselt wird nur im Proxy
+        // /api/receipts/[id]. Der Klartext-MIME-Typ bleibt in contentType.
+        const plain = Buffer.from(await file.arrayBuffer());
         const blob = await put(
-          `belege/${reportId}/${crypto.randomUUID()}-${file.name}`,
-          file,
-          { access: "public", addRandomSuffix: false }
+          `belege/${reportId}/${crypto.randomUUID()}.bin`,
+          encryptDocument(plain),
+          {
+            access: "public",
+            addRandomSuffix: false,
+            contentType: "application/octet-stream",
+          }
         );
         await db.insert(receipts).values({
           reportId,

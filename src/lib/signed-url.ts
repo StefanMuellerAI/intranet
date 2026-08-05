@@ -16,7 +16,10 @@ function secret(): string {
 
 export function signReceiptUrl(
   receiptId: string,
-  validForSeconds = 60 * 60 * 24
+  // 1 Stunde: kurz genug, dass ein geleakter Link (n8n-Logs, Delivery-Tabelle)
+  // nur kurz nutzbar ist, aber lang genug für das Webhook-Retry-Fenster
+  // (Cron alle 5 min, bis zu 3 Versuche) und die asynchrone n8n-Verarbeitung.
+  validForSeconds = 60 * 60
 ): string {
   const expires = Math.floor(Date.now() / 1000) + validForSeconds;
   const sig = createHmac("sha256", secret())

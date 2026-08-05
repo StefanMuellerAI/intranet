@@ -168,6 +168,7 @@ export function ApiKeyPanel({
     id: string;
     name: string;
     keyPrefix: string;
+    scope: string;
     createdAt: string;
     revokedAt: string | null;
     lastUsedAt: string | null;
@@ -196,6 +197,18 @@ export function ApiKeyPanel({
             placeholder="z. B. Claude-Freigaben via n8n"
             className="w-72"
           />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="key-scope">Berechtigung</Label>
+          <select
+            id="key-scope"
+            name="scope"
+            defaultValue="readonly"
+            className="border-input h-9 rounded-md border bg-transparent px-3 text-sm"
+          >
+            <option value="readonly">Nur lesen</option>
+            <option value="full">Lesen + Freigeben</option>
+          </select>
         </div>
         <Button type="submit" disabled={pending}>
           Key erzeugen
@@ -235,7 +248,8 @@ export function ApiKeyPanel({
               <code className="text-xs text-muted-foreground">
                 {k.keyPrefix}…
               </code>{" "}
-              · erstellt {k.createdAt}
+              · {k.scope === "full" ? "Lesen + Freigeben" : "nur lesen"} ·
+              erstellt {k.createdAt}
               {k.lastUsedAt ? ` · zuletzt genutzt ${k.lastUsedAt}` : ""}
               {k.revokedAt ? (
                 <span className="text-red-600"> · widerrufen</span>

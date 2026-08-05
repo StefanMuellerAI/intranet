@@ -99,6 +99,34 @@ describe("GET /api/v1/absences", () => {
     expect(sick).toMatchObject({ von: "2026-07-20", bis: null });
   });
 
+  it("liefert die Krankheitsart (Gesundheitsdatum) nur an full-Keys", async () => {
+    const { key: readonlyKey } = await createTestApiKey(
+      seed.admin.id,
+      "Nur-Lesen",
+      "readonly"
+    );
+    const resRead = await listAbsences(
+      new Request("http://localhost/api/v1/absences", {
+        headers: { authorization: `Bearer ${readonlyKey}` },
+      })
+    );
+    const sickRead = (await resRead.json()).absences.find(
+      (a: { type: string }) => a.type === "sick_leave"
+    );
+    expect(sickRead.typ).toBeUndefined();
+
+    // Der full-Key aus beforeAll sieht weiterhin die Art.
+    const resFull = await listAbsences(
+      new Request("http://localhost/api/v1/absences", {
+        headers: { authorization: `Bearer ${apiKey}` },
+      })
+    );
+    const sickFull = (await resFull.json()).absences.find(
+      (a: { type: string }) => a.type === "sick_leave"
+    );
+    expect(sickFull.typ).toBe("eigene_erkrankung");
+  });
+
   it("verlangt einen API-Key", async () => {
     const res = await listAbsences(
       new Request("http://localhost/api/v1/absences")

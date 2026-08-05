@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { GET as listRequests } from "@/app/api/v1/requests/route";
-import { apiKeys } from "../../src/db/schema";
+import { apiKeys, users } from "../../src/db/schema";
 import {
   createTestApiKey,
   resetDb,
@@ -58,6 +58,28 @@ describe("API-Key-Authentifizierung", () => {
     const res = await listRequests(apiRequest(key));
     expect(res.status).toBe(401);
     expect((await res.json()).fehler).toBe("Dieser API-Key wurde widerrufen.");
+  });
+
+  it("lehnt Keys ab, deren Ersteller deaktiviert wurde (401)", async () => {
+    const [tempAdmin] = await testDb()
+      .insert(users)
+      .values({
+        email: "temp-admin@stefanai.de",
+        firstName: "Temp",
+        lastName: "Admin",
+        role: "admin",
+        status: "aktiv",
+        annualVacationDays: 30,
+      })
+      .returning();
+    const { key } = await createTestApiKey(tempAdmin.id, "Temp-Admin-Key");
+    await testDb()
+      .update(users)
+      .set({ status: "deaktiviert" })
+      .where(eq(users.id, tempAdmin.id));
+
+    const res = await listRequests(apiRequest(key));
+    expect(res.status).toBe(401);
   });
 
   it("liefert 429, wenn das Rate Limit (60/min) erreicht ist", async () => {
