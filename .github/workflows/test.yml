@@ -49,6 +49,7 @@ jobs:
             echo "DOWNLOAD_URL_SECRET=ci-download-secret-$RUN_ID"
             echo "CRON_SECRET=ci-cron-secret-$RUN_ID"
             echo "DOCUMENT_ENCRYPTION_KEY=$(openssl rand -base64 32)"
+            echo "FAKTURA_TEST_NOW=2026-07-24T12:00:00+02:00"
           } > .env.test
 
       - name: Lint
