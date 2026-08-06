@@ -77,6 +77,8 @@ export interface EmployeeProtocolRow {
   userName: string;
   active: boolean;
   activeDevices: number;
+  /** Alle je erfassten Geräte — steuert die Rücknahme-Vorlage */
+  totalDevices: number;
   uebergabe: HandoverProtocolItem | null;
   ruecknahme: HandoverProtocolItem | null;
 }
@@ -339,6 +341,43 @@ const PROTOCOL_LABELS = {
   ruecknahme: "Rücknahmeprotokoll",
 } as const;
 
+/**
+ * Lädt die ausgefüllte Protokoll-Vorlage (PDF mit Briefkopf und der im System
+ * gepflegten Ausstattung) herunter — zum Ausdrucken und Unterschreiben. Ohne
+ * passende Ausstattung wäre die Vorlage leer, der Button bleibt dann inaktiv.
+ */
+function ProtocolTemplateButton({
+  row,
+  kind,
+}: {
+  row: EmployeeProtocolRow;
+  kind: HandoverProtocolKind;
+}) {
+  const count = kind === "uebergabe" ? row.activeDevices : row.totalDevices;
+  const label = PROTOCOL_LABELS[kind];
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={count === 0}
+      title={
+        count === 0
+          ? kind === "uebergabe"
+            ? "Keine Ausstattung im Einsatz."
+            : "Keine Ausstattung erfasst."
+          : `${label} mit der gepflegten Ausstattung als PDF herunterladen`
+      }
+      onClick={() => {
+        window.location.href = `/api/exports/it-protokoll?mitarbeiter=${row.userId}&art=${kind}`;
+      }}
+    >
+      <Download className="h-4 w-4" />
+      {kind === "uebergabe" ? "Übergabe" : "Rücknahme"}
+    </Button>
+  );
+}
+
 /** Zelle mit dem hinterlegten Protokoll samt Upload-, Ersetzen- und Löschweg. */
 function ProtocolCell({
   row,
@@ -424,13 +463,14 @@ function ProtocolFileField({ idPrefix }: { idPrefix: string }) {
 function HandoverProtocolsTable({ rows }: { rows: EmployeeProtocolRow[] }) {
   return (
     <TabSection
-      hint="Die Ausstattung wird gesammelt übergeben — deshalb gibt es je Person genau ein Übergabe- und ein Rücknahmeprotokoll."
+      hint="Die Ausstattung wird gesammelt übergeben — deshalb gibt es je Person genau ein Übergabe- und ein Rücknahmeprotokoll. Die Vorlagen enthalten die im System gepflegte Ausstattung mit Briefkopf: ausdrucken, unterschreiben lassen und hier wieder hochladen."
       isEmpty={rows.length === 0}
       emptyLabel="Noch keine Mitarbeitenden angelegt."
       columns={
         <>
           <TableHead className="pl-4">Mitarbeiter/in</TableHead>
           <TableHead className="w-32 text-right">Im Einsatz</TableHead>
+          <TableHead>Vorlagen (PDF)</TableHead>
           <TableHead>Übergabeprotokoll</TableHead>
           <TableHead className="pr-4">Rücknahmeprotokoll</TableHead>
         </>
@@ -455,6 +495,12 @@ function HandoverProtocolsTable({ rows }: { rows: EmployeeProtocolRow[] }) {
           </TableCell>
           <TableCell className="text-right tabular-nums text-muted-foreground">
             {row.activeDevices}
+          </TableCell>
+          <TableCell>
+            <div className="flex flex-wrap gap-2">
+              <ProtocolTemplateButton row={row} kind="uebergabe" />
+              <ProtocolTemplateButton row={row} kind="ruecknahme" />
+            </div>
           </TableCell>
           <TableCell>
             <ProtocolCell row={row} kind="uebergabe" />

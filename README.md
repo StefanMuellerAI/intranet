@@ -116,7 +116,12 @@ Kürzung beim Grundsatz (nie negativ) sowie die Workation-Validierungen
   Ausstattung gesammelt übergeben wird, gibt es je Person genau ein
   Übergabe- und ein Rücknahmeprotokoll. Ein neuer Upload ersetzt das
   bisherige Dokument. Deaktivierte Zugänge bleiben gelistet, damit sich das
-  Rücknahmeprotokoll beim Offboarding noch hinterlegen lässt.
+  Rücknahmeprotokoll beim Offboarding noch hinterlegen lässt. Die Spalte
+  *Vorlagen (PDF)* liefert ausgefüllte Protokolle mit Briefkopf zum
+  Ausdrucken und Unterschreiben: die Übergabe mit der Ausstattung im
+  Einsatz, die Rücknahme mit allen erfassten Geräten samt Rückgabedaten
+  (offene Daten als Leerfeld zum Handausfüllen). Jeder Abruf wird
+  auditiert.
 - **Ausstattungsliste als CSV**: Reiter *Export & Import* im IT-Management —
   Export aller Geräte (Semikolon, UTF-8 mit BOM, öffnet direkt in Excel);
   dieselbe Datei dient als Import-Vorlage. Der Import gleicht über die
