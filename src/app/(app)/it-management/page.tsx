@@ -111,7 +111,12 @@ export default async function ITManagementPage() {
   );
 
   const activeDevicesByUser = new Map<string, number>();
+  const totalDevicesByUser = new Map<string, number>();
   for (const item of equipment) {
+    totalDevicesByUser.set(
+      item.userId,
+      (totalDevicesByUser.get(item.userId) ?? 0) + 1
+    );
     if (item.returnDate === null)
       activeDevicesByUser.set(
         item.userId,
@@ -126,6 +131,7 @@ export default async function ITManagementPage() {
     userName: fullName(u),
     active: u.status !== "deaktiviert",
     activeDevices: activeDevicesByUser.get(u.id) ?? 0,
+    totalDevices: totalDevicesByUser.get(u.id) ?? 0,
     uebergabe: protocolByUserAndKind.get(`${u.id}:uebergabe`) ?? null,
     ruecknahme: protocolByUserAndKind.get(`${u.id}:ruecknahme`) ?? null,
   }));
