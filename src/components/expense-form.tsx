@@ -15,6 +15,11 @@ import {
   type MealDayInput,
   type MealRates,
 } from "@/lib/expenses/calc";
+import {
+  MAX_RECEIPTS_TOTAL_BYTES,
+  prepareReceiptFile,
+  receiptsTooLargeMessage,
+} from "@/lib/expenses/receipt-upload";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -292,6 +297,43 @@ export function ExpenseForm({
   function handleSubmit() {
     startTransition(async () => {
       try {
+        // Foto-Belege vor dem Absenden verkleinern und die Gesamtgröße
+        // prüfen: Vercel weist Action-Requests über ~4,5 MB ohne Server-Log
+        // ab, im Client stünde sonst nur "An unexpected response was
+        // received from the server."
+        const prepare = (items: BelegItem[], strong: boolean) =>
+          Promise.all(
+            items.map(async (item) =>
+              item.file
+                ? { ...item, file: await prepareReceiptFile(item.file, strong) }
+                : item
+            )
+          );
+        let [transportReady, lodgingReady, incidentalsReady] =
+          await Promise.all([
+            prepare(transport, false),
+            prepare(lodging, false),
+            prepare(incidentals, false),
+          ]);
+        const attachedFiles = () =>
+          [...transportReady, ...lodgingReady, ...incidentalsReady].flatMap(
+            (i) => (i.date && i.description && i.file ? [i.file] : [])
+          );
+        const totalBytes = () =>
+          attachedFiles().reduce((sum, f) => sum + f.size, 0);
+        if (totalBytes() > MAX_RECEIPTS_TOTAL_BYTES) {
+          // Zweite Stufe: alle Bilder stärker komprimieren.
+          [transportReady, lodgingReady, incidentalsReady] = await Promise.all([
+            prepare(transportReady, true),
+            prepare(lodgingReady, true),
+            prepare(incidentalsReady, true),
+          ]);
+        }
+        if (totalBytes() > MAX_RECEIPTS_TOTAL_BYTES) {
+          toast.error(receiptsTooLargeMessage(attachedFiles()));
+          return;
+        }
+
         const formData = new FormData();
         let fileIndex = 0;
         const serializeBeleg = (items: BelegItem[]) =>
@@ -322,11 +364,11 @@ export function ExpenseForm({
           returnTime,
           isAbroad,
           mealDays,
-          transport: serializeBeleg(transport),
+          transport: serializeBeleg(transportReady),
           carKilometers: Number(carKilometers) || 0,
           carPassengers: Number(carPassengers) || 0,
-          lodging: serializeBeleg(lodging),
-          incidentals: serializeBeleg(incidentals),
+          lodging: serializeBeleg(lodgingReady),
+          incidentals: serializeBeleg(incidentalsReady),
         };
         formData.set("payload", JSON.stringify(payload));
         await action(formData);
