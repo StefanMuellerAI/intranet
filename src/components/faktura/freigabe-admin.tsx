@@ -13,7 +13,7 @@ import {
   setEntryVisibilityAction,
   type EntryHistoryItem,
 } from "@/app/(app)/faktura/freigabe/actions";
-import type { ActionResult } from "@/lib/faktura/user-error";
+import type { ActionResult } from "@/lib/user-error";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

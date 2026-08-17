@@ -2,6 +2,7 @@ import {
   boolean,
   date,
   doublePrecision,
+  index,
   integer,
   jsonb,
   pgTable,
@@ -874,6 +875,62 @@ export const itEquipmentDocuments = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Seminar- und Beratungsberichte
+// ---------------------------------------------------------------------------
+
+export const SEMINAR_REPORT_KINDS = ["seminar", "beratung"] as const;
+export type SeminarReportKind = (typeof SEMINAR_REPORT_KINDS)[number];
+
+/**
+ * Bericht zu einer gehaltenen Veranstaltung. Bewusst ohne Freigabe-Workflow:
+ * Berichte werden abgeliefert, nicht genehmigt — deshalb gibt es keinen Status
+ * und keine Anbindung an /freigaben.
+ */
+export const seminarReports = pgTable(
+  "seminar_reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    kind: text("kind", { enum: SEMINAR_REPORT_KINDS }).notNull(),
+    /** Kunde/Organisation als Freitext — Vorschläge aus Faktura und Altberichten */
+    customerName: text("customer_name").notNull(),
+    /** Titel der Veranstaltung */
+    title: text("title").notNull(),
+    /** Tag der Veranstaltung; bei mehrtägigen der erste Tag */
+    eventDate: date("event_date").notNull(),
+    /** Dauer in Tagen, 0,5er-Schritte (halbtägig 0,5 / ganztägig 1 / zweitägig 2) */
+    durationDays: doublePrecision("duration_days").notNull(),
+    whatWentWell: text("what_went_well").notNull(),
+    whatWentBadly: text("what_went_badly").notNull(),
+    improvements: text("improvements").notNull(),
+    /** Teilnehmenden-Feedback: 1 = sehr schlecht … 5 = sehr gut */
+    feedbackRating: integer("feedback_rating").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index("seminar_reports_user_event_idx").on(t.userId, t.eventDate)]
+);
+
+/**
+ * Zitat einer teilnehmenden Person. Bewusst ohne Namensfeld — es wird
+ * ausschließlich der Wortlaut gesammelt, damit die Zitate anonym bleiben und
+ * sich später auf der Website verwenden lassen.
+ */
+export const seminarReportQuotes = pgTable("seminar_report_quotes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  reportId: uuid("report_id")
+    .notNull()
+    .references(() => seminarReports.id, { onDelete: "cascade" }),
+  position: integer("position").notNull().default(0),
+  quote: text("quote").notNull(),
+  /** Vom Admin für die Verwendung auf der Website freigegeben */
+  websiteApproved: boolean("website_approved").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ---------------------------------------------------------------------------
 // Typen
 // ---------------------------------------------------------------------------
 
@@ -903,3 +960,5 @@ export type FakturaTimesheet = typeof fakturaTimesheets.$inferSelect;
 export type ItEquipmentType = typeof itEquipmentTypes.$inferSelect;
 export type ItEquipment = typeof itEquipment.$inferSelect;
 export type ItEquipmentDocument = typeof itEquipmentDocuments.$inferSelect;
+export type SeminarReport = typeof seminarReports.$inferSelect;
+export type SeminarReportQuote = typeof seminarReportQuotes.$inferSelect;

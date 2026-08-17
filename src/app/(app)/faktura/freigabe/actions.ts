@@ -11,7 +11,7 @@ import {
   adminUpdateTimeEntry,
 } from "@/lib/faktura/buchungen";
 import { approveWeek, revokeWeekApproval } from "@/lib/faktura/freigabe";
-import { runAction, type ActionResult } from "@/lib/faktura/user-error";
+import { runAction, type ActionResult } from "@/lib/user-error";
 
 function revalidate() {
   revalidatePath("/faktura/freigabe");

@@ -10,7 +10,7 @@ import {
   updateCustomerAction,
   updateProjectAction,
 } from "@/app/(app)/faktura/kunden/actions";
-import type { ActionResult } from "@/lib/faktura/user-error";
+import type { ActionResult } from "@/lib/user-error";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

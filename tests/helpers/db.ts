@@ -33,6 +33,8 @@ export async function resetDb(): Promise<void> {
   const db = testDb();
   await db.execute(`
     TRUNCATE TABLE
+      seminar_report_quotes,
+      seminar_reports,
       faktura_timesheets,
       faktura_time_entries,
       faktura_week_approvals,

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { generateTimesheet } from "@/lib/faktura/stundenzettel";
-import { runAction, type ActionResult } from "@/lib/faktura/user-error";
+import { runAction, type ActionResult } from "@/lib/user-error";
 
 export interface GenerateResult {
   timesheetId: string;

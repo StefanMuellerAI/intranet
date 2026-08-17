@@ -16,7 +16,7 @@ import { writeAudit } from "@/lib/audit";
 import { fullName } from "@/lib/auth";
 import { formatDateDE } from "@/lib/dates";
 import { type FakturaSource } from "@/lib/faktura/stammdaten";
-import { UserError } from "@/lib/faktura/user-error";
+import { UserError } from "@/lib/user-error";
 import {
   renderTimesheetPdf,
   type TimesheetPdfData,

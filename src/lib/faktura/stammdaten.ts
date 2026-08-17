@@ -5,7 +5,7 @@ import { db, fakturaCustomers, fakturaProjects, type User } from "@/db";
 import { writeAudit, type AuditEntry } from "@/lib/audit";
 import { fullName } from "@/lib/auth";
 import { isValidISODate, QUARTER_HOUR_MINUTES } from "@/lib/faktura/zeitfenster";
-import { UserError } from "@/lib/faktura/user-error";
+import { UserError } from "@/lib/user-error";
 
 export type FakturaSource = AuditEntry["source"];
 

@@ -10,7 +10,7 @@ import {
   updateCustomer,
   updateProject,
 } from "@/lib/faktura/stammdaten";
-import { runAction, type ActionResult } from "@/lib/faktura/user-error";
+import { runAction, type ActionResult } from "@/lib/user-error";
 
 function optional(formData: FormData, key: string): string | undefined {
   const value = String(formData.get(key) ?? "").trim();
