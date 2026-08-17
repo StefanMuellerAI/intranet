@@ -27,7 +27,8 @@ export interface AuditEntry {
     | "faktura_stundenzettel"
     | "it_ausstattung"
     | "it_ausstattungsart"
-    | "it_dokument";
+    | "it_dokument"
+    | "seminarbericht";
   objectId?: string;
   action: string;
   actorUserId?: string | null;

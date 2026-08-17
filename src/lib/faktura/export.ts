@@ -10,7 +10,7 @@ import {
 } from "@/db";
 import { fullName } from "@/lib/auth";
 import { formatDateDE } from "@/lib/dates";
-import { UserError } from "@/lib/faktura/user-error";
+import { UserError } from "@/lib/user-error";
 import {
   formatIsoWeek,
   formatMinutesAsHours,

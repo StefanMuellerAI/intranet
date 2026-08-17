@@ -34,7 +34,7 @@ export async function runAction<T>(
       const message = err.issues[0]?.message;
       if (message) return { ok: false, error: message };
     }
-    console.error("Faktura-Action fehlgeschlagen:", err);
+    console.error("Server-Action fehlgeschlagen:", err);
     return {
       ok: false,
       error: "Unerwarteter Fehler. Bitte versuchen Sie es später erneut.",

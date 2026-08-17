@@ -8,7 +8,7 @@ import {
   updateTimeEntry,
   type SaveEntryResult,
 } from "@/lib/faktura/buchungen";
-import { runAction, type ActionResult } from "@/lib/faktura/user-error";
+import { runAction, type ActionResult } from "@/lib/user-error";
 
 function parseEntryForm(formData: FormData) {
   return {

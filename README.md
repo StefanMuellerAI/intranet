@@ -122,6 +122,27 @@ Kürzung beim Grundsatz (nie negativ) sowie die Workation-Validierungen
   Einsatz, die Rücknahme mit allen erfassten Geräten samt Rückgabedaten
   (offene Daten als Leerfeld zum Handausfüllen). Jeder Abruf wird
   auditiert.
+- **Seminar- und Beratungsberichte**: Menü *Berichte* — alle Mitarbeitenden
+  halten nach einer Veranstaltung Kunde, Art (Seminar/Beratung), Titel, Datum,
+  Dauer in Tagen (0,5er-Schritte), was gut und was nicht gut lief, geplante
+  Verbesserungen sowie das Teilnehmenden-Feedback von 1 bis 5 fest (**5 = sehr
+  gut**). Bewusst ohne Freigabe-Workflow: Berichte werden abgeliefert, nicht
+  genehmigt; die eigenen Berichte bleiben jederzeit bearbeit- und löschbar.
+  Das Kundenfeld ist Freitext mit Vorschlägen aus den Faktura-Kunden und
+  bereits erfassten Berichten, damit Schreibweisen nicht auseinanderlaufen.
+  Für den Admin kommen zwei Reiter hinzu: *Alle Berichte* mit Filter nach
+  Mitarbeiter/in, Art und Zeitraum sowie umschaltbarer Sortierung nach Datum
+  oder Mitarbeiter/in (die Auswahl steht in der URL und ist damit teilbar),
+  und *Zitate*.
+- **Zitate von Teilnehmenden**: Reiter *Zitate* im Menü *Berichte* — je Bericht
+  lassen sich bis zu 20 Zitate sammeln. Es wird **ausschließlich der Wortlaut**
+  erfasst, bewusst ohne Namensfeld, damit die Zitate anonym bleiben. Der Admin
+  gibt einzelne Zitate für die Website frei und lädt die freigegebenen als CSV
+  herunter (Semikolon, UTF-8 mit BOM, öffnet direkt in Excel); jeder Export
+  wird auditiert. Ändert jemand den Wortlaut eines bereits freigegebenen
+  Zitats, fällt die Freigabe automatisch zurück und muss erneut erteilt werden.
+  Beim Löschen eines Berichts verschwinden auch seine Zitate — der
+  Löschdialog weist vorher aus, wie viele davon freigegeben sind.
 - **Ausstattungsliste als CSV**: Reiter *Export & Import* im IT-Management —
   Export aller Geräte (Semikolon, UTF-8 mit BOM, öffnet direkt in Excel);
   dieselbe Datei dient als Import-Vorlage. Der Import gleicht über die

@@ -32,6 +32,35 @@ test.describe("Rollen und Berechtigungen", () => {
     await expect(employee.getByText("Offene Anträge")).toHaveCount(0);
   });
 
+  test("Mitarbeiter sieht die Admin-Bereiche der Berichte nicht", async ({
+    browser,
+  }) => {
+    const employee = await pageAs(browser, USER_STATE);
+
+    // Der Menüpunkt selbst ist für alle da, die Unterbereiche nicht
+    await employee.goto("/berichte");
+    await expect(
+      employee.getByRole("heading", { name: "Berichte" })
+    ).toBeVisible();
+    await expect(
+      employee.getByRole("link", { name: "Alle Berichte" })
+    ).toHaveCount(0);
+    await expect(employee.getByRole("link", { name: "Zitate" })).toHaveCount(0);
+
+    // Direkte Aufrufe der Admin-Seiten schlagen fehl
+    await employee.goto("/berichte/alle");
+    await expect(
+      employee.getByRole("heading", { name: "Alle Berichte" })
+    ).toHaveCount(0);
+
+    await employee.goto("/berichte/zitate");
+    await expect(employee.getByRole("switch")).toHaveCount(0);
+
+    // Der CSV-Export der Zitate bleibt dem Admin vorbehalten
+    const response = await employee.request.get("/api/exports/berichte-zitate");
+    expect(response.status()).toBe(403);
+  });
+
   test("Mitarbeiter sieht fremde Anträge nicht", async ({ browser }) => {
     // Antrag des Admins direkt in der Test-DB anlegen
     const db = testDb();

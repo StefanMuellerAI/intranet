@@ -8,6 +8,7 @@ import { useClerk } from "@clerk/nextjs";
 import {
   CalendarDays,
   CheckSquare,
+  ClipboardList,
   Clock,
   FileText,
   HandCoins,
@@ -56,6 +57,7 @@ export function Sidebar({
     { href: "/provision", label: "Provisionen", icon: HandCoins },
     { href: "/krankmeldung", label: "Krankmeldung", icon: HeartPulse },
     { href: "/faktura", label: "Faktura", icon: Clock },
+    { href: "/berichte", label: "Berichte", icon: ClipboardList },
     { href: "/kalender", label: "Kalender", icon: CalendarDays },
     { href: "/organigramm", label: "Organigramm", icon: Network },
     { href: "/dokumente", label: "Dokumente", icon: FileText },

@@ -16,7 +16,7 @@ import { fullName } from "@/lib/auth";
 import { formatDateDE } from "@/lib/dates";
 import { notifyFakturaEntryChanged } from "@/lib/notifications";
 import { checkMonthlyLimit } from "@/lib/faktura/limit";
-import { UserError } from "@/lib/faktura/user-error";
+import { UserError } from "@/lib/user-error";
 import {
   customerProjectLabel,
   type FakturaSource,
