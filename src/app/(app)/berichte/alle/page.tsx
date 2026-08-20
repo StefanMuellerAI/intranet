@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { asc } from "drizzle-orm";
 import { db, users } from "@/db";
-import { fullName, requireAdmin } from "@/lib/auth";
+import { fullName, requireUser } from "@/lib/auth";
 import { formatDateDE } from "@/lib/dates";
 import {
   FEEDBACK_SCALE_HINT,
@@ -61,7 +61,7 @@ export default async function AlleBerichtePage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  await requireAdmin();
+  const user = await requireUser();
   const params = await searchParams;
 
   const sort: ReportSortOrder = (
@@ -102,9 +102,9 @@ export default async function AlleBerichtePage({
     <div>
       <PageHeader
         title="Alle Berichte"
-        description="Berichte aller Mitarbeitenden zu Seminaren und Beratungen"
+        description="Berichte aller Mitarbeitenden zu Seminaren und Beratungen — für alle im Team einsehbar"
       />
-      <BerichteNav isAdmin />
+      <BerichteNav isAdmin={user.role === "admin"} />
 
       <BerichteFilter
         employees={employees}

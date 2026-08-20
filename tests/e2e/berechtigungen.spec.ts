@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { eq } from "drizzle-orm";
-import { users, vacationRequests } from "../../src/db/schema";
+import { seminarReports, users, vacationRequests } from "../../src/db/schema";
 import { testDb, E2E_ADMIN_EMAIL } from "../helpers/db";
 import {
+  ADMIN_NAME,
   ADMIN_STATE,
   USER_NAME,
   USER_STATE,
@@ -32,33 +33,81 @@ test.describe("Rollen und Berechtigungen", () => {
     await expect(employee.getByText("Offene Anträge")).toHaveCount(0);
   });
 
-  test("Mitarbeiter sieht die Admin-Bereiche der Berichte nicht", async ({
+  test("Mitarbeiter liest alle Berichte, verwaltet aber keine Zitate", async ({
     browser,
   }) => {
     const employee = await pageAs(browser, USER_STATE);
 
-    // Der Menüpunkt selbst ist für alle da, die Unterbereiche nicht
+    // Berichte aller Mitarbeitenden sind für das ganze Team lesbar
     await employee.goto("/berichte");
     await expect(
       employee.getByRole("heading", { name: "Berichte" })
     ).toBeVisible();
     await expect(
       employee.getByRole("link", { name: "Alle Berichte" })
-    ).toHaveCount(0);
+    ).toBeVisible();
     await expect(employee.getByRole("link", { name: "Zitate" })).toHaveCount(0);
 
-    // Direkte Aufrufe der Admin-Seiten schlagen fehl
     await employee.goto("/berichte/alle");
     await expect(
       employee.getByRole("heading", { name: "Alle Berichte" })
-    ).toHaveCount(0);
+    ).toBeVisible();
 
+    // Die Zitatverwaltung bleibt dem Admin vorbehalten
     await employee.goto("/berichte/zitate");
     await expect(employee.getByRole("switch")).toHaveCount(0);
 
     // Der CSV-Export der Zitate bleibt dem Admin vorbehalten
     const response = await employee.request.get("/api/exports/berichte-zitate");
     expect(response.status()).toBe(403);
+  });
+
+  test("Mitarbeiter liest einen fremden Bericht, kann ihn aber nicht ändern", async ({
+    browser,
+  }) => {
+    // Bericht des Admins direkt in der Test-DB anlegen
+    const db = testDb();
+    const [adminUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, E2E_ADMIN_EMAIL));
+    const title = `E2E-Fremdbericht ${Date.now()}`;
+    const [report] = await db
+      .insert(seminarReports)
+      .values({
+        userId: adminUser.id,
+        kind: "seminar",
+        customerName: "Haufe Akademie",
+        title,
+        eventDate: "2026-07-14",
+        durationDays: 1,
+        whatWentWell: "Gute Diskussion.",
+        whatWentBadly: "Technik hakte.",
+        improvements: "Technik vorab testen.",
+        feedbackRating: 4,
+      })
+      .returning();
+
+    const employee = await pageAs(browser, USER_STATE);
+
+    // Der Bericht taucht in der Gesamtübersicht auf …
+    await employee.goto("/berichte/alle");
+    await expect(
+      employee.getByRole("row").filter({ hasText: title })
+    ).toBeVisible();
+
+    // … und lässt sich lesen, samt Angabe der verfassenden Person
+    await employee.goto(`/berichte/${report.id}`);
+    await expect(employee.getByRole("heading", { name: title })).toBeVisible();
+    await expect(employee.getByText(ADMIN_NAME).first()).toBeVisible();
+
+    // Bearbeiten und Löschen bleiben der eigenen Person vorbehalten
+    await expect(
+      employee.getByRole("heading", { name: "Bericht bearbeiten" })
+    ).toHaveCount(0);
+    await expect(
+      employee.getByRole("button", { name: "Endgültig löschen" })
+    ).toHaveCount(0);
   });
 
   test("Mitarbeiter sieht fremde Anträge nicht", async ({ browser }) => {
