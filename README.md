@@ -61,8 +61,14 @@ Kürzung beim Grundsatz (nie negativ) sowie die Workation-Validierungen
    im DNS, SPF-Eintrag um Brevo erweitern — zusätzlich zu Google), danach
    DMARC prüfen. In Google Workspace `intranet@` als Postfach oder
    Alias/Gruppe anlegen, damit Antworten und Bounces ankommen.
-5. **Cron**: `vercel.json` enthält den Cron `/api/cron/webhooks` (alle 5 Min.)
-   für Webhook-Wiederholungen; `CRON_SECRET` setzen.
+5. **Cron**: `vercel.json` enthält den Cron `/api/cron/webhooks` für
+   Webhook-Wiederholungen; `CRON_SECRET` setzen. Der Takt ist bewusst auf
+   werktags 05:00–19:59 UTC alle 30 Min. begrenzt (deutsche Arbeitszeit,
+   ganzjährig): Neon suspendiert die Compute nach 5 Min. Leerlauf, ein
+   dichterer Takt hält sie rund um die Uhr wach und verbraucht das
+   Compute-Kontingent allein im Leerlauf. Zustellungen, die außerhalb des
+   Fensters fällig werden, gehen nicht verloren — sie werden beim nächsten
+   Lauf nachgeholt.
 
 ### Laufender Betrieb
 
@@ -88,8 +94,10 @@ Kürzung beim Grundsatz (nie negativ) sowie die Workation-Validierungen
   Tageszuschlag (Standard 0 €).
 - **n8n-Webhooks**: Menü *Einstellungen → n8n-Webhooks* — URL + Secret pro
   Kategorie/Ereignis. Signatur: `X-StefanAI-Signature` = HMAC-SHA256 über
-  den JSON-Body mit dem Secret. 3 Zustellversuche (sofort, +1 min, +5 min,
-  +30 min via Cron), Zustell-Log in der Oberfläche.
+  den JSON-Body mit dem Secret. 3 Zustellversuche (sofort, danach +1 min,
+  +5 min, +30 min Backoff). Der erste Versuch läuft immer sofort; die
+  Wiederholungen holt der Cron im 30-Minuten-Takt nach, außerhalb der
+  Cron-Zeiten entsprechend später. Zustell-Log in der Oberfläche.
 - **API-Keys**: Menü *Einstellungen → API-Keys* — Klartext wird nur einmalig
   angezeigt; Keys sind jederzeit widerrufbar.
 - **Exporte**: Menü *Einstellungen → Reisekosten-Export* — genehmigte
