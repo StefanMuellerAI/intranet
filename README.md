@@ -138,10 +138,12 @@ Kürzung beim Grundsatz (nie negativ) sowie die Workation-Validierungen
   genehmigt; die eigenen Berichte bleiben jederzeit bearbeit- und löschbar.
   Das Kundenfeld ist Freitext mit Vorschlägen aus den Faktura-Kunden und
   bereits erfassten Berichten, damit Schreibweisen nicht auseinanderlaufen.
-  Für den Admin kommen zwei Reiter hinzu: *Alle Berichte* mit Filter nach
-  Mitarbeiter/in, Art und Zeitraum sowie umschaltbarer Sortierung nach Datum
-  oder Mitarbeiter/in (die Auswahl steht in der URL und ist damit teilbar),
-  und *Zitate*.
+  Der Reiter *Alle Berichte* steht dem ganzen Team offen: dort sind die
+  Berichte aller Mitarbeitenden lesbar, mit Filter nach Mitarbeiter/in, Art
+  und Zeitraum sowie umschaltbarer Sortierung nach Datum oder Mitarbeiter/in
+  (die Auswahl steht in der URL und ist damit teilbar). Fremde Berichte sind
+  ausschließlich lesbar — bearbeiten und löschen darf sie nur, wer sie
+  verfasst hat. Der Reiter *Zitate* bleibt dem Admin vorbehalten.
 - **Zitate von Teilnehmenden**: Reiter *Zitate* im Menü *Berichte* — je Bericht
   lassen sich bis zu 20 Zitate sammeln. Es wird **ausschließlich der Wortlaut**
   erfasst, bewusst ohne Namensfeld, damit die Zitate anonym bleiben. Der Admin

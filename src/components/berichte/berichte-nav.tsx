@@ -5,19 +5,16 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const OWN_ITEM = { href: "/berichte", label: "Meine Berichte" };
+const ALL_ITEM = { href: "/berichte/alle", label: "Alle Berichte" };
 
-/** Zusätzliche Unterbereiche — nur für den Admin sichtbar. */
-const ADMIN_ITEMS = [
-  { href: "/berichte/alle", label: "Alle Berichte" },
-  { href: "/berichte/zitate", label: "Zitate" },
-];
+/** Die Zitatverwaltung bleibt dem Admin vorbehalten. */
+const ADMIN_ITEMS = [{ href: "/berichte/zitate", label: "Zitate" }];
 
 export function BerichteNav({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
-  // Ohne Admin-Unterseiten gibt es nichts zu wechseln — dann keine Leiste.
-  if (!isAdmin) return null;
 
-  const items = [OWN_ITEM, ...ADMIN_ITEMS];
+  const items = [OWN_ITEM, ALL_ITEM, ...(isAdmin ? ADMIN_ITEMS : [])];
+  const subPages = [ALL_ITEM, ...ADMIN_ITEMS];
 
   return (
     <div className="mb-6 flex flex-wrap gap-1 rounded-lg border bg-muted/40 p-1 text-sm">
@@ -26,7 +23,7 @@ export function BerichteNav({ isAdmin }: { isAdmin: boolean }) {
           item.href === OWN_ITEM.href
             ? pathname === OWN_ITEM.href ||
               (pathname.startsWith("/berichte/") &&
-                !ADMIN_ITEMS.some((admin) => pathname.startsWith(admin.href)))
+                !subPages.some((sub) => pathname.startsWith(sub.href)))
             : pathname.startsWith(item.href);
         return (
           <Link

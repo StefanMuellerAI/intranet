@@ -25,7 +25,7 @@ export function BerichtDetails({
 }: {
   report: SeminarReport;
   quotes: SeminarReportQuote[];
-  /** Gesetzt, wenn der Bericht einer anderen Person gehört (Admin-Sicht). */
+  /** Gesetzt, wenn der Bericht einer anderen Person gehört (Lesesicht). */
   userName?: string;
 }) {
   return (

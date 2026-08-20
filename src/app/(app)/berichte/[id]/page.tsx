@@ -30,8 +30,9 @@ export default async function BerichtDetailPage({
   const isAdmin = user.role === "admin";
 
   const found = await getSeminarReportWithQuotes(id);
-  // Strikte Trennung: Mitarbeitende sehen nur eigene Berichte.
-  if (!found || (found.report.userId !== user.id && !isAdmin)) notFound();
+  // Berichte sind teamweit lesbar — bearbeiten und löschen darf nur, wem der
+  // Bericht gehört.
+  if (!found) notFound();
 
   const { report, quotes } = found;
   const isOwn = report.userId === user.id;
@@ -102,7 +103,11 @@ export default async function BerichtDetailPage({
         </>
       )}
 
-      <AuditTrail objectType="seminarbericht" objectId={id} />
+      {/* Der Verlauf ist Metainformation zur Bearbeitung, nicht Inhalt des
+          Berichts — er bleibt der verfassenden Person und dem Admin vorbehalten. */}
+      {(isOwn || isAdmin) && (
+        <AuditTrail objectType="seminarbericht" objectId={id} />
+      )}
     </div>
   );
 }
