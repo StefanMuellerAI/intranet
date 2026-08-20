@@ -12,7 +12,9 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await authenticateApiRequest(req, { requireScope: "full" });
+  const auth = await authenticateApiRequest(req, {
+    allowScopes: ["full"],
+  });
   if (!auth.ok) return auth.response;
 
   const { id } = await params;

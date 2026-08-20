@@ -13,6 +13,12 @@ import {
   setDeputy,
   clearDeputy,
 } from "@/app/(app)/einstellungen/actions";
+import {
+  API_KEY_SCOPE_HINTS,
+  API_KEY_SCOPE_LABELS,
+  API_KEY_SCOPES,
+  type ApiKeyScope,
+} from "@/lib/api-scopes";
 
 function useAction() {
   const [pending, startTransition] = useTransition();
@@ -168,7 +174,7 @@ export function ApiKeyPanel({
     id: string;
     name: string;
     keyPrefix: string;
-    scope: string;
+    scope: ApiKeyScope;
     createdAt: string;
     revokedAt: string | null;
     lastUsedAt: string | null;
@@ -176,6 +182,7 @@ export function ApiKeyPanel({
 }) {
   const { pending, run } = useAction();
   const [newKey, setNewKey] = useState<string | null>(null);
+  const [scope, setScope] = useState<ApiKeyScope>("readonly");
 
   return (
     <div className="space-y-4">
@@ -203,12 +210,19 @@ export function ApiKeyPanel({
           <select
             id="key-scope"
             name="scope"
-            defaultValue="readonly"
+            value={scope}
+            onChange={(e) => setScope(e.target.value as ApiKeyScope)}
             className="border-input h-9 rounded-md border bg-transparent px-3 text-sm"
           >
-            <option value="readonly">Nur lesen</option>
-            <option value="full">Lesen + Freigeben</option>
+            {API_KEY_SCOPES.map((s) => (
+              <option key={s} value={s}>
+                {API_KEY_SCOPE_LABELS[s]}
+              </option>
+            ))}
           </select>
+          <p className="text-muted-foreground text-xs">
+            {API_KEY_SCOPE_HINTS[scope]}
+          </p>
         </div>
         <Button type="submit" disabled={pending}>
           Key erzeugen
@@ -248,8 +262,8 @@ export function ApiKeyPanel({
               <code className="text-xs text-muted-foreground">
                 {k.keyPrefix}…
               </code>{" "}
-              · {k.scope === "full" ? "Lesen + Freigeben" : "nur lesen"} ·
-              erstellt {k.createdAt}
+              · {API_KEY_SCOPE_LABELS[k.scope] ?? k.scope} · erstellt{" "}
+              {k.createdAt}
               {k.lastUsedAt ? ` · zuletzt genutzt ${k.lastUsedAt}` : ""}
               {k.revokedAt ? (
                 <span className="text-red-600"> · widerrufen</span>

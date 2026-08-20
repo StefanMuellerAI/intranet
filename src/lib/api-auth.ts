@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { apiKeys, db, users, type ApiKey, type User } from "@/db";
 import { hashApiKey } from "@/lib/api-keys";
+import { API_KEY_SCOPE_LABELS, type ApiKeyScope } from "@/lib/api-scopes";
 
 const RATE_LIMIT_PER_MINUTE = 60;
 
@@ -24,13 +25,19 @@ function errorResponse(status: number, message: string): NextResponse {
  * Authentifiziert eine API-Anfrage per Bearer-Key und wendet ein
  * Rate Limit (Fixed Window, 60 Anfragen/Minute je Key) an.
  *
- * Mit `requireScope: "full"` werden nur Keys mit vollem Berechtigungsumfang
- * zugelassen — für Freigabe-/Schreibendpunkte. Lese-Endpunkte lassen den
- * Parameter weg und akzeptieren auch readonly-Keys.
+ * `allowScopes` listet abschließend auf, welche Key-Umfänge diesen Endpunkt
+ * erreichen dürfen; jeder andere Umfang wird mit 403 abgewiesen. Für einen
+ * neu hinzukommenden Umfang gilt damit automatisch: kein Zugriff, solange ein
+ * Endpunkt ihn nicht ausdrücklich aufführt.
+ *
+ * Der Parameter ist bewusst **nicht** optional und hat bewusst **keinen**
+ * Default: ein vergessener Aufrufer soll ein Compile-Fehler sein und kein
+ * stiller Vollzugriff. Bitte weder Default noch Überladung nachrüsten — genau
+ * diese Bequemlichkeit wäre das Loch, das diese Signatur schließt.
  */
 export async function authenticateApiRequest(
   req: Request,
-  opts?: { requireScope?: "full" }
+  opts: { allowScopes: readonly [ApiKeyScope, ...ApiKeyScope[]] }
 ): Promise<ApiAuthResult> {
   const header = req.headers.get("authorization") ?? "";
   const match = header.match(/^Bearer\s+(.+)$/i);
@@ -77,13 +84,17 @@ export async function authenticateApiRequest(
     })
     .where(eq(apiKeys.id, key.id));
 
-  // Scope-Prüfung: Freigabe-/Schreibendpunkte verlangen einen "full"-Key.
-  if (opts?.requireScope === "full" && key.scope !== "full")
+  // Scope-Prüfung gegen die Allowlist des Endpunkts. Die Prüfung ist bewusst
+  // positiv formuliert: die Spalte ist in der Datenbank nur `text` ohne
+  // Constraint, ein unbekannter Wert fällt damit ebenfalls durch (fail closed).
+  if (!(opts.allowScopes as readonly string[]).includes(key.scope))
     return {
       ok: false,
       response: errorResponse(
         403,
-        "Dieser API-Key ist nur lesend (readonly) und darf keine Freigaben auslösen."
+        `Dieser API-Key hat den Umfang „${
+          API_KEY_SCOPE_LABELS[key.scope] ?? key.scope
+        }“ und ist für diesen Endpunkt nicht freigegeben.`
       ),
     };
 

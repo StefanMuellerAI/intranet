@@ -99,7 +99,12 @@ Kürzung beim Grundsatz (nie negativ) sowie die Workation-Validierungen
   Wiederholungen holt der Cron im 30-Minuten-Takt nach, außerhalb der
   Cron-Zeiten entsprechend später. Zustell-Log in der Oberfläche.
 - **API-Keys**: Menü *Einstellungen → API-Keys* — Klartext wird nur einmalig
-  angezeigt; Keys sind jederzeit widerrufbar.
+  angezeigt; Keys sind jederzeit widerrufbar. Der Umfang wird beim Anlegen
+  gewählt und ist danach nicht mehr änderbar: *Nur lesen* (Anträge,
+  Abwesenheiten, Faktura), *Lesen + Freigeben* oder *Website (nur Zitate)* —
+  letzterer erreicht ausschließlich `/api/v1/website/zitate` und wird auf
+  allen anderen Pfaden mit 403 abgewiesen. Nur dieser Umfang eignet sich zur
+  Weitergabe an externe Dienstleister.
 - **Exporte**: Menü *Einstellungen → Reisekosten-Export* — genehmigte
   Abrechnungen pro Monat als CSV/PDF mit getrenntem Ausweis (steuerfreie
   Pauschale / pauschal versteuerter Zuschlag / Beleg-Erstattungen).
@@ -177,6 +182,45 @@ mit Kennzeichnung „API" und dem verwendeten Key.
 | POST | `/api/v1/requests/{id}/approve` | Genehmigen |
 | POST | `/api/v1/requests/{id}/reject` | Beanstanden, Body: `{ "comment": "…" }` (Pflicht) |
 | GET | `/api/v1/absences` | Krankmeldungen und genehmigte Abwesenheiten (nur lesend) |
+| GET | `/api/v1/website/zitate?limit=200` | Für die Website freigegebene Zitate (anonym) — auch für Keys vom Umfang „Website" |
+
+Welche Endpunkte ein Key erreicht, entscheidet allein die Allowlist im
+jeweiligen Route-Handler: Freigabe-Endpunkte verlangen *Lesen + Freigeben*,
+die Lese-Endpunkte oben zusätzlich *Nur lesen*, und ein Key vom Umfang
+*Website* kommt nur an die Zitate. Ein neu hinzukommender Key-Umfang ist damit
+überall gesperrt, bis ein Endpunkt ihn ausdrücklich aufführt.
+
+### Zitate-API für die Website
+
+`GET {APP_BASE_URL}/api/v1/website/zitate` liefert genau die Zitate, die der
+Admin unter *Berichte → Zitate* freigegeben hat — als JSON, mit stabiler Id und
+Wortlaut, sonst nichts:
+
+```json
+{ "zitate": [{ "id": "6f0c1f2a-…-9d31", "zitat": "Sehr praxisnah." }], "anzahl": 1 }
+```
+
+Bewusst nicht enthalten sind Name der/des Vortragenden, Kunde, Titel und Datum
+des Berichts — die Zitate sind anonym. Sortierung: neueste Veranstaltung
+zuerst. Optional `?limit=1…200`.
+
+Die Antwort trägt einen `ETag` und `Cache-Control: private, max-age=300`; ein
+Folgeaufruf mit `If-None-Match` wird bei unveränderten Daten mit `304`
+beantwortet. Ein `Last-Modified` gibt es bewusst nicht: Das Setzen oder
+Zurückziehen einer Freigabe ändert keinen Zeitstempel in der Datenbank.
+
+Der Key gehört **auf den Server** des Dienstleisters (Build-Prozess oder
+eigene Backend-Route), nicht in ausgeliefertes Frontend-JavaScript. Soll die
+Website die Route dennoch direkt aus dem Browser abrufen, schaltet die
+Umgebungsvariable `WEBSITE_CORS_ORIGINS` (kommaseparierte Liste vollständiger
+Origins, z. B. `https://stefanai.de,https://www.stefanai.de`) CORS für genau
+diese Domains frei; ohne die Variable werden keine CORS-Header gesetzt. Ein
+im Browser genutzter Key ist faktisch öffentlich — genau deshalb muss es ein
+Key vom Umfang *Website* sein.
+
+Hinweis für den Support: Wird der Wortlaut eines Zitats im Bericht
+nachträglich geändert, entfällt die Freigabe automatisch und das Zitat
+verschwindet aus der Schnittstelle, bis der Admin sie erneut setzt.
 
 ## Persönlicher MCP-Zugang (Claude / Cursor)
 

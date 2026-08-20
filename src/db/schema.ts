@@ -475,11 +475,14 @@ export const apiKeys = pgTable("api_keys", {
   keyHash: text("key_hash").notNull().unique(),
   keyPrefix: text("key_prefix").notNull(),
   /**
-   * Berechtigungsumfang: "readonly" darf nur lesen, "full" auch Freigaben
-   * (genehmigen/beanstanden/Woche freigeben) auslösen. Default readonly, damit
-   * ein geleakter Key im schlimmsten Fall nur lesenden Zugriff gewährt.
+   * Berechtigungsumfang (gespiegelt in src/lib/api-scopes.ts): "readonly" darf
+   * nur lesen, "full" auch Freigaben (genehmigen/beanstanden/Woche freigeben)
+   * auslösen, "website" ausschließlich die für die Website freigegebenen
+   * Zitate abrufen. Default readonly, damit ein geleakter Key im schlimmsten
+   * Fall nur lesenden Zugriff gewährt. Welcher Umfang welchen Endpunkt
+   * erreicht, entscheidet die Allowlist im jeweiligen Route-Handler.
    */
-  scope: text("scope", { enum: ["readonly", "full"] })
+  scope: text("scope", { enum: ["readonly", "full", "website"] })
     .notNull()
     .default("readonly"),
   createdById: uuid("created_by_id")

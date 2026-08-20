@@ -9,7 +9,9 @@ export const preferredRegion = "fra1";
  * Body: { "jahr": 2026, "kw": 30 }
  */
 export async function POST(req: Request) {
-  const auth = await authenticateApiRequest(req, { requireScope: "full" });
+  const auth = await authenticateApiRequest(req, {
+    allowScopes: ["full"],
+  });
   if (!auth.ok) return auth.response;
 
   let body: { jahr?: number; kw?: number };

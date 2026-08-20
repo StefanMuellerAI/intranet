@@ -17,7 +17,9 @@ export const preferredRegion = "fra1";
  * (nur lesend; keine Freigabeaktionen auf Krankmeldungen).
  */
 export async function GET(req: Request) {
-  const auth = await authenticateApiRequest(req);
+  const auth = await authenticateApiRequest(req, {
+    allowScopes: ["readonly", "full"],
+  });
   if (!auth.ok) return auth.response;
 
   // Die Krankheitsart (eigene_erkrankung/kind_krank) ist ein Gesundheitsdatum

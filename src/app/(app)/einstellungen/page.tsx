@@ -441,9 +441,11 @@ export default async function EinstellungenPage() {
             API-Keys (Freigabe-API für KI-gestützte Freigaben)
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Jeder Key hat volle Admin-Freigaberechte und ist jederzeit
-            widerrufbar. Alle API-Aktionen erscheinen im Audit-Log mit
-            Kennzeichnung „API“.
+            Der Umfang wird beim Anlegen festgelegt und ist später nicht mehr
+            änderbar; Keys sind jederzeit widerrufbar. Ein Key vom Typ „Website
+            (nur Zitate)“ erreicht ausschließlich die Zitate-Schnittstelle und
+            eignet sich damit zur Weitergabe an externe Dienstleister. Alle
+            API-Aktionen erscheinen im Audit-Log mit Kennzeichnung „API“.
           </p>
         </CardHeader>
         <CardContent>

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, count, eq, gte, lte } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, lte } from "drizzle-orm";
 import {
   db,
   fakturaCustomers,
@@ -264,6 +264,51 @@ export async function listApprovedQuotesForExport(): Promise<QuoteExportRow[]> {
       eventDate: quote.eventDate,
       userName: quote.userName,
     }));
+}
+
+/** Zitat, wie es die Website-Schnittstelle ausliefert. */
+export interface WebsiteQuoteRow {
+  id: string;
+  quote: string;
+}
+
+export const WEBSITE_QUOTES_MAX_LIMIT = 200;
+
+/**
+ * Für die Website freigegebene Zitate — die Datengrundlage von
+ * `GET /api/v1/website/zitate`.
+ *
+ * Bewusst eine eigene Abfrage statt `listQuotesForAdmin()` mit
+ * anschließendem Weglassen von Feldern: Hier wird die Tabelle `users` gar
+ * nicht erst geladen, damit der Name der/des Vortragenden auch bei einem
+ * späteren unachtsamen Refactor nicht nach außen gelangen kann. Auch Kunde,
+ * Titel und Datum bleiben ungelesen — sortiert wird über sie, ausgeliefert
+ * werden sie nicht (neueste Veranstaltung zuerst).
+ */
+export async function listApprovedQuotesForWebsite(opts?: {
+  limit?: number;
+}): Promise<WebsiteQuoteRow[]> {
+  const limit = Math.min(
+    Math.max(opts?.limit ?? WEBSITE_QUOTES_MAX_LIMIT, 1),
+    WEBSITE_QUOTES_MAX_LIMIT
+  );
+  return db
+    .select({
+      id: seminarReportQuotes.id,
+      quote: seminarReportQuotes.quote,
+    })
+    .from(seminarReportQuotes)
+    .innerJoin(
+      seminarReports,
+      eq(seminarReportQuotes.reportId, seminarReports.id)
+    )
+    .where(eq(seminarReportQuotes.websiteApproved, true))
+    .orderBy(
+      desc(seminarReports.eventDate),
+      asc(seminarReports.title),
+      asc(seminarReportQuotes.position)
+    )
+    .limit(limit);
 }
 
 // ---------------------------------------------------------------------------

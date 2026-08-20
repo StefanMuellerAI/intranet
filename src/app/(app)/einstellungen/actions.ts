@@ -13,6 +13,7 @@ import {
   WEBHOOK_EVENTS,
 } from "@/db";
 import { hashApiKey } from "@/lib/api-keys";
+import { isApiKeyScope } from "@/lib/api-scopes";
 import { writeAudit } from "@/lib/audit";
 import { fullName, requireAdmin } from "@/lib/auth";
 import { assertSafeWebhookUrl } from "@/lib/webhooks";
@@ -272,9 +273,11 @@ export async function createApiKey(formData: FormData): Promise<string> {
   const admin = await requireAdmin();
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("Bitte einen Namen für den Key angeben.");
-  // Standard ist der geringstmögliche Umfang (readonly); "full" nur, wenn der
-  // Admin es beim Anlegen bewusst wählt.
-  const scope = formData.get("scope") === "full" ? "full" : "readonly";
+  // Standard ist der geringstmögliche Umfang (readonly); jeder andere Umfang
+  // muss der Admin beim Anlegen bewusst wählen. Unbekannte Werte — etwa aus
+  // einem handgebauten Formular-Post — fallen auf readonly zurück.
+  const rawScope = formData.get("scope");
+  const scope = isApiKeyScope(rawScope) ? rawScope : "readonly";
 
   const plaintext = `sk_stefanai_${randomBytes(32).toString("hex")}`;
   await db.insert(apiKeys).values({

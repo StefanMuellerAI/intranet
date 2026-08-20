@@ -26,7 +26,9 @@ const STATUS_MAP: Record<string, string[]> = {
  * Offene Anträge inkl. aller Formulardaten.
  */
 export async function GET(req: Request) {
-  const auth = await authenticateApiRequest(req);
+  const auth = await authenticateApiRequest(req, {
+    allowScopes: ["readonly", "full"],
+  });
   if (!auth.ok) return auth.response;
 
   const url = new URL(req.url);
