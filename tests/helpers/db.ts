@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import * as schema from "../../src/db/schema";
+import type { ApiKeyScope } from "../../src/lib/api-scopes";
 
 export const E2E_ADMIN_EMAIL =
   process.env.E2E_ADMIN_EMAIL ?? "e2e-admin@stefanai.de";
@@ -110,7 +111,7 @@ export async function seedTestData(): Promise<SeedResult> {
 export async function createTestApiKey(
   createdById: string,
   name = "Integrationstest",
-  scope: "readonly" | "full" = "full"
+  scope: ApiKeyScope = "full"
 ): Promise<{ key: string; id: string }> {
   const db = testDb();
   const key = `sk_test_${randomBytes(24).toString("hex")}`;

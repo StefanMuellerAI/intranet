@@ -35,6 +35,16 @@ export default async function ZitatePage() {
         </span>
       </div>
 
+      <p className="mb-6 text-sm text-muted-foreground">
+        Für die Einbindung auf der Website gibt es die Schnittstelle{" "}
+        <code className="text-xs">GET /api/v1/website/zitate</code>. Sie liefert
+        genau die hier freigegebenen Zitate (nur Id und Wortlaut) und braucht
+        einen API-Key vom Typ „Website (nur Zitate)“ aus den Einstellungen.
+        Hinweis: Wird der Wortlaut eines Zitats im Bericht nachträglich
+        geändert, entfällt die Freigabe automatisch und muss hier erneut gesetzt
+        werden.
+      </p>
+
       <ZitateAdmin quotes={quotes} action={toggleQuoteWebsiteApproval} />
     </div>
   );
