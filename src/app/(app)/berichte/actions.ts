@@ -8,6 +8,7 @@ import {
   createSeminarReport,
   deleteSeminarReport,
   setQuoteWebsiteApproved,
+  updateQuoteText,
   updateSeminarReport,
 } from "@/lib/seminar-reports-store";
 import { UserError, runAction, type ActionResult } from "@/lib/user-error";
@@ -69,6 +70,21 @@ export async function deleteSeminarReportAction(id: string): Promise<void> {
   await deleteSeminarReport(user, id);
   revalidateReportViews(id);
   redirect("/berichte");
+}
+
+/** Wortlaut eines einzelnen Zitats korrigieren — nur für den Admin. */
+export async function updateQuoteTextAction(
+  quoteId: string,
+  formData: FormData
+): Promise<ActionResult<null>> {
+  const result = await runAction(async () => {
+    const admin = await requireAdmin();
+    return updateQuoteText(admin, quoteId, String(formData.get("quote") ?? ""));
+  });
+  if (!result.ok) return result;
+
+  revalidateReportViews(result.data);
+  return { ok: true, data: null };
 }
 
 export async function toggleQuoteWebsiteApproval(

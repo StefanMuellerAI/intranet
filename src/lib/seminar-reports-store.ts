@@ -15,6 +15,7 @@ import { fullName } from "@/lib/auth";
 import type { QuoteExportRow } from "@/lib/seminar-reports-csv";
 import {
   planQuoteChanges,
+  quoteTextSchema,
   seminarReportInputSchema,
   type SeminarReportInput,
   type SeminarReportKind,
@@ -337,6 +338,24 @@ async function requireOwnReport(user: User, id: string): Promise<SeminarReport> 
   return report;
 }
 
+/**
+ * Bericht zum Bearbeiten laden. Eigene Berichte darf jede/r ändern, fremde nur
+ * der Admin: Er verantwortet die Zitate nach außen und muss sie nachträglich
+ * in eine verwertbare Form bringen können. Für alle anderen bleibt ein fremder
+ * Bericht "nicht gefunden".
+ */
+async function requireEditableReport(
+  user: User,
+  id: string
+): Promise<SeminarReport> {
+  const report = await db.query.seminarReports.findFirst({
+    where: eq(seminarReports.id, id),
+  });
+  if (!report || (report.userId !== user.id && user.role !== "admin"))
+    throw new UserError("Bericht nicht gefunden.");
+  return report;
+}
+
 /** Legt den Bericht samt Zitaten an und liefert die Id des neuen Berichts. */
 export async function createSeminarReport(
   user: User,
@@ -387,7 +406,8 @@ export async function updateSeminarReport(
   id: string,
   raw: SeminarReportInput
 ): Promise<void> {
-  await requireOwnReport(user, id);
+  const existing = await requireEditableReport(user, id);
+  const isAdminEdit = user.role === "admin";
   const data = seminarReportInputSchema.parse(raw);
 
   // Nur Zitate dieses Berichts kommen in den Abgleich — so kann eine
@@ -397,7 +417,12 @@ export async function updateSeminarReport(
     .from(seminarReportQuotes)
     .where(eq(seminarReportQuotes.reportId, id));
 
-  const plan = planQuoteChanges(existingQuotes, data.quotes);
+  // Korrigiert der Admin den Wortlaut, bleibt eine Freigabe bestehen — er ist
+  // die freigebende Stelle. Bei allen anderen muss er den neuen Wortlaut
+  // erneut freigeben.
+  const plan = planQuoteChanges(existingQuotes, data.quotes, {
+    keepApproval: isAdminEdit,
+  });
 
   // Reihenfolge wie beim IT-Import: erst löschen, dann der Kopf, dann die
   // Zitate — alles gemeinsam in einer Transaktion.
@@ -450,8 +475,49 @@ export async function updateSeminarReport(
       zitate_entfernt: plan.remove.length,
       zitate_freigabe_zurueckgesetzt: plan.update.filter((e) => e.resetApproval)
         .length,
+      ...(existing.userId === user.id ? {} : { als_admin: true }),
     },
   });
+}
+
+/**
+ * Korrigiert den Wortlaut eines einzelnen Zitats und liefert die Id des
+ * zugehörigen Berichts (für die Cache-Invalidierung) — der schnelle Weg für den
+ * Admin, ein Zitat aus der Zitatverwaltung heraus verwertbar zu machen
+ * (z. B. eine vorangestellte Punktzahl zu entfernen), ohne den ganzen Bericht
+ * zu öffnen. Die Website-Freigabe bleibt dabei bewusst bestehen: Sonst würde
+ * ausgerechnet die Korrektur des Freigebenden das Zitat von der Website
+ * nehmen.
+ */
+export async function updateQuoteText(
+  admin: User,
+  quoteId: string,
+  raw: string
+): Promise<string> {
+  const quote = await db.query.seminarReportQuotes.findFirst({
+    where: eq(seminarReportQuotes.id, quoteId),
+  });
+  if (!quote) throw new UserError("Zitat nicht gefunden.");
+
+  const text = quoteTextSchema.parse(raw);
+  if (text === quote.quote) return quote.reportId;
+
+  await db
+    .update(seminarReportQuotes)
+    .set({ quote: text })
+    .where(eq(seminarReportQuotes.id, quoteId));
+
+  await writeAudit({
+    objectType: "seminarbericht",
+    objectId: quote.reportId,
+    action: "zitat_bearbeitet",
+    actorUserId: admin.id,
+    actorLabel: fullName(admin),
+    source: "web",
+    details: { zitatId: quoteId, vorher: quote.quote, nachher: text },
+  });
+
+  return quote.reportId;
 }
 
 export async function deleteSeminarReport(

@@ -8,6 +8,7 @@ import {
   listApprovedQuotesForExport,
   listSeminarReports,
   setQuoteWebsiteApproved,
+  updateQuoteText,
   updateSeminarReport,
 } from "@/lib/seminar-reports-store";
 import { seminarReportQuotes, seminarReports } from "../../src/db/schema";
@@ -244,6 +245,105 @@ describe("Seminarberichte — Bearbeiten", () => {
   });
 });
 
+describe("Seminarberichte — Nachträgliche Korrektur durch den Admin", () => {
+  it("lässt den Admin einen fremden Bericht bearbeiten", async () => {
+    const reportId = await createSeminarReport(
+      seed.employee,
+      input({
+        title: "KI-Grundlagen",
+        quotes: [
+          { id: null, quote: "- 5, weil ich jetzt weiß, was möglich ist" },
+        ],
+      })
+    );
+    const [quote] = await quotesOf(reportId);
+
+    await updateSeminarReport(
+      seed.admin,
+      reportId,
+      input({
+        title: "KI-Grundlagen",
+        quotes: [
+          { id: quote.id, quote: "Weil ich jetzt weiß, was möglich ist" },
+        ],
+      })
+    );
+
+    const after = await quotesOf(reportId);
+    expect(after[0].id).toBe(quote.id);
+    expect(after[0].quote).toBe("Weil ich jetzt weiß, was möglich ist");
+    // Der Bericht bleibt der verfassenden Person zugeordnet.
+    const found = await getSeminarReportWithQuotes(reportId);
+    expect(found?.report.userId).toBe(seed.employee.id);
+  });
+
+  it("behält die Website-Freigabe, wenn der Admin den Wortlaut korrigiert", async () => {
+    const reportId = await createSeminarReport(
+      seed.employee,
+      input({ quotes: [{ id: null, quote: "- 5, weil es praxisnah war" }] })
+    );
+    const [quote] = await quotesOf(reportId);
+    await setQuoteWebsiteApproved(seed.admin, quote.id, true);
+
+    await updateSeminarReport(
+      seed.admin,
+      reportId,
+      input({ quotes: [{ id: quote.id, quote: "Weil es praxisnah war" }] })
+    );
+
+    const after = await quotesOf(reportId);
+    expect(after[0].quote).toBe("Weil es praxisnah war");
+    expect(after[0].websiteApproved).toBe(true);
+  });
+
+  it("korrigiert ein einzelnes Zitat aus der Zitatverwaltung heraus", async () => {
+    const reportId = await createSeminarReport(
+      seed.employee,
+      input({
+        quotes: [
+          { id: null, quote: "- 5, weil ich jetzt weiß, was möglich ist" },
+          { id: null, quote: "Bleibt unberührt" },
+        ],
+      })
+    );
+    const quotes = await quotesOf(reportId);
+    await setQuoteWebsiteApproved(seed.admin, quotes[0].id, true);
+
+    const touchedReportId = await updateQuoteText(
+      seed.admin,
+      quotes[0].id,
+      "  Weil ich jetzt weiß, was möglich ist  "
+    );
+    expect(touchedReportId).toBe(reportId);
+
+    const after = await quotesOf(reportId);
+    expect(after[0].quote).toBe("Weil ich jetzt weiß, was möglich ist");
+    expect(after[0].websiteApproved).toBe(true);
+    expect(after[0].position).toBe(quotes[0].position);
+    expect(after[1].quote).toBe("Bleibt unberührt");
+
+    // Nur die freigegebene, korrigierte Fassung geht in den Export.
+    expect((await listApprovedQuotesForExport()).map((row) => row.quote)).toEqual(
+      ["Weil ich jetzt weiß, was möglich ist"]
+    );
+  });
+
+  it("lehnt ein leeres oder unbekanntes Zitat ab", async () => {
+    const reportId = await createSeminarReport(
+      seed.employee,
+      input({ quotes: [{ id: null, quote: "Bleibt" }] })
+    );
+    const [quote] = await quotesOf(reportId);
+
+    await expect(updateQuoteText(seed.admin, quote.id, "   ")).rejects.toThrow();
+    await expect(
+      updateQuoteText(seed.admin, "cccccccc-0000-4000-8000-000000000003", "Neu")
+    ).rejects.toThrow("Zitat nicht gefunden.");
+
+    expect((await quotesOf(reportId))[0].quote).toBe("Bleibt");
+  });
+});
+
 describe("Seminarberichte — Zugriffsschutz (IDOR)", () => {
   it("lässt fremde Berichte nicht bearbeiten", async () => {
     const foreignId = await createSeminarReport(
@@ -265,6 +365,18 @@ describe("Seminarberichte — Zugriffsschutz (IDOR)", () => {
     await expect(
       deleteSeminarReport(seed.employee, foreignId)
     ).rejects.toThrow("Bericht nicht gefunden.");
+
+    expect(await getSeminarReportWithQuotes(foreignId)).not.toBeNull();
+  });
+
+  it("lässt auch den Admin fremde Berichte nicht löschen", async () => {
+    // Der Admin darf korrigieren, aber nicht den Bericht einer anderen Person
+    // aus der Welt schaffen.
+    const foreignId = await createSeminarReport(seed.employee, input());
+
+    await expect(deleteSeminarReport(seed.admin, foreignId)).rejects.toThrow(
+      "Bericht nicht gefunden."
+    );
 
     expect(await getSeminarReportWithQuotes(foreignId)).not.toBeNull();
   });

@@ -6,7 +6,10 @@ import { BerichteNav } from "@/components/berichte/berichte-nav";
 import { ZitateAdmin } from "@/components/berichte/zitate-admin";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { toggleQuoteWebsiteApproval } from "../actions";
+import {
+  toggleQuoteWebsiteApproval,
+  updateQuoteTextAction,
+} from "../actions";
 
 export const metadata = { title: "Zitate" };
 
@@ -40,12 +43,18 @@ export default async function ZitatePage() {
         <code className="text-xs">GET /api/v1/website/zitate</code>. Sie liefert
         genau die hier freigegebenen Zitate (nur Id und Wortlaut) und braucht
         einen API-Key vom Typ „Website (nur Zitate)“ aus den Einstellungen.
-        Hinweis: Wird der Wortlaut eines Zitats im Bericht nachträglich
-        geändert, entfällt die Freigabe automatisch und muss hier erneut gesetzt
-        werden.
+        Hinweis: Nicht verwertbare Formulierungen — etwa eine vorangestellte
+        Punktzahl aus dem Feedbackbogen — lassen sich über das Stift-Symbol
+        direkt hier korrigieren; eine bestehende Freigabe bleibt dabei erhalten.
+        Ändert dagegen die verfassende Person den Wortlaut später im Bericht,
+        entfällt die Freigabe automatisch und muss hier erneut gesetzt werden.
       </p>
 
-      <ZitateAdmin quotes={quotes} action={toggleQuoteWebsiteApproval} />
+      <ZitateAdmin
+        quotes={quotes}
+        action={toggleQuoteWebsiteApproval}
+        editAction={updateQuoteTextAction}
+      />
     </div>
   );
 }

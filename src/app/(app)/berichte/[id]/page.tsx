@@ -12,7 +12,13 @@ import { BerichteNav } from "@/components/berichte/berichte-nav";
 import { DeleteRequestButton } from "@/components/delete-request-button";
 import { PageHeader } from "@/components/page-header";
 import { AuditTrail } from "@/components/request-meta";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   deleteSeminarReportAction,
   updateSeminarReportAction,
@@ -30,18 +36,21 @@ export default async function BerichtDetailPage({
   const isAdmin = user.role === "admin";
 
   const found = await getSeminarReportWithQuotes(id);
-  // Berichte sind teamweit lesbar — bearbeiten und löschen darf nur, wem der
-  // Bericht gehört.
+  // Berichte sind teamweit lesbar. Bearbeiten darf, wem der Bericht gehört —
+  // und der Admin, der die Zitate für die Website verantwortet. Löschen bleibt
+  // der verfassenden Person vorbehalten.
   if (!found) notFound();
 
   const { report, quotes } = found;
   const isOwn = report.userId === user.id;
+  const canEdit = isOwn || isAdmin;
 
   const author = isOwn
     ? user
     : await db.query.users.findFirst({ where: eq(users.id, report.userId) });
+  const authorName = isOwn ? undefined : author ? fullName(author) : "Unbekannt";
 
-  const customerSuggestions = isOwn ? await listCustomerSuggestions() : [];
+  const customerSuggestions = canEdit ? await listCustomerSuggestions() : [];
   const approvedQuotes = quotes.filter((quote) => quote.websiteApproved).length;
 
   const updateWithId = updateSeminarReportAction.bind(null, id);
@@ -58,14 +67,22 @@ export default async function BerichtDetailPage({
       <BerichtDetails
         report={report}
         quotes={quotes}
-        userName={isOwn ? undefined : author ? fullName(author) : "Unbekannt"}
+        userName={authorName}
       />
 
-      {isOwn && (
+      {canEdit && (
         <>
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Bericht bearbeiten</CardTitle>
+              {!isOwn && (
+                <CardDescription>
+                  Bericht von {authorName} — als Admin können Sie ihn
+                  nachträglich anpassen, etwa um ein Zitat in eine verwertbare
+                  Form zu bringen. Die Änderung erscheint im Verlauf. Bereits
+                  erteilte Website-Freigaben bleiben dabei bestehen.
+                </CardDescription>
+              )}
             </CardHeader>
             <CardContent>
               <BerichtForm
@@ -92,14 +109,16 @@ export default async function BerichtDetailPage({
             </CardContent>
           </Card>
 
-          <DeleteRequestButton
-            action={deleteWithId}
-            description={
-              approvedQuotes > 0
-                ? `Der Bericht und alle ${quotes.length} Zitate werden endgültig gelöscht — darunter ${approvedQuotes} bereits für die Website freigegebene.`
-                : `Der Bericht und alle ${quotes.length} Zitate werden endgültig gelöscht.`
-            }
-          />
+          {isOwn && (
+            <DeleteRequestButton
+              action={deleteWithId}
+              description={
+                approvedQuotes > 0
+                  ? `Der Bericht und alle ${quotes.length} Zitate werden endgültig gelöscht — darunter ${approvedQuotes} bereits für die Website freigegebene.`
+                  : `Der Bericht und alle ${quotes.length} Zitate werden endgültig gelöscht.`
+              }
+            />
+          )}
         </>
       )}
 
