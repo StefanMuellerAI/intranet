@@ -65,6 +65,13 @@ export function averageRating(ratings: number[]): number | null {
   return Math.round((sum / ratings.length) * 10) / 10;
 }
 
+/** Wortlaut eines einzelnen Zitats — auch für die Admin-Korrektur einzeln nutzbar. */
+export const quoteTextSchema = z
+  .string()
+  .trim()
+  .min(1, "Bitte das Zitat eingeben.")
+  .max(QUOTE_MAX_LENGTH, `Zitate dürfen höchstens ${QUOTE_MAX_LENGTH} Zeichen lang sein.`);
+
 const quoteSchema = z.object({
   /** null = neue Zeile; vorhandene Ids behalten ihre Website-Freigabe */
   id: z.uuid().nullable(),
@@ -154,6 +161,15 @@ export interface QuoteChangePlan {
   insert: { quote: string; position: number }[];
 }
 
+export interface QuotePlanOptions {
+  /**
+   * Freigabe auch bei geändertem Wortlaut behalten. Gilt für Korrekturen des
+   * Admins: Er ist die freigebende Stelle, also soll ausgerechnet sein
+   * Feinschliff ein Zitat nicht stillschweigend von der Website nehmen.
+   */
+  keepApproval?: boolean;
+}
+
 /**
  * Entscheidet, welche Zitate gelöscht, aktualisiert und angelegt werden.
  *
@@ -165,7 +181,8 @@ export interface QuoteChangePlan {
  */
 export function planQuoteChanges(
   existing: ExistingQuote[],
-  incoming: SeminarReportQuoteInput[]
+  incoming: SeminarReportQuoteInput[],
+  options: QuotePlanOptions = {}
 ): QuoteChangePlan {
   const existingById = new Map(existing.map((quote) => [quote.id, quote]));
   const plan: QuoteChangePlan = { remove: [], update: [], insert: [] };
@@ -188,7 +205,10 @@ export function planQuoteChanges(
       id: match.id,
       quote: quote.quote,
       position,
-      resetApproval: match.websiteApproved && match.quote !== quote.quote,
+      resetApproval:
+        !options.keepApproval &&
+        match.websiteApproved &&
+        match.quote !== quote.quote,
     });
   });
 

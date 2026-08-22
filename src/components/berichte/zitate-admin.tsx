@@ -2,17 +2,91 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Copy } from "lucide-react";
+import { Copy, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { formatDateDE } from "@/lib/dates";
-import { SEMINAR_REPORT_KIND_LABELS } from "@/lib/seminar-reports";
+import {
+  QUOTE_MAX_LENGTH,
+  SEMINAR_REPORT_KIND_LABELS,
+} from "@/lib/seminar-reports";
 import type { AdminQuoteRow } from "@/lib/seminar-reports-store";
 import type { ActionResult } from "@/lib/user-error";
-import { SectionTabsList, TabSection, useAction } from "@/components/admin-ui";
+import {
+  FormDialog,
+  RowActions,
+  SectionTabsList,
+  TabSection,
+  editTrigger,
+  useAction,
+} from "@/components/admin-ui";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
+
+/** Freigabe-Schalter der Zitatliste */
+type ApproveAction = (
+  quoteId: string,
+  approved: boolean
+) => Promise<ActionResult<null>>;
+
+/** Korrektur des Wortlauts aus der Zitatliste heraus */
+type EditAction = (
+  quoteId: string,
+  formData: FormData
+) => Promise<ActionResult<null>>;
+
+/**
+ * Zitat nachträglich korrigieren, ohne den Bericht zu öffnen — gedacht für
+ * Zitate, die in der erfassten Form nicht verwertbar sind (etwa mit
+ * vorangestellter Punktzahl aus dem Feedbackbogen).
+ */
+function EditQuoteDialog({
+  row,
+  action,
+  idPrefix,
+}: {
+  row: AdminQuoteRow;
+  action: EditAction;
+  /** Jeder Reiter rendert dieselben Zeilen — das Feld braucht je Reiter eine eigene Id. */
+  idPrefix: string;
+}) {
+  return (
+    <FormDialog
+      trigger={editTrigger}
+      triggerLabel={<Pencil className="h-4 w-4" />}
+      title="Zitat bearbeiten"
+      description={`${row.title} — ${row.customerName}, ${formatDateDE(
+        row.eventDate
+      )}`}
+      action={async (formData) => {
+        const result = await action(row.id, formData);
+        if (!result.ok) throw new Error(result.error);
+      }}
+      successMessage="Zitat aktualisiert."
+      submitLabel="Speichern"
+    >
+      <div className="space-y-1.5 sm:col-span-2">
+        <Label htmlFor={`${idPrefix}-${row.id}`}>Wortlaut</Label>
+        <Textarea
+          id={`${idPrefix}-${row.id}`}
+          name="quote"
+          required
+          rows={4}
+          maxLength={QUOTE_MAX_LENGTH}
+          defaultValue={row.quote}
+        />
+        <p className="text-xs text-muted-foreground">
+          Anführungszeichen ergänzt die Anzeige selbst. Eine bestehende
+          Website-Freigabe bleibt erhalten — die Korrektur kommt ja von der
+          freigebenden Stelle.
+        </p>
+      </div>
+    </FormDialog>
+  );
+}
 
 function CopyQuoteButton({ quote }: { quote: string }) {
   return (
@@ -42,10 +116,7 @@ function ApprovalSwitch({
   action,
 }: {
   row: AdminQuoteRow;
-  action: (
-    quoteId: string,
-    approved: boolean
-  ) => Promise<ActionResult<null>>;
+  action: ApproveAction;
 }) {
   const { pending, run } = useAction();
   // Optimistisch spiegeln, damit der Schalter sofort reagiert; bei einem
@@ -80,14 +151,15 @@ function ApprovalSwitch({
 function QuotesTable({
   rows,
   action,
+  editAction,
+  idPrefix,
   hint,
   emptyLabel,
 }: {
   rows: AdminQuoteRow[];
-  action: (
-    quoteId: string,
-    approved: boolean
-  ) => Promise<ActionResult<null>>;
+  action: ApproveAction;
+  editAction: EditAction;
+  idPrefix: string;
   hint: string;
   emptyLabel: string;
 }) {
@@ -136,7 +208,14 @@ function QuotesTable({
             <ApprovalSwitch row={row} action={action} />
           </TableCell>
           <TableCell className="text-right">
-            <CopyQuoteButton quote={row.quote} />
+            <RowActions>
+              <EditQuoteDialog
+                row={row}
+                action={editAction}
+                idPrefix={idPrefix}
+              />
+              <CopyQuoteButton quote={row.quote} />
+            </RowActions>
           </TableCell>
         </TableRow>
       ))}
@@ -147,12 +226,11 @@ function QuotesTable({
 export function ZitateAdmin({
   quotes,
   action,
+  editAction,
 }: {
   quotes: AdminQuoteRow[];
-  action: (
-    quoteId: string,
-    approved: boolean
-  ) => Promise<ActionResult<null>>;
+  action: ApproveAction;
+  editAction: EditAction;
 }) {
   const approved = quotes.filter((quote) => quote.websiteApproved);
   const open = quotes.filter((quote) => !quote.websiteApproved);
@@ -176,7 +254,7 @@ export function ZitateAdmin({
       value: "offen",
       label: "Offen",
       rows: open,
-      hint: "Noch nicht geprüfte Zitate. Ein geänderter Wortlaut setzt eine bestehende Freigabe zurück.",
+      hint: "Noch nicht geprüfte Zitate. Nicht verwertbare Formulierungen lassen sich über das Stift-Symbol direkt hier korrigieren.",
       emptyLabel: "Alle Zitate sind geprüft.",
     },
   ];
@@ -195,6 +273,8 @@ export function ZitateAdmin({
           <QuotesTable
             rows={tab.rows}
             action={action}
+            editAction={editAction}
+            idPrefix={`zitat-${tab.value}`}
             hint={tab.hint}
             emptyLabel={tab.emptyLabel}
           />

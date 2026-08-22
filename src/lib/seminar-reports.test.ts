@@ -5,6 +5,7 @@ import {
   formatDurationDays,
   parseDurationDays,
   planQuoteChanges,
+  quoteTextSchema,
   seminarReportInputSchema,
   type ExistingQuote,
   type SeminarReportInput,
@@ -146,6 +147,22 @@ describe("parseDurationDays", () => {
   });
 });
 
+describe("quoteTextSchema", () => {
+  it("schneidet Leerzeichen ab und nimmt korrigierte Zitate an", () => {
+    expect(
+      quoteTextSchema.parse("  weil ich jetzt weiß, was möglich ist  ")
+    ).toBe("weil ich jetzt weiß, was möglich ist");
+  });
+
+  it("lehnt ein leeres Zitat ab", () => {
+    expect(() => quoteTextSchema.parse("   ")).toThrow();
+  });
+
+  it("lehnt ein zu langes Zitat ab", () => {
+    expect(() => quoteTextSchema.parse("x".repeat(1001))).toThrow();
+  });
+});
+
 describe("planQuoteChanges", () => {
   const A: ExistingQuote = {
     id: "aaaaaaaa-0000-4000-8000-000000000001",
@@ -181,6 +198,18 @@ describe("planQuoteChanges", () => {
   it("setzt nichts zurück, wenn das Zitat gar nicht freigegeben war", () => {
     const plan = planQuoteChanges([B], [{ id: B.id, quote: "Anders." }]);
     expect(plan.update[0].resetApproval).toBe(false);
+  });
+
+  it("behält die Freigabe bei einer Korrektur des Admins", () => {
+    const plan = planQuoteChanges(
+      [A],
+      [{ id: A.id, quote: "Weil ich jetzt weiß, was mit KI möglich ist." }],
+      { keepApproval: true }
+    );
+    expect(plan.update[0].resetApproval).toBe(false);
+    expect(plan.update[0].quote).toBe(
+      "Weil ich jetzt weiß, was mit KI möglich ist."
+    );
   });
 
   it("entfernt Zitate, die im Formular fehlen", () => {
