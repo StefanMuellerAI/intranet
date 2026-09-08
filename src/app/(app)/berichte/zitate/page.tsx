@@ -41,8 +41,9 @@ export default async function ZitatePage() {
       <p className="mb-6 text-sm text-muted-foreground">
         Für die Einbindung auf der Website gibt es die Schnittstelle{" "}
         <code className="text-xs">GET /api/v1/website/zitate</code>. Sie liefert
-        genau die hier freigegebenen Zitate (nur Id und Wortlaut) und braucht
-        einen API-Key vom Typ „Website (nur Zitate)“ aus den Einstellungen.
+        genau die hier freigegebenen Zitate (Id, Wortlaut und die gestellte
+        Frage, auf die das Zitat antwortet) und braucht einen API-Key vom Typ
+        „Website (nur Zitate)“ aus den Einstellungen.
         Hinweis: Nicht verwertbare Formulierungen — etwa eine vorangestellte
         Punktzahl aus dem Feedbackbogen — lassen sich über das Stift-Symbol
         direkt hier korrigieren; eine bestehende Freigabe bleibt dabei erhalten.

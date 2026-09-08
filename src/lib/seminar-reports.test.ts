@@ -24,6 +24,7 @@ function validInput(
     whatWentBadly: "Der Raum war zu klein.",
     improvements: "Vorab die Teilnehmendenzahl abfragen.",
     feedbackRating: 5,
+    quoteQuestion: "Was nehmen Sie aus dem Tag mit?",
     quotes: [],
     ...overrides,
   };
@@ -119,6 +120,40 @@ describe("seminarReportInputSchema", () => {
     expect(() =>
       seminarReportInputSchema.parse(
         validInput({ quotes: [{ id: null, quote: "   " }] })
+      )
+    ).toThrow();
+  });
+
+  it("nimmt einen Bericht ohne Zitate auch ohne Frage an", () => {
+    const parsed = seminarReportInputSchema.parse(
+      validInput({ quoteQuestion: "   ", quotes: [] })
+    );
+    expect(parsed.quoteQuestion).toBe("");
+  });
+
+  it("verlangt die Frage, sobald ein Zitat erfasst ist", () => {
+    expect(() =>
+      seminarReportInputSchema.parse(
+        validInput({
+          quoteQuestion: "   ",
+          quotes: [{ id: null, quote: "Sehr praxisnah." }],
+        })
+      )
+    ).toThrow(/Frage/);
+
+    const parsed = seminarReportInputSchema.parse(
+      validInput({
+        quoteQuestion: "  Was nehmen Sie aus dem Tag mit?  ",
+        quotes: [{ id: null, quote: "Sehr praxisnah." }],
+      })
+    );
+    expect(parsed.quoteQuestion).toBe("Was nehmen Sie aus dem Tag mit?");
+  });
+
+  it("lehnt eine zu lange Frage ab", () => {
+    expect(() =>
+      seminarReportInputSchema.parse(
+        validInput({ quoteQuestion: "x".repeat(501) })
       )
     ).toThrow();
   });
@@ -281,6 +316,7 @@ describe("averageRating", () => {
 describe("buildQuotesCsv", () => {
   const row = {
     quote: "Sehr praxisnah.",
+    quoteQuestion: "Was nehmen Sie mit?",
     kind: "seminar" as const,
     title: "KI-Grundlagen",
     customerName: "Haufe Akademie",
@@ -291,7 +327,9 @@ describe("buildQuotesCsv", () => {
   it("beginnt mit BOM und der Kopfzeile", () => {
     const csv = buildQuotesCsv([]);
     expect(csv.startsWith("﻿")).toBe(true);
-    expect(csv).toContain("Zitat;Art;Veranstaltung;Kunde;Datum;Mitarbeiter/in");
+    expect(csv).toContain(
+      "Zitat;Art;Veranstaltung;Kunde;Datum;Mitarbeiter/in;Frage"
+    );
   });
 
   it("trennt Zeilen mit CRLF und Felder mit Semikolon", () => {
@@ -299,8 +337,13 @@ describe("buildQuotesCsv", () => {
     const lines = csv.split("\r\n");
     expect(lines).toHaveLength(2);
     expect(lines[1]).toBe(
-      '"Sehr praxisnah.";"Seminar";"KI-Grundlagen";"Haufe Akademie";"12.05.2026";"Max Mitarbeiter"'
+      '"Sehr praxisnah.";"Seminar";"KI-Grundlagen";"Haufe Akademie";"12.05.2026";"Max Mitarbeiter";"Was nehmen Sie mit?"'
     );
+  });
+
+  it("lässt die Frage bei Altberichten ohne Frage leer", () => {
+    const csv = buildQuotesCsv([{ ...row, quoteQuestion: null }]);
+    expect(csv.split("\r\n")[1].endsWith(';""')).toBe(true);
   });
 
   it("verdoppelt Anführungszeichen im Zitat", () => {

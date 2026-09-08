@@ -100,6 +100,7 @@ export default async function BerichtDetailPage({
                   whatWentBadly: report.whatWentBadly,
                   improvements: report.improvements,
                   feedbackRating: report.feedbackRating,
+                  quoteQuestion: report.quoteQuestion ?? "",
                   quotes: quotes.map((quote) => ({
                     id: quote.id,
                     quote: quote.quote,

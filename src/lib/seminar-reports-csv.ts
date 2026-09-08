@@ -14,6 +14,8 @@ import {
 
 export interface QuoteExportRow {
   quote: string;
+  /** Frage, auf die das Zitat antwortet — null bei Altberichten */
+  quoteQuestion: string | null;
   kind: SeminarReportKind;
   title: string;
   customerName: string;
@@ -21,7 +23,11 @@ export interface QuoteExportRow {
   userName: string;
 }
 
-/** Spaltenüberschriften — sie sind die Schnittstelle zur Tabellenkalkulation. */
+/**
+ * Spaltenüberschriften — sie sind die Schnittstelle zur Tabellenkalkulation.
+ * Die Frage steht bewusst am Ende, damit bestehende Auswertungen die
+ * bisherigen Spaltenpositionen behalten.
+ */
 const COLUMN_ORDER = [
   "Zitat",
   "Art",
@@ -29,6 +35,7 @@ const COLUMN_ORDER = [
   "Kunde",
   "Datum",
   "Mitarbeiter/in",
+  "Frage",
 ];
 
 function csvField(value: string): string {
@@ -46,6 +53,7 @@ export function buildQuotesCsv(rows: QuoteExportRow[]): string {
         row.customerName,
         formatDateDE(row.eventDate),
         row.userName,
+        row.quoteQuestion ?? "",
       ]
         .map(csvField)
         .join(";")

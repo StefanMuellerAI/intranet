@@ -910,6 +910,12 @@ export const seminarReports = pgTable(
     improvements: text("improvements").notNull(),
     /** Teilnehmenden-Feedback: 1 = sehr schlecht … 5 = sehr gut */
     feedbackRating: integer("feedback_rating").notNull(),
+    /**
+     * Frage, die den Teilnehmenden gestellt wurde und auf die die Zitate
+     * antworten — sie gibt den Zitaten auf der Website ihren Kontext. Null
+     * bei Berichten ohne Zitate und bei Altberichten von vor der Einführung.
+     */
+    quoteQuestion: text("quote_question"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },

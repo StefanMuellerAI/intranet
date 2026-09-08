@@ -183,8 +183,13 @@ function QuotesTable({
     >
       {rows.map((row) => (
         <TableRow key={row.id}>
-          <TableCell className="whitespace-normal italic">
-            „{row.quote}“
+          <TableCell className="whitespace-normal">
+            <span className="italic">„{row.quote}“</span>
+            {row.quoteQuestion && (
+              <span className="mt-1 block text-xs text-muted-foreground">
+                Frage: {row.quoteQuestion}
+              </span>
+            )}
           </TableCell>
           <TableCell>
             <Link

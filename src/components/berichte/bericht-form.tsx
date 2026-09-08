@@ -8,6 +8,7 @@ import {
   DURATION_DAYS_TITLE,
   FEEDBACK_RATINGS,
   FEEDBACK_RATING_LABELS,
+  QUESTION_MAX_LENGTH,
   QUOTES_MAX_COUNT,
   QUOTE_MAX_LENGTH,
   SEMINAR_REPORT_KIND_LABELS,
@@ -39,6 +40,8 @@ export interface BerichtFormDefaults {
   whatWentBadly?: string;
   improvements?: string;
   feedbackRating?: number;
+  /** Frage an die Teilnehmenden, auf die die Zitate antworten */
+  quoteQuestion?: string;
   quotes?: { id: string; quote: string }[];
 }
 
@@ -125,6 +128,7 @@ export function BerichtForm({
           whatWentBadly: text("whatWentBadly"),
           improvements: text("improvements"),
           feedbackRating: feedbackRating === "" ? null : Number(feedbackRating),
+          quoteQuestion: text("quoteQuestion"),
           // Leere Zeilen verwerfen — sie sind nur Platzhalter im Formular.
           quotes: filledQuotes.map((quote) => ({
             id: quote.id,
@@ -297,6 +301,25 @@ export function BerichtForm({
             Bitte nur den Wortlaut erfassen — keine Namen und keine Angaben, die
             Rückschlüsse auf einzelne Personen zulassen. Freigegebene Zitate
             können später auf der Website verwendet werden.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="quoteQuestion">Gestellte Frage</Label>
+          <Input
+            id="quoteQuestion"
+            name="quoteQuestion"
+            // Pflicht, sobald ein Zitat erfasst ist — der Server prüft das
+            // ebenfalls, hier nur die frühe Rückmeldung im Browser.
+            required={filledQuotes.length > 0}
+            maxLength={QUESTION_MAX_LENGTH}
+            autoComplete="off"
+            placeholder="z. B. Was nehmen Sie aus dem heutigen Tag mit?"
+            defaultValue={defaults?.quoteQuestion ?? ""}
+          />
+          <p className="text-xs text-muted-foreground">
+            Welche Frage haben Sie den Teilnehmenden gestellt? Die Zitate sind
+            die Antworten darauf. Pflicht, sobald ein Zitat erfasst ist.
           </p>
         </div>
 

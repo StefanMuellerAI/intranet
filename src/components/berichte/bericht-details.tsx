@@ -101,6 +101,11 @@ export function BerichtDetails({
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {report.quoteQuestion && (
+            <dl className="mb-4 text-sm">
+              <TextBlock title="Gestellte Frage" text={report.quoteQuestion} />
+            </dl>
+          )}
           {quotes.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               Zu diesem Bericht wurden keine Zitate erfasst.

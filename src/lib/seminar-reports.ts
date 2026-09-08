@@ -36,6 +36,7 @@ export const FEEDBACK_SCALE_HINT = "1 = sehr schlecht, 5 = sehr gut";
 export const TEXT_MAX_LENGTH = 4000;
 export const QUOTE_MAX_LENGTH = 1000;
 export const QUOTES_MAX_COUNT = 20;
+export const QUESTION_MAX_LENGTH = 500;
 export const NAME_MAX_LENGTH = 200;
 
 /** Dauer in Tagen im 0,5er-Raster, z. B. "0,5" / "1" / "2,5" — als HTML-pattern */
@@ -82,58 +83,79 @@ const quoteSchema = z.object({
     .max(QUOTE_MAX_LENGTH, `Zitate dürfen höchstens ${QUOTE_MAX_LENGTH} Zeichen lang sein.`),
 });
 
-export const seminarReportInputSchema = z.object({
-  kind: z.enum(SEMINAR_REPORT_KINDS, {
-    message: "Bitte Seminar oder Beratung wählen.",
-  }),
-  customerName: z
-    .string()
-    .trim()
-    .min(1, "Bitte Kunde/Organisation angeben.")
-    .max(NAME_MAX_LENGTH),
-  title: z
-    .string()
-    .trim()
-    .min(1, "Bitte den Titel der Veranstaltung angeben.")
-    .max(NAME_MAX_LENGTH),
-  eventDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Bitte das Datum der Veranstaltung angeben."),
-  durationDays: z
-    .number({ message: "Bitte die Dauer angeben." })
-    .positive("Die Dauer muss größer als 0 sein.")
-    .max(60, "Bitte die Dauer in Tagen angeben (höchstens 60).")
-    .refine(
-      (value) => Number.isInteger(value * 2),
-      "Bitte die Dauer in halben Tagen angeben, z. B. 0,5 oder 1,5."
-    ),
-  whatWentWell: z
-    .string()
-    .trim()
-    .min(1, "Bitte angeben, was gut lief.")
-    .max(TEXT_MAX_LENGTH),
-  whatWentBadly: z
-    .string()
-    .trim()
-    .min(1, "Bitte angeben, was nicht gut lief.")
-    .max(TEXT_MAX_LENGTH),
-  improvements: z
-    .string()
-    .trim()
-    .min(1, "Bitte angeben, was Sie beim nächsten Mal verbessern möchten.")
-    .max(TEXT_MAX_LENGTH),
-  feedbackRating: z
-    .number({ message: "Bitte das Teilnehmenden-Feedback angeben." })
-    .int()
-    .min(1, "Das Feedback liegt zwischen 1 und 5.")
-    .max(5, "Das Feedback liegt zwischen 1 und 5."),
-  quotes: z
-    .array(quoteSchema)
-    .max(
-      QUOTES_MAX_COUNT,
-      `Bitte höchstens ${QUOTES_MAX_COUNT} Zitate je Bericht erfassen.`
-    ),
-});
+export const seminarReportInputSchema = z
+  .object({
+    kind: z.enum(SEMINAR_REPORT_KINDS, {
+      message: "Bitte Seminar oder Beratung wählen.",
+    }),
+    customerName: z
+      .string()
+      .trim()
+      .min(1, "Bitte Kunde/Organisation angeben.")
+      .max(NAME_MAX_LENGTH),
+    title: z
+      .string()
+      .trim()
+      .min(1, "Bitte den Titel der Veranstaltung angeben.")
+      .max(NAME_MAX_LENGTH),
+    eventDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Bitte das Datum der Veranstaltung angeben."),
+    durationDays: z
+      .number({ message: "Bitte die Dauer angeben." })
+      .positive("Die Dauer muss größer als 0 sein.")
+      .max(60, "Bitte die Dauer in Tagen angeben (höchstens 60).")
+      .refine(
+        (value) => Number.isInteger(value * 2),
+        "Bitte die Dauer in halben Tagen angeben, z. B. 0,5 oder 1,5."
+      ),
+    whatWentWell: z
+      .string()
+      .trim()
+      .min(1, "Bitte angeben, was gut lief.")
+      .max(TEXT_MAX_LENGTH),
+    whatWentBadly: z
+      .string()
+      .trim()
+      .min(1, "Bitte angeben, was nicht gut lief.")
+      .max(TEXT_MAX_LENGTH),
+    improvements: z
+      .string()
+      .trim()
+      .min(1, "Bitte angeben, was Sie beim nächsten Mal verbessern möchten.")
+      .max(TEXT_MAX_LENGTH),
+    feedbackRating: z
+      .number({ message: "Bitte das Teilnehmenden-Feedback angeben." })
+      .int()
+      .min(1, "Das Feedback liegt zwischen 1 und 5.")
+      .max(5, "Das Feedback liegt zwischen 1 und 5."),
+    /**
+     * Frage an die Teilnehmenden, auf die die Zitate antworten. Leer erlaubt,
+     * solange keine Zitate erfasst sind — sobald es welche gibt, ist sie
+     * Pflicht (siehe refine), damit die Zitate nach außen ihren Kontext haben.
+     */
+    quoteQuestion: z
+      .string()
+      .trim()
+      .max(
+        QUESTION_MAX_LENGTH,
+        `Die Frage darf höchstens ${QUESTION_MAX_LENGTH} Zeichen lang sein.`
+      ),
+    quotes: z
+      .array(quoteSchema)
+      .max(
+        QUOTES_MAX_COUNT,
+        `Bitte höchstens ${QUOTES_MAX_COUNT} Zitate je Bericht erfassen.`
+      ),
+  })
+  .refine(
+    (data) => data.quotes.length === 0 || data.quoteQuestion.length > 0,
+    {
+      message:
+        "Bitte die Frage angeben, die Sie den Teilnehmenden gestellt haben und auf die die Zitate antworten.",
+      path: ["quoteQuestion"],
+    }
+  );
 
 export type SeminarReportInput = z.infer<typeof seminarReportInputSchema>;
 export type SeminarReportQuoteInput = z.infer<typeof quoteSchema>;

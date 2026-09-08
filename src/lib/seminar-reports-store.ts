@@ -62,6 +62,8 @@ export interface SeminarReportWithQuotes {
 export interface AdminQuoteRow {
   id: string;
   quote: string;
+  /** Frage, auf die das Zitat antwortet — null bei Altberichten */
+  quoteQuestion: string | null;
   websiteApproved: boolean;
   reportId: string;
   kind: SeminarReportKind;
@@ -235,6 +237,7 @@ export async function listQuotesForAdmin(): Promise<AdminQuoteRow[]> {
         {
           id: quote.id,
           quote: quote.quote,
+          quoteQuestion: report.quoteQuestion,
           websiteApproved: quote.websiteApproved,
           reportId: report.id,
           kind: report.kind,
@@ -259,6 +262,7 @@ export async function listApprovedQuotesForExport(): Promise<QuoteExportRow[]> {
     .filter((quote) => quote.websiteApproved)
     .map((quote) => ({
       quote: quote.quote,
+      quoteQuestion: quote.quoteQuestion,
       kind: quote.kind,
       title: quote.title,
       customerName: quote.customerName,
@@ -271,6 +275,8 @@ export async function listApprovedQuotesForExport(): Promise<QuoteExportRow[]> {
 export interface WebsiteQuoteRow {
   id: string;
   quote: string;
+  /** Frage, auf die das Zitat antwortet — null bei Altberichten ohne Frage */
+  quoteQuestion: string | null;
 }
 
 export const WEBSITE_QUOTES_MAX_LIMIT = 200;
@@ -284,7 +290,9 @@ export const WEBSITE_QUOTES_MAX_LIMIT = 200;
  * nicht erst geladen, damit der Name der/des Vortragenden auch bei einem
  * späteren unachtsamen Refactor nicht nach außen gelangen kann. Auch Kunde,
  * Titel und Datum bleiben ungelesen — sortiert wird über sie, ausgeliefert
- * werden sie nicht (neueste Veranstaltung zuerst).
+ * werden sie nicht (neueste Veranstaltung zuerst). Mitgeliefert wird
+ * dagegen die gestellte Frage: Sie stammt von der/dem Vortragenden selbst,
+ * enthält keine Angaben zu Personen und gibt den Zitaten ihren Kontext.
  */
 export async function listApprovedQuotesForWebsite(opts?: {
   limit?: number;
@@ -297,6 +305,7 @@ export async function listApprovedQuotesForWebsite(opts?: {
     .select({
       id: seminarReportQuotes.id,
       quote: seminarReportQuotes.quote,
+      quoteQuestion: seminarReports.quoteQuestion,
     })
     .from(seminarReportQuotes)
     .innerJoin(
@@ -380,6 +389,8 @@ export async function createSeminarReport(
       whatWentBadly: data.whatWentBadly,
       improvements: data.improvements,
       feedbackRating: data.feedbackRating,
+      // Leere Frage als null speichern, damit "keine Frage" eindeutig bleibt.
+      quoteQuestion: data.quoteQuestion || null,
     }),
     ...data.quotes.map((quote, position) =>
       db
@@ -442,6 +453,7 @@ export async function updateSeminarReport(
         whatWentBadly: data.whatWentBadly,
         improvements: data.improvements,
         feedbackRating: data.feedbackRating,
+        quoteQuestion: data.quoteQuestion || null,
         updatedAt: new Date(),
       })
       .where(eq(seminarReports.id, id)),

@@ -33,6 +33,7 @@ import {
 
 const URL_ZITATE = "http://localhost/api/v1/website/zitate";
 const CUSTOMER = "Haufe Akademie";
+const QUESTION = "Was nehmen Sie aus dem Tag mit?";
 
 let seed: SeedResult;
 let websiteKey: string;
@@ -52,6 +53,7 @@ function input(
     whatWentBadly: "Raum zu klein.",
     improvements: "Teilnehmendenzahl vorab abfragen.",
     feedbackRating: 5,
+    quoteQuestion: QUESTION,
     quotes: [],
     ...overrides,
   };
@@ -117,7 +119,31 @@ describe("Zitate-Schnittstelle — Inhalt", () => {
     const body = await res.json();
     expect(body.anzahl).toBe(1);
     expect(body.zitate).toEqual([
-      { id: quotes[0].id, zitat: "Sehr praxisnah, direkt anwendbar." },
+      {
+        id: quotes[0].id,
+        zitat: "Sehr praxisnah, direkt anwendbar.",
+        frage: QUESTION,
+      },
+    ]);
+  });
+
+  it("liefert frage als null bei Altberichten ohne Frage", async () => {
+    const { reportId, quotes } = await reportWithTwoQuotes();
+    await setQuoteWebsiteApproved(seed.admin, quotes[0].id, true);
+    // Altbericht von vor der Einführung des Feldes nachstellen — über das
+    // Formular ist ein Bericht mit Zitaten ohne Frage nicht mehr anlegbar.
+    await testDb()
+      .update(seminarReports)
+      .set({ quoteQuestion: null })
+      .where(eq(seminarReports.id, reportId));
+
+    const body = await (await getZitate(authed(websiteKey))).json();
+    expect(body.zitate).toEqual([
+      {
+        id: quotes[0].id,
+        zitat: "Sehr praxisnah, direkt anwendbar.",
+        frage: null,
+      },
     ]);
   });
 
@@ -227,6 +253,29 @@ describe("Zitate-Schnittstelle — Caching", () => {
     );
     expect(after.status).toBe(200);
     expect(after.headers.get("etag")).not.toBe(etag);
+  });
+
+  it("ändert den ETag, wenn sich die Frage ändert", async () => {
+    const { reportId, quotes } = await reportWithTwoQuotes();
+    await setQuoteWebsiteApproved(seed.admin, quotes[0].id, true);
+    const etag = (await getZitate(authed(websiteKey))).headers.get("etag");
+
+    await updateSeminarReport(
+      seed.employee,
+      reportId,
+      input({
+        quoteQuestion: "Was war Ihr wichtigster Aha-Moment?",
+        quotes: quotes.map((quote) => ({ id: quote.id, quote: quote.quote })),
+      })
+    );
+
+    const after = await getZitate(
+      authed(websiteKey, URL_ZITATE, { headers: { "if-none-match": etag! } })
+    );
+    expect(after.status).toBe(200);
+    expect((await after.json()).zitate[0].frage).toBe(
+      "Was war Ihr wichtigster Aha-Moment?"
+    );
   });
 });
 

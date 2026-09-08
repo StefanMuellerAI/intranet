@@ -16,10 +16,12 @@ export const preferredRegion = "fra1";
  *
  * Die Zitate sind anonym: Es gibt weder zur zitierenden Person noch zu
  * der/dem Vortragenden eine Namensangabe, und auch Kunde, Titel und Datum
- * des Berichts bleiben innen. Ausgeliefert werden nur die stabile Id und der
- * Wortlaut. Keys mit dem Umfang "website" erreichen ausschließlich diesen
- * Endpunkt; readonly- und full-Keys dürfen ihn ebenfalls lesen, damit
- * bestehende Integrationen keinen zweiten Key brauchen.
+ * des Berichts bleiben innen. Ausgeliefert werden die stabile Id, der
+ * Wortlaut und als `frage` die Frage, die den Teilnehmenden gestellt wurde
+ * und auf die das Zitat antwortet (null bei Altberichten ohne Frage). Keys
+ * mit dem Umfang "website" erreichen ausschließlich diesen Endpunkt;
+ * readonly- und full-Keys dürfen ihn ebenfalls lesen, damit bestehende
+ * Integrationen keinen zweiten Key brauchen.
  *
  * Optional: ?limit=1..200 (Standard: 200).
  */
@@ -50,7 +52,11 @@ export async function GET(req: Request) {
 
   const rows = await listApprovedQuotesForWebsite({ limit });
   const body = JSON.stringify({
-    zitate: rows.map((row) => ({ id: row.id, zitat: row.quote })),
+    zitate: rows.map((row) => ({
+      id: row.id,
+      zitat: row.quote,
+      frage: row.quoteQuestion,
+    })),
     anzahl: rows.length,
   });
 

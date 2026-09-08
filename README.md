@@ -151,11 +151,15 @@ Kürzung beim Grundsatz (nie negativ) sowie die Workation-Validierungen
   verfasst hat. Der Reiter *Zitate* bleibt dem Admin vorbehalten.
 - **Zitate von Teilnehmenden**: Reiter *Zitate* im Menü *Berichte* — je Bericht
   lassen sich bis zu 20 Zitate sammeln. Es wird **ausschließlich der Wortlaut**
-  erfasst, bewusst ohne Namensfeld, damit die Zitate anonym bleiben. Der Admin
-  gibt einzelne Zitate für die Website frei und lädt die freigegebenen als CSV
-  herunter (Semikolon, UTF-8 mit BOM, öffnet direkt in Excel); jeder Export
-  wird auditiert. Ändert jemand den Wortlaut eines bereits freigegebenen
-  Zitats, fällt die Freigabe automatisch zurück und muss erneut erteilt werden.
+  erfasst, bewusst ohne Namensfeld, damit die Zitate anonym bleiben. Dazu hält
+  der Bericht die **gestellte Frage** fest, auf die die Zitate antworten (z. B.
+  „Was nehmen Sie aus dem heutigen Tag mit?"); sie ist Pflicht, sobald ein
+  Zitat erfasst ist, und gibt den Zitaten auf der Website ihren Kontext. Der
+  Admin gibt einzelne Zitate für die Website frei und lädt die freigegebenen
+  als CSV herunter (Semikolon, UTF-8 mit BOM, öffnet direkt in Excel, Spalte
+  *Frage* am Ende); jeder Export wird auditiert. Ändert jemand den Wortlaut
+  eines bereits freigegebenen Zitats, fällt die Freigabe automatisch zurück
+  und muss erneut erteilt werden.
   Beim Löschen eines Berichts verschwinden auch seine Zitate — der
   Löschdialog weist vorher aus, wie viele davon freigegeben sind.
 - **Ausstattungsliste als CSV**: Reiter *Export & Import* im IT-Management —
@@ -193,16 +197,27 @@ die Lese-Endpunkte oben zusätzlich *Nur lesen*, und ein Key vom Umfang
 ### Zitate-API für die Website
 
 `GET {APP_BASE_URL}/api/v1/website/zitate` liefert genau die Zitate, die der
-Admin unter *Berichte → Zitate* freigegeben hat — als JSON, mit stabiler Id und
-Wortlaut, sonst nichts:
+Admin unter *Berichte → Zitate* freigegeben hat — als JSON, mit stabiler Id,
+Wortlaut und der Frage, die den Teilnehmenden gestellt wurde und auf die das
+Zitat antwortet, sonst nichts:
 
 ```json
-{ "zitate": [{ "id": "6f0c1f2a-…-9d31", "zitat": "Sehr praxisnah." }], "anzahl": 1 }
+{
+  "zitate": [
+    {
+      "id": "6f0c1f2a-…-9d31",
+      "zitat": "Sehr praxisnah.",
+      "frage": "Was nehmen Sie aus dem heutigen Tag mit?"
+    }
+  ],
+  "anzahl": 1
+}
 ```
 
-Bewusst nicht enthalten sind Name der/des Vortragenden, Kunde, Titel und Datum
-des Berichts — die Zitate sind anonym. Sortierung: neueste Veranstaltung
-zuerst. Optional `?limit=1…200`.
+`frage` ist `null` bei Altberichten, die vor Einführung des Feldes ohne Frage
+erfasst wurden. Bewusst nicht enthalten sind Name der/des Vortragenden, Kunde,
+Titel und Datum des Berichts — die Zitate sind anonym. Sortierung: neueste
+Veranstaltung zuerst. Optional `?limit=1…200`.
 
 Die Antwort trägt einen `ETag` und `Cache-Control: private, max-age=300`; ein
 Folgeaufruf mit `If-None-Match` wird bei unveränderten Daten mit `304`

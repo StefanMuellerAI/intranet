@@ -27,6 +27,9 @@ test.describe("Seminar- und Beratungsberichte", () => {
       .fill("Teilnehmendenzahl vorab abfragen.");
 
     await employee
+      .locator("#quoteQuestion")
+      .fill("Was nehmen Sie aus dem heutigen Tag mit?");
+    await employee
       .getByRole("textbox", { name: "Zitat 1" })
       .fill("Sehr praxisnah, ich nehme viel mit.");
     await employee.getByRole("button", { name: "Zitat hinzufügen" }).click();
@@ -45,6 +48,9 @@ test.describe("Seminar- und Beratungsberichte", () => {
     await expect(employee.getByText("5 — sehr gut")).toBeVisible();
     await expect(
       employee.getByText("Zitate von Teilnehmenden (2)")
+    ).toBeVisible();
+    await expect(
+      employee.getByText("Was nehmen Sie aus dem heutigen Tag mit?")
     ).toBeVisible();
 
     // Eigene Übersicht listet den Bericht
@@ -73,6 +79,9 @@ test.describe("Seminar- und Beratungsberichte", () => {
     const quoteRow = admin
       .getByRole("row")
       .filter({ hasText: "Sehr praxisnah, ich nehme viel mit." });
+    await expect(quoteRow).toContainText(
+      "Frage: Was nehmen Sie aus dem heutigen Tag mit?"
+    );
     await quoteRow.getByRole("switch").click();
     await expect(
       admin.getByText("Zitat für die Website freigegeben.")
@@ -107,6 +116,7 @@ test.describe("Seminar- und Beratungsberichte", () => {
     await employee.locator("#whatWentWell").fill("Klare Fragestellung.");
     await employee.locator("#whatWentBadly").fill("Zu wenig Zeit.");
     await employee.locator("#improvements").fill("Mehr Vorlauf einplanen.");
+    await employee.locator("#quoteQuestion").fill("Was hat Ihnen geholfen?");
     await employee.getByRole("textbox", { name: "Zitat 1" }).fill(quote);
     await employee.getByRole("button", { name: "Bericht speichern" }).click();
     await expect(employee).toHaveURL(/\/berichte\/[0-9a-f-]+$/);

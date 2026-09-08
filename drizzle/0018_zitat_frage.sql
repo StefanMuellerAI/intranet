@@ -1,0 +1,1 @@
+ALTER TABLE "seminar_reports" ADD COLUMN "quote_question" text;

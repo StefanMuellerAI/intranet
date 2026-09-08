@@ -27,6 +27,7 @@ function input(overrides: Partial<SeminarReportInput> = {}): SeminarReportInput 
     whatWentBadly: "Raum zu klein.",
     improvements: "Teilnehmendenzahl vorab abfragen.",
     feedbackRating: 5,
+    quoteQuestion: "Was nehmen Sie aus dem Tag mit?",
     quotes: [],
     ...overrides,
   };
@@ -66,12 +67,32 @@ describe("Seminarberichte — Anlegen und Lesen", () => {
     const found = await getSeminarReportWithQuotes(reportId);
     expect(found?.report.userId).toBe(seed.employee.id);
     expect(found?.report.feedbackRating).toBe(5);
+    expect(found?.report.quoteQuestion).toBe("Was nehmen Sie aus dem Tag mit?");
     expect(found?.quotes.map((q) => q.quote)).toEqual([
       "Sehr praxisnah.",
       "Guter Einstieg.",
     ]);
     // Neue Zitate sind nie automatisch für die Website freigegeben.
     expect(found?.quotes.every((q) => q.websiteApproved === false)).toBe(true);
+  });
+
+  it("speichert eine leere Frage als null, solange es keine Zitate gibt", async () => {
+    const reportId = await createSeminarReport(
+      seed.employee,
+      input({ quoteQuestion: "   ", quotes: [] })
+    );
+    const found = await getSeminarReportWithQuotes(reportId);
+    expect(found?.report.quoteQuestion).toBeNull();
+  });
+
+  it("verlangt die Frage, sobald Zitate erfasst werden", async () => {
+    await expect(
+      createSeminarReport(
+        seed.employee,
+        input({ quoteQuestion: "", quotes: [{ id: null, quote: "Ohne Frage" }] })
+      )
+    ).rejects.toThrow();
+    expect(await listSeminarReports({ userId: seed.employee.id })).toHaveLength(0);
   });
 
   it("zählt die Zitate in der Übersicht", async () => {
@@ -161,6 +182,31 @@ describe("Seminarberichte — Bearbeiten", () => {
     expect(after[0].websiteApproved).toBe(true);
     const found = await getSeminarReportWithQuotes(reportId);
     expect(found?.report.title).toBe("Neuer Titel");
+  });
+
+  it("übernimmt eine geänderte Frage, ohne die Freigabe anzutasten", async () => {
+    const reportId = await createSeminarReport(
+      seed.employee,
+      input({ quotes: [{ id: null, quote: "Sehr praxisnah." }] })
+    );
+    const [quote] = await quotesOf(reportId);
+    await setQuoteWebsiteApproved(seed.admin, quote.id, true);
+
+    await updateSeminarReport(
+      seed.employee,
+      reportId,
+      input({
+        quoteQuestion: "Was war heute Ihr wichtigster Aha-Moment?",
+        quotes: [{ id: quote.id, quote: "Sehr praxisnah." }],
+      })
+    );
+
+    const found = await getSeminarReportWithQuotes(reportId);
+    expect(found?.report.quoteQuestion).toBe(
+      "Was war heute Ihr wichtigster Aha-Moment?"
+    );
+    // Die Frage ist Kontext, kein Wortlaut — die Freigabe bleibt bestehen.
+    expect((await quotesOf(reportId))[0].websiteApproved).toBe(true);
   });
 
   it("setzt die Freigabe zurück, wenn der Wortlaut geändert wird", async () => {
@@ -422,6 +468,7 @@ describe("Seminarberichte — Löschen und Export", () => {
     expect(rows).toEqual([
       {
         quote: "Freigegeben",
+        quoteQuestion: "Was nehmen Sie aus dem Tag mit?",
         kind: "seminar",
         title: "KI-Grundlagen",
         customerName: "Haufe Akademie",
