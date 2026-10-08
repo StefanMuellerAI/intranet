@@ -2,7 +2,14 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { eq } from "drizzle-orm";
 import { fakturaCustomers } from "../../src/db/schema";
 import { testDb } from "../helpers/db";
-import { ADMIN_STATE, USER_NAME, USER_STATE, pageAs } from "./helpers";
+import {
+  ADMIN_STATE,
+  USER_NAME,
+  USER_STATE,
+  openDialog,
+  pageAs,
+  selectOption,
+} from "./helpers";
 
 // Klassisches pdf-parse (1.x) — Text- und Seitenzahl-Extraktion für PDFs
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -18,32 +25,6 @@ const pdfParse = require("pdf-parse/lib/pdf-parse.js") as (
 const KUNDE = "E2E Kunde GmbH";
 const PROJEKT = `${KUNDE} – Webseite`;
 const LIMIT_PROJEKT = `${KUNDE} – Support`;
-
-/**
- * Klickt einen Dialog-Trigger, bis der Dialog sichtbar ist — direkt nach
- * einer Navigation kann der erste Klick sonst vor der React-Hydration landen.
- */
-async function openDialog(trigger: Locator, dialogMarker: Locator) {
-  await expect(async () => {
-    await trigger.click();
-    await expect(dialogMarker).toBeVisible({ timeout: 2_000 });
-  }).toPass({ timeout: 20_000 });
-}
-
-/** Öffnet ein Select (mit Hydration-Retry) und wählt eine Option. */
-async function selectOption(
-  page: Page,
-  triggerText: string,
-  optionName: string
-) {
-  await expect(async () => {
-    await page.getByText(triggerText, { exact: true }).click();
-    await expect(
-      page.getByRole("option", { name: optionName }).first()
-    ).toBeVisible({ timeout: 2_000 });
-  }).toPass({ timeout: 20_000 });
-  await page.getByRole("option", { name: optionName }).first().click();
-}
 
 async function bookEntry(
   page: Page,

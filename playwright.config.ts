@@ -36,13 +36,38 @@ export default defineConfig({
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
       dependencies: ["setup"],
+      testIgnore: /\.mobile\.spec\.ts$/,
+    },
+    {
+      // Mobile Ansicht (Burger-Menü der Sidebar) — nur *.mobile.spec.ts
+      name: "mobile",
+      use: { ...devices["Pixel 7"] },
+      dependencies: ["setup"],
+      testMatch: /\.mobile\.spec\.ts$/,
     },
   ],
-  webServer: {
-    command: `npx next dev -p ${PORT}`,
-    url: `${BASE_URL}/anmelden`,
-    reuseExistingServer: !process.env.CI,
-    timeout: 180_000,
-    env,
-  },
+  webServer: [
+    // Lokaler Postgres statt Neon-Branch (siehe .env.test.example)
+    ...(process.env.NEON_FETCH_ENDPOINT
+      ? [
+          {
+            command: "node scripts/local-neon-proxy.mjs",
+            port: Number(new URL(process.env.NEON_FETCH_ENDPOINT).port),
+            reuseExistingServer: true,
+            env: {
+              ...env,
+              LOCAL_NEON_PROXY_PORT: new URL(process.env.NEON_FETCH_ENDPOINT)
+                .port,
+            },
+          },
+        ]
+      : []),
+    {
+      command: `npx next dev -p ${PORT}`,
+      url: `${BASE_URL}/anmelden`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 180_000,
+      env,
+    },
+  ],
 });

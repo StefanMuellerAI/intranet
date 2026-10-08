@@ -33,14 +33,44 @@ Ohne `BREVO_API_KEY` werden E-Mails nur in der Konsole geloggt (Dev-Modus).
 ## Tests
 
 ```bash
-npm test
+npm test                  # alles: Vitest (Unit, Komponenten, Integration) + Playwright
+npm run test:unit         # reine Funktionen und Meta-Test der Bedienelemente
+npm run test:component    # React-Komponenten (happy-dom, Testing Library)
+npm run test:integration  # Server-Actions, Route-Handler, Lib mit echter Datenbank
+npm run test:e2e          # Playwright gegen next dev + Clerk-Dev-Instanz
+npm run test:coverage     # Vitest-Projekte mit zusammengeführter Abdeckung
 ```
 
-Die Vitest-Suite deckt die Abnahmekriterien der Berechnungslogik ab,
-u. a. Beispiel C der Kurzanleitung (drei Tage, Hotelfrühstück an beiden
-Morgen, Kundenessen am vollen Tag → exakt 33,60 €), die Kappung der
-Kürzung beim Grundsatz (nie negativ) sowie die Workation-Validierungen
-(30 Arbeitstage/Jahr, 20 am Stück, Vorlauf 4/8 Wochen).
+| Ebene | Ort | Prüft |
+|---|---|---|
+| Unit | `src/**/*.test.ts` | Berechnungen, Parser, Krypto, SSRF-Schutz, Mail-Aufbau |
+| Komponenten | `src/**/*.test.tsx` | Client-Logik: Dialoge, disabled-Zustände, Live-Berechnungen |
+| Integration | `tests/integration/**` | jede Server-Action und jede API-Route: Rollen, Validierung, Statusübergänge, Audit, Mails |
+| E2E | `tests/e2e/**` | jeder Button im echten Klickpfad, Navigation, Downloads |
+
+**Testdatenbank:** `.env.test` (Vorlage `.env.test.example`) zeigt entweder
+auf einen Neon-Test-Branch oder auf einen lokalen Postgres. Für den lokalen
+Fall `NEON_FETCH_ENDPOINT=http://127.0.0.1:4444/sql` setzen:
+`scripts/local-neon-proxy.mjs` übersetzt dann das Neon-HTTP-Protokoll des
+Treibers auf Postgres und wird von Migrationen, Integrationstests und
+Playwright automatisch gestartet. CI nutzt so einen Postgres-Service-Container.
+Mit `TEST_ENV_FILE=.env.test.x` lässt sich je Lauf eine andere Datenbank wählen.
+
+**Server-Actions** laufen in Integrationstests mit Test-Doubles für Clerk,
+`next/cache`, `next/navigation`, Vercel Blob und den Mailversand
+(`tests/helpers/framework-fakes.ts`); Datenbank, Rechteprüfung und Fachlogik
+bleiben echt. `actAs(user)` aus `tests/helpers/actions.ts` setzt die Session.
+
+**Bedienelemente:** `tests/meta/interaktionen.test.ts` liest alle festen
+Button-, Link- und Dialog-Beschriftungen aus dem Code und schlägt fehl, wenn
+eine davon in keinem E2E- oder Komponententest vorkommt. Bewusste Ausnahmen
+stehen mit Begründung in `tests/meta/interaktionen-ausnahmen.ts`.
+
+Fachliche Abnahmekriterien bleiben abgedeckt, u. a. Beispiel C der
+Kurzanleitung (drei Tage, Hotelfrühstück an beiden Morgen, Kundenessen am
+vollen Tag → exakt 33,60 €), die Kappung der Kürzung beim Grundsatz (nie
+negativ) sowie die Workation-Validierungen (30 Arbeitstage/Jahr, 20 am Stück,
+Vorlauf 4/8 Wochen).
 
 ## Betrieb / Admin-Kurzdoku
 
