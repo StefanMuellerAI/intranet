@@ -120,7 +120,7 @@ describe("DeputyPanel", () => {
     );
 
     expect(screen.getByText("Anna Admin", { selector: "strong" })).toBeInTheDocument();
-    expect(screen.getByText(/\(2026-10-01 bis auf Widerruf\)/)).toBeInTheDocument();
+    expect(screen.getByText(/\(01\.10\.2026 bis auf Widerruf\)/)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Vertretung entziehen" }));
     await waitFor(() => expect(clearDeputy).toHaveBeenCalledTimes(1));
@@ -145,7 +145,7 @@ describe("DeputyPanel", () => {
         current={{ userId: "u1", name: "Anna Admin", startsOn: null, endsOn: "2026-12-31" }}
       />
     );
-    expect(screen.getByText(/\(sofort bis 2026-12-31\)/)).toBeInTheDocument();
+    expect(screen.getByText(/\(sofort bis 31\.12\.2026\)/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Vertretung entziehen" }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Keine Berechtigung"));
   });

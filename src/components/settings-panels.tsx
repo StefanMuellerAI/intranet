@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/admin-ui";
+import { formatDateDE } from "@/lib/dates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -85,7 +86,7 @@ export function DeputyPanel({
           <span>
             Aktive Vertretung: <strong>{current.name}</strong>
             {current.startsOn || current.endsOn
-              ? ` (${current.startsOn ?? "sofort"} bis ${current.endsOn ?? "auf Widerruf"})`
+              ? ` (${current.startsOn ? formatDateDE(current.startsOn) : "sofort"} bis ${current.endsOn ? formatDateDE(current.endsOn) : "auf Widerruf"})`
               : " (ohne Zeitraum)"}
           </span>
           <Button
@@ -251,9 +252,14 @@ export function ApiKeyPanel({
             size="sm"
             variant="outline"
             className="mt-2"
-            onClick={() => {
-              navigator.clipboard.writeText(newKey);
-              toast.success("In die Zwischenablage kopiert.");
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(newKey);
+                toast.success("In die Zwischenablage kopiert.");
+              } catch {
+                // Ohne HTTPS fehlt die Clipboard-API — der Key bleibt sichtbar
+                toast.error("Kopieren nicht möglich — bitte manuell markieren.");
+              }
             }}
           >
             Kopieren

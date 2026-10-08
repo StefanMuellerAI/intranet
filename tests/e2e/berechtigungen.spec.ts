@@ -102,8 +102,12 @@ test.describe("Rollen und Berechtigungen", () => {
     await expect(employee.getByText(ADMIN_NAME).first()).toBeVisible();
 
     // Bearbeiten und Löschen bleiben der eigenen Person vorbehalten
+    // CardTitle ist kein Heading-Element — daher über den Text prüfen
     await expect(
-      employee.getByRole("heading", { name: "Bericht bearbeiten" })
+      employee.getByText("Bericht bearbeiten", { exact: true })
+    ).toHaveCount(0);
+    await expect(
+      employee.getByRole("button", { name: "Änderungen speichern" })
     ).toHaveCount(0);
     await expect(
       employee.getByRole("button", { name: "Endgültig löschen" })
