@@ -8,6 +8,62 @@ ist gleichzeitig die Checkliste, an der die Umsetzung abgehakt wird.
 
 ---
 
+## 0. Umsetzungsstand (08.10.2026)
+
+Alle Phasen 0–7 sind umgesetzt (Branch `claude/testplan-abdeckung`).
+
+| Kennzahl | vorher | jetzt |
+|---|---|---|
+| Vitest-Tests (Unit, Komponenten, Integration) | 349 | 1.843 |
+| E2E-Tests (Playwright) | 41 | 128 (2 nur mit Blob-Token) |
+| Server-Actions mit direktem Test | 0 von 96 | 96 von 96 |
+| Zeilenabdeckung Server-Actions / API-Routen / Lib | – / 3 % / 27 % | 99,5 % / 99,6 % / 97,8 % |
+| Bedienelemente mit fester Beschriftung ohne Test | 61 von 151 | 0 von 147 (Meta-Test) |
+
+**Neue Bausteine:** lokaler Neon-HTTP-Proxy (`scripts/local-neon-proxy.mjs`),
+Test-Doubles für Clerk/Next/Blob/Mail (`tests/helpers/framework-fakes.ts`),
+Komponententests (happy-dom), Meta-Test der Bedienelemente
+(`tests/meta/interaktionen.test.ts`), Coverage-Schwellen je Bereich, CI mit
+Postgres-Service-Container.
+
+**Einschränkung:** Die neuen E2E-Specs sind statisch geprüft (Auflistung,
+Typen, Lint), konnten in der Entwicklungsumgebung aber nicht laufen, weil die
+Clerk-API dort gesperrt ist. Ihr erster echter Lauf erfolgt in CI.
+
+### 0.1 Beim Testen gefundene und behobene Fehler
+
+Zusätzlich zu F1–F10 (Abschnitt 2; F7 erwies sich als kein Fehler):
+
+| Bereich | Fehler |
+|---|---|
+| Geld | Beträge mit Punkt als Dezimaltrenner („5000.50“) wurden verhundertfacht |
+| Workation | Admin-Feld A1-Status nahm beliebige Werte an; Formular prüfte das Kontingent nur für das laufende Jahr |
+| Reisekosten | unzulässiger Belegtyp hinterließ halb gespeicherte (bzw. überschriebene) Abrechnungen; kaputtes JSON ergab Rohfehler; Export mit Monat 13/00 → 500 |
+| API | Reject mit Nicht-Text-Kommentar → 500; Rate-Limit hielt bei parallelen Anfragen nicht; Wochenfreigabe-API las fehlendes Jahr als Jahr 0, Body `null` → 500 |
+| Downloads | Dateinamen mit „–“, „€“ u. Ä. → 500; Nicht-UUID-IDs → 500 statt 404 |
+| Einstellungen | Vertretung wurde bei ungültiger Auswahl erst beendet, dann scheiterte das Anlegen; Fristen 0/negativ wurden still ersetzt bzw. übernommen; negative Kontingente; doppelter Key-Widerruf überschrieb den Zeitpunkt |
+| Audit | Bearbeiten/Löschen/Umschalten mit unbekannter ID schrieb trotzdem Audit-Einträge |
+| Mitarbeitende/IT | Einladung blieb bei gescheitertem Dokument-Upload halb angelegt; neue IT-Zuordnungen an deaktivierte Personen/ausgeblendete Arten möglich |
+| MCP | Fehlerantworten enthielten SQL; Korrektur per MCP löste Belegzuordnungen |
+| Faktura | „Abbrechen“ im Lösch-Prompt löschte offene Buchungen; Verschieben in freigegebene Woche ohne Begründung; KW 53 in 52-Wochen-Jahren |
+| Oberfläche | Auswahlfelder zeigten interne Werte/UUIDs; Formulare verloren bei Fehlern alle Eingaben; Geräte-ID-Muster im Browser wirkungslos; Resturlaub-Hinweis bei Korrektur zu hoch; Berichte-Filter „Zurücksetzen“ unvollständig; Kalender-Absturz bei „2026.5“; Kopieren ohne Fehlermeldung; Datumsformate, Mail-Grammatik, Barrierefreiheit Menü-Button |
+
+### 0.2 Offene fachliche Fragen (aktuelles Verhalten ist per Test festgehalten)
+
+1. Workation: Arbeitstage kommen aus dem (manuell korrigierbaren) Formular — die 20/30-Tage-Grenzen lassen sich durch Eintragen weniger Tage umgehen; „20 am Stück“ prüft die Summe.
+2. Provision: Neukunden-Ansprüche sind ohne vereinbarte Vermittlungsprovision genehmigbar.
+3. Freigabe: Richtlinien-Warnungen (Vorlauf, 90 Tage) sieht die freigebende Person nicht.
+4. Storno-Ablehnung: Mail lautet „beanstandet … korrigieren“, die Begründung ist für Mitarbeitende nicht sichtbar; Beanstandungskommentare bleiben nach späterer Genehmigung gespeichert.
+5. Faktura: Ein inaktives Projekt blockiert auch Korrekturen bestehender Buchungen (Code-Kommentar sagt „nur neue“).
+6. Berichte: Rechtefehler erscheinen als „Unerwarteter Fehler“.
+7. Kalender: Beim Wechsel Jahres- → Monatsansicht geht der gewählte Monat verloren.
+8. Admin-Seiten zeigen Mitarbeitenden eine generische Fehlerseite statt „Kein Zugriff“.
+9. Ausstattungsarten sind nur mit exakter Schreibweise eindeutig („Laptop“ und „laptop“).
+10. Aufbewahrung: Krankmeldungen zählen ab Beginn statt ab Ende.
+11. Mailversand: Netzwerkfehler von Brevo brechen die Action nach dem Speichern ab.
+
+---
+
 ## 1. Ausgangslage
 
 ### 1.1 Vorhandenes Test-Setup
