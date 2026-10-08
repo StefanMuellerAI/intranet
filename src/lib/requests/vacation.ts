@@ -18,7 +18,7 @@ export const vacationInputSchema = z
     endDate: z.string().min(1, "Bitte Enddatum angeben."),
     halfDayStart: z.boolean().default(false),
     halfDayEnd: z.boolean().default(false),
-    substituteUserId: z.string().optional(),
+    substituteUserId: z.string().uuid("Ungültige Vertretung.").optional(),
     substituteText: z.string().optional(),
     note: z.string().optional(),
   })

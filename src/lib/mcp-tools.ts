@@ -1,7 +1,7 @@
 import "server-only";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
-import { z } from "zod";
+import { z, ZodError } from "zod";
 import { resolveUserFromMcpAuth } from "@/lib/mcp-auth";
 import {
   createCommissionClaim,
@@ -41,13 +41,34 @@ function textResult(data: unknown) {
   };
 }
 
+/**
+ * Fehler für den MCP-Client: Fachliche Meldungen und die erste
+ * Validierungsmeldung im Klartext, Datenbank- und sonstige technische
+ * Fehler nur generisch (keine SQL-Details nach außen).
+ */
 function errorResult(error: unknown) {
-  const message =
-    error instanceof Error ? error.message : "Unbekannter Fehler.";
+  let message = "Unerwarteter Fehler. Bitte versuchen Sie es später erneut.";
+  if (error instanceof ZodError) {
+    message = error.issues[0]?.message ?? "Ungültige Eingabe.";
+  } else if (error instanceof Error && !isTechnicalError(error)) {
+    message = error.message;
+  } else {
+    console.error("MCP-Tool fehlgeschlagen:", error);
+  }
   return {
     isError: true as const,
     content: [{ type: "text" as const, text: message }],
   };
+}
+
+/** Datenbankfehler (Drizzle/Neon) tragen eine Ursache oder SQL im Text. */
+function isTechnicalError(error: Error): boolean {
+  return (
+    error.cause !== undefined ||
+    error.name === "NeonDbError" ||
+    error.name === "DrizzleQueryError" ||
+    /Failed query|syntax for type/i.test(error.message)
+  );
 }
 
 async function withUser(

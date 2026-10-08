@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { and, eq, lt, or, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { apiKeys, db, users, type ApiKey, type User } from "@/db";
 import { hashApiKey } from "@/lib/api-keys";
@@ -61,13 +61,27 @@ export async function authenticateApiRequest(
       response: errorResponse(401, "Dieser API-Key wurde widerrufen."),
     };
 
-  // Rate Limiting (Fixed Window pro Minute)
+  // Rate Limiting (Fixed Window pro Minute). Prüfen und Hochzählen in einem
+  // einzigen UPDATE: Postgres sperrt die Zeile, parallele Anfragen können das
+  // Limit so nicht gemeinsam überholen (Lesen–Rechnen–Schreiben wäre racy).
   const now = new Date();
-  const windowExpired =
-    !key.rateWindowStart ||
-    now.getTime() - key.rateWindowStart.getTime() > 60_000;
-  const count = windowExpired ? 1 : key.rateWindowCount + 1;
-  if (!windowExpired && count > RATE_LIMIT_PER_MINUTE)
+  const nowSql = sql`${now.toISOString()}::timestamp`;
+  const windowExpired = sql`(${apiKeys.rateWindowStart} IS NULL OR ${apiKeys.rateWindowStart} < ${nowSql} - interval '60 seconds')`;
+  const counted = await db
+    .update(apiKeys)
+    .set({
+      lastUsedAt: now,
+      rateWindowStart: sql`CASE WHEN ${windowExpired} THEN ${nowSql} ELSE ${apiKeys.rateWindowStart} END`,
+      rateWindowCount: sql`CASE WHEN ${windowExpired} THEN 1 ELSE ${apiKeys.rateWindowCount} + 1 END`,
+    })
+    .where(
+      and(
+        eq(apiKeys.id, key.id),
+        or(windowExpired, lt(apiKeys.rateWindowCount, RATE_LIMIT_PER_MINUTE))
+      )
+    )
+    .returning({ id: apiKeys.id });
+  if (counted.length === 0)
     return {
       ok: false,
       response: errorResponse(
@@ -75,14 +89,6 @@ export async function authenticateApiRequest(
         `Rate Limit erreicht (${RATE_LIMIT_PER_MINUTE} Anfragen pro Minute).`
       ),
     };
-  await db
-    .update(apiKeys)
-    .set({
-      lastUsedAt: now,
-      rateWindowStart: windowExpired ? now : key.rateWindowStart,
-      rateWindowCount: count,
-    })
-    .where(eq(apiKeys.id, key.id));
 
   // Scope-Prüfung gegen die Allowlist des Endpunkts. Die Prüfung ist bewusst
   // positiv formuliert: die Spalte ist in der Datenbank nur `text` ohne

@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   });
   if (!auth.ok) return auth.response;
 
-  let body: { jahr?: number; kw?: number };
+  let body: { jahr?: number; kw?: number } | null;
   try {
     body = await req.json();
   } catch {
@@ -24,10 +24,13 @@ export async function POST(req: Request) {
     );
   }
 
-  const isoYear = Number(body.jahr);
-  const isoWeek = Number(body.kw);
+  const isoYear = Number(body?.jahr);
+  const isoWeek = Number(body?.kw);
   if (
+    // Plausibles Jahr — Number(null) bzw. Number("") ergäbe sonst Jahr 0
     !Number.isInteger(isoYear) ||
+    isoYear < 2000 ||
+    isoYear > 2100 ||
     !Number.isInteger(isoWeek) ||
     isoWeek < 1 ||
     isoWeek > 53

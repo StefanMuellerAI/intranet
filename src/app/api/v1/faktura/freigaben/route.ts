@@ -41,7 +41,10 @@ export async function GET(req: Request) {
   const isoYear = Number(jahr);
   const isoWeek = Number(kw);
   if (
+    // Plausibles Jahr — Number(null) bzw. Number("") ergäbe sonst Jahr 0
     !Number.isInteger(isoYear) ||
+    isoYear < 2000 ||
+    isoYear > 2100 ||
     !Number.isInteger(isoWeek) ||
     isoWeek < 1 ||
     isoWeek > 53

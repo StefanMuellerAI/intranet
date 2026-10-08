@@ -459,6 +459,16 @@ export const adminEntryInputSchema = timeEntryInputSchema.extend({
 
 export type AdminEntryInput = z.infer<typeof adminEntryInputSchema>;
 
+/** Ist die Kalenderwoche des Datums bereits freigegeben? */
+async function isWeekOfDateApproved(entryDate: string): Promise<boolean> {
+  const week = isoWeekOf(entryDate);
+  const approval = await db.query.fakturaWeekApprovals.findFirst({
+    where: (t, { and: andOp, eq: eqOp }) =>
+      andOp(eqOp(t.isoYear, week.isoYear), eqOp(t.isoWeek, week.isoWeek)),
+  });
+  return approval?.status === "freigegeben";
+}
+
 /** Admin legt eine Buchung für eine/n Mitarbeiter/in neu an (FA-5.3). */
 export async function adminCreateTimeEntry(
   admin: User,
@@ -477,12 +487,7 @@ export async function adminCreateTimeEntry(
     isAdminAction: true,
   });
 
-  const week = isoWeekOf(input.entryDate);
-  const approval = await db.query.fakturaWeekApprovals.findFirst({
-    where: (t, { and: andOp, eq: eqOp }) =>
-      andOp(eqOp(t.isoYear, week.isoYear), eqOp(t.isoWeek, week.isoWeek)),
-  });
-  const weekApproved = approval?.status === "freigegeben";
+  const weekApproved = await isWeekOfDateApproved(input.entryDate);
   if (weekApproved && !input.reason)
     throw new UserError(
       "Die Woche ist bereits freigegeben — bitte eine Begründung für die nachträgliche Korrektur angeben."
@@ -547,6 +552,14 @@ export async function adminUpdateTimeEntry(
     throw new UserError(
       "Diese Buchung ist bereits freigegeben — bitte eine Begründung für die Korrektur angeben."
     );
+  // Wie beim Anlegen: Wer eine Buchung in eine freigegebene Woche verschiebt,
+  // korrigiert diese Woche nachträglich — Begründung Pflicht, Status folgt
+  // der Zielwoche.
+  const targetApproved = await isWeekOfDateApproved(input.entryDate);
+  if (targetApproved && !input.reason)
+    throw new UserError(
+      "Die Zielwoche ist bereits freigegeben — bitte eine Begründung für die nachträgliche Korrektur angeben."
+    );
 
   const validated = await validateEntry({
     ownerId: entry.userId,
@@ -563,6 +576,7 @@ export async function adminUpdateTimeEntry(
       durationMinutes: validated.durationMinutes,
       description: input.description,
       overbooked: validated.overbooked,
+      status: targetApproved ? "freigegeben" : "offen",
       updatedById: admin.id,
       updatedAt: new Date(),
     })
@@ -577,7 +591,9 @@ export async function adminUpdateTimeEntry(
     objectType: "faktura_buchung",
     objectId: id,
     action:
-      entry.status === "freigegeben" ? "admin_korrigiert" : "admin_geaendert",
+      entry.status === "freigegeben" || targetApproved
+        ? "admin_korrigiert"
+        : "admin_geaendert",
     actorUserId: admin.id,
     actorLabel: fullName(admin),
     source,

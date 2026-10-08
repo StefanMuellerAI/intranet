@@ -5,6 +5,7 @@ import {
   db,
   expenseItems,
   expenseReports,
+  receipts,
   requestHistory,
   sickLeaves,
   vacationRequests,
@@ -202,6 +203,16 @@ export async function getMyRequest(
       .select()
       .from(expenseItems)
       .where(eq(expenseItems.reportId, id));
+    // Beleg-IDs (ohne Blob-URL), damit eine Korrektur sie per
+    // existingReceiptId weiter zuordnen kann
+    const receiptRows = await db
+      .select({
+        id: receipts.id,
+        itemId: receipts.itemId,
+        filename: receipts.filename,
+      })
+      .from(receipts)
+      .where(eq(receipts.reportId, id));
     const history = await db
       .select()
       .from(requestHistory)
@@ -211,7 +222,7 @@ export async function getMyRequest(
           eq(requestHistory.requestId, id)
         )
       );
-    return { type, data: { ...row, items }, history };
+    return { type, data: { ...row, items, receipts: receiptRows }, history };
   }
 
   if (type === "commission") {

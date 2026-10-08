@@ -12,6 +12,14 @@ export const TYPE_LABELS: Record<string, string> = {
   provision: "Provisionsanspruch",
 };
 
+/** Possessivpronomen passend zum Genus des Antragstyps ("Ihre Reisekostenabrechnung") */
+const YOUR: Record<string, string> = {
+  urlaub: "Ihr",
+  workation: "Ihr",
+  reisekosten: "Ihre",
+  provision: "Ihr",
+};
+
 async function adminRecipients(): Promise<MailRecipient[]> {
   const admins = await db.query.users.findMany({
     where: eq(users.role, "admin"),
@@ -58,7 +66,7 @@ export async function notifyRequestApproved(opts: {
   await sendMail({
     to: [{ email: opts.applicant.email, name: fullName(opts.applicant) }],
     subject: `${TYPE_LABELS[opts.type]} genehmigt`,
-    heading: `Ihr ${TYPE_LABELS[opts.type]} wurde genehmigt`,
+    heading: `${YOUR[opts.type]} ${TYPE_LABELS[opts.type]} wurde genehmigt`,
     paragraphs: [opts.summary],
     linkPath: `/${opts.type}/${opts.requestId}`,
   });
@@ -74,7 +82,7 @@ export async function notifyRequestRejected(opts: {
   await sendMail({
     to: [{ email: opts.applicant.email, name: fullName(opts.applicant) }],
     subject: `${TYPE_LABELS[opts.type]} beanstandet`,
-    heading: `Ihr ${TYPE_LABELS[opts.type]} wurde beanstandet`,
+    heading: `${YOUR[opts.type]} ${TYPE_LABELS[opts.type]} wurde beanstandet`,
     paragraphs: [
       `Begründung: ${opts.comment}`,
       "Sie können den Antrag korrigieren und erneut einreichen.",

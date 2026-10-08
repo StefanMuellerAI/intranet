@@ -219,54 +219,54 @@ async function persistReport(
     });
   }
 
-  if (receiptSource) {
-    for (const block of belegBlocks) {
-      for (const [idx, item] of block.items.entries()) {
-        const key = `${block.kind}_${idx}`;
-        if (item.existingReceiptId) {
-          // Nur eigene Belege desselben Berichts dürfen neu zugeordnet werden.
-          // Ohne die userId-/reportId-Bindung könnte ein fremder Beleg per
-          // untergeschobener ID an den eigenen Bericht umgehängt werden (IDOR).
-          await db
-            .update(receipts)
-            .set({ itemId: itemIdByBelegKey.get(key) })
-            .where(
-              and(
-                eq(receipts.id, item.existingReceiptId),
-                eq(receipts.userId, userId),
-                eq(receipts.reportId, reportId)
-              )
-            );
-          continue;
-        }
-        if (item.fileIndex === undefined) continue;
-        const file = receiptSource.getFile(item.fileIndex);
-        if (!(file instanceof File) || file.size === 0) continue;
-        // Typ bereits in assertReceiptFilesAllowed() geprüft
-        // Belege AES-256-GCM-verschlüsselt ablegen (wie Personaldokumente):
-        // der Blob-Store ist öffentlich, Klartext dürfte bei einem Leak der
-        // Roh-URL nicht abgreifbar sein. Entschlüsselt wird nur im Proxy
-        // /api/receipts/[id]. Der Klartext-MIME-Typ bleibt in contentType.
-        const plain = Buffer.from(await file.arrayBuffer());
-        const blob = await put(
-          `belege/${reportId}/${crypto.randomUUID()}.bin`,
-          encryptDocument(plain),
-          {
-            access: "public",
-            addRandomSuffix: false,
-            contentType: "application/octet-stream",
-          }
-        );
-        await db.insert(receipts).values({
-          reportId,
-          itemId: itemIdByBelegKey.get(key),
-          userId,
-          filename: file.name,
-          contentType: file.type,
-          sizeBytes: file.size,
-          blobUrl: blob.url,
-        });
+  // Bestehende Belege neu zuordnen — auch ohne Datei-Quelle (z. B. Korrektur
+  // per MCP), sonst verlören sie beim Neuaufbau der Positionen ihre Zuordnung
+  for (const block of belegBlocks) {
+    for (const [idx, item] of block.items.entries()) {
+      const key = `${block.kind}_${idx}`;
+      if (item.existingReceiptId) {
+        // Nur eigene Belege desselben Berichts dürfen neu zugeordnet werden.
+        // Ohne die userId-/reportId-Bindung könnte ein fremder Beleg per
+        // untergeschobener ID an den eigenen Bericht umgehängt werden (IDOR).
+        await db
+          .update(receipts)
+          .set({ itemId: itemIdByBelegKey.get(key) })
+          .where(
+            and(
+              eq(receipts.id, item.existingReceiptId),
+              eq(receipts.userId, userId),
+              eq(receipts.reportId, reportId)
+            )
+          );
+        continue;
       }
+      if (!receiptSource || item.fileIndex === undefined) continue;
+      const file = receiptSource.getFile(item.fileIndex);
+      if (!(file instanceof File) || file.size === 0) continue;
+      // Typ bereits in assertReceiptFilesAllowed() geprüft.
+      // Belege AES-256-GCM-verschlüsselt ablegen (wie Personaldokumente):
+      // der Blob-Store ist öffentlich, Klartext dürfte bei einem Leak der
+      // Roh-URL nicht abgreifbar sein. Entschlüsselt wird nur im Proxy
+      // /api/receipts/[id]. Der Klartext-MIME-Typ bleibt in contentType.
+      const plain = Buffer.from(await file.arrayBuffer());
+      const blob = await put(
+        `belege/${reportId}/${crypto.randomUUID()}.bin`,
+        encryptDocument(plain),
+        {
+          access: "public",
+          addRandomSuffix: false,
+          contentType: "application/octet-stream",
+        }
+      );
+      await db.insert(receipts).values({
+        reportId,
+        itemId: itemIdByBelegKey.get(key),
+        userId,
+        filename: file.name,
+        contentType: file.type,
+        sizeBytes: file.size,
+        blobUrl: blob.url,
+      });
     }
   }
 
