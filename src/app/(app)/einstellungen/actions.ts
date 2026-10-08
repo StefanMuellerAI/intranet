@@ -16,6 +16,7 @@ import { hashApiKey } from "@/lib/api-keys";
 import { isApiKeyScope } from "@/lib/api-scopes";
 import { writeAudit } from "@/lib/audit";
 import { fullName, requireAdmin } from "@/lib/auth";
+import { parseEuroToCents } from "@/lib/form-patterns";
 import { assertSafeWebhookUrl } from "@/lib/webhooks";
 
 // ---------------------------------------------------------------------------
@@ -23,9 +24,10 @@ import { assertSafeWebhookUrl } from "@/lib/webhooks";
 // ---------------------------------------------------------------------------
 
 function euroToCents(value: FormDataEntryValue | null): number {
-  const n = Number(String(value ?? "").replace(",", "."));
-  if (!Number.isFinite(n) || n < 0) throw new Error("Ungültiger Betrag.");
-  return Math.round(n * 100);
+  // Leeres Feld zählt wie bisher als 0 €
+  const cents = parseEuroToCents(String(value ?? "")) ?? 0;
+  if (!Number.isFinite(cents) || cents < 0) throw new Error("Ungültiger Betrag.");
+  return cents;
 }
 
 export async function updateRates(formData: FormData) {

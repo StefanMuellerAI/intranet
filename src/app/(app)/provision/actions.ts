@@ -6,6 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { commissionClaims, db, requestHistory } from "@/db";
 import { writeAudit } from "@/lib/audit";
 import { fullName, requireAdmin, requireUser } from "@/lib/auth";
+import { parseEuroToCents } from "@/lib/form-patterns";
 import {
   commissionInputSchema,
   createCommissionClaim,
@@ -13,12 +14,11 @@ import {
   withdrawCommissionClaimForUser,
 } from "@/lib/requests/commission";
 
-function parseEuroToCents(value: FormDataEntryValue | null): number | undefined {
-  const raw = String(value ?? "").trim();
-  if (!raw) return undefined;
-  const n = Number(raw.replace(/\./g, "").replace(",", "."));
-  if (!Number.isFinite(n) || n < 0) throw new Error("Ungültiger Betrag.");
-  return Math.round(n * 100);
+function euroFieldToCents(value: FormDataEntryValue | null): number | undefined {
+  const cents = parseEuroToCents(String(value ?? ""));
+  if (cents === null) return undefined;
+  if (!Number.isFinite(cents) || cents < 0) throw new Error("Ungültiger Betrag.");
+  return cents;
 }
 
 function parseForm(formData: FormData) {
@@ -40,7 +40,7 @@ function parseForm(formData: FormData) {
         : undefined,
     netOrderValueCents:
       businessType === "beratung"
-        ? parseEuroToCents(formData.get("netOrderValue"))
+        ? euroFieldToCents(formData.get("netOrderValue"))
         : undefined,
     note: String(formData.get("note") ?? "") || undefined,
   });
@@ -118,8 +118,8 @@ export async function updateCommissionAdminFields(
   if (!existing) throw new Error("Anspruch nicht gefunden.");
 
   const referralBonusCents =
-    parseEuroToCents(formData.get("referralBonus")) ?? null;
-  const finalOverrideCents = parseEuroToCents(formData.get("finalAmount"));
+    euroFieldToCents(formData.get("referralBonus")) ?? null;
+  const finalOverrideCents = euroFieldToCents(formData.get("finalAmount"));
 
   const finalAmountCents =
     finalOverrideCents ??

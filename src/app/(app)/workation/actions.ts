@@ -104,6 +104,12 @@ export async function deleteWorkationRequest(id: string) {
   redirect("/workation");
 }
 
+const A1_STATUSES = ["nicht_beantragt", "beantragt", "liegt_vor"] as const;
+
+function isA1Status(value: string): value is (typeof A1_STATUSES)[number] {
+  return (A1_STATUSES as readonly string[]).includes(value);
+}
+
 export async function updateWorkationAdminFields(id: string, formData: FormData) {
   const admin = await requireAdmin();
   const existing = await db.query.workationRequests.findFirst({
@@ -111,7 +117,9 @@ export async function updateWorkationAdminFields(id: string, formData: FormData)
   });
   if (!existing) throw new Error("Antrag nicht gefunden.");
 
-  const a1Status = String(formData.get("a1Status") ?? "");
+  const a1Raw = String(formData.get("a1Status") ?? "");
+  if (a1Raw && !isA1Status(a1Raw)) throw new Error("Ungültiger A1-Status.");
+  const a1Status = a1Raw && isA1Status(a1Raw) ? a1Raw : null;
   const proofProvidedAt = String(formData.get("proofProvidedAt") ?? "");
   const excludedProjects = String(formData.get("excludedProjects") ?? "");
 
@@ -120,7 +128,7 @@ export async function updateWorkationAdminFields(id: string, formData: FormData)
     .set({
       a1Status:
         existing.countryCategory === "eu_ewr_ch" && a1Status
-          ? (a1Status as "nicht_beantragt" | "beantragt" | "liegt_vor")
+          ? a1Status
           : existing.countryCategory === "eu_ewr_ch"
             ? existing.a1Status
             : null,

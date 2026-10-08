@@ -26,7 +26,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DECIMAL_PATTERN, DECIMAL_TITLE } from "@/lib/form-patterns";
+import {
+  DECIMAL_PATTERN,
+  DECIMAL_TITLE,
+  parseEuroToCents,
+} from "@/lib/form-patterns";
 import {
   Select,
   SelectContent,
@@ -88,9 +92,8 @@ function toBelegItems(defaults?: BelegItemDefault[]): BelegItem[] {
 }
 
 function parseEuro(value: string): number {
-  const n = Number(value.replace(/\./g, "").replace(",", "."));
-  if (!Number.isFinite(n) || n < 0) return 0;
-  return Math.round(n * 100);
+  const cents = parseEuroToCents(value);
+  return cents !== null && Number.isFinite(cents) && cents >= 0 ? cents : 0;
 }
 
 export function ExpenseForm({

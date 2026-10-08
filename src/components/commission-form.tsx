@@ -24,7 +24,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { DECIMAL_PATTERN, DECIMAL_TITLE } from "@/lib/form-patterns";
+import {
+  DECIMAL_PATTERN,
+  DECIMAL_TITLE,
+  parseEuroToCents,
+} from "@/lib/form-patterns";
 
 export interface CommissionFormDefaults {
   businessType?: BusinessType;
@@ -40,10 +44,8 @@ export interface CommissionFormDefaults {
 }
 
 function parseEuro(value: string): number | null {
-  const raw = value.trim();
-  if (!raw) return null;
-  const n = Number(raw.replace(/\./g, "").replace(",", "."));
-  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : null;
+  const cents = parseEuroToCents(value);
+  return cents !== null && Number.isFinite(cents) && cents >= 0 ? cents : null;
 }
 
 export function CommissionForm({
