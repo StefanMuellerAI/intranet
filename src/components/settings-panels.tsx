@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/admin-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -155,14 +156,17 @@ export function WebhookRowActions({
       >
         {active ? "Deaktivieren" : "Aktivieren"}
       </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        disabled={pending}
-        onClick={() => run(() => deleteWebhook(id), "Webhook gelöscht.")}
-      >
-        Löschen
-      </Button>
+      <ConfirmDialog
+        trigger={<Button size="sm" variant="ghost" disabled={pending} />}
+        triggerLabel="Löschen"
+        title="Webhook löschen?"
+        description="Der Webhook und sein Zustell-Log werden endgültig entfernt. Dieser Schritt lässt sich nicht rückgängig machen."
+        confirmLabel="Endgültig löschen"
+        pendingLabel="Wird gelöscht …"
+        variant="destructive"
+        action={() => deleteWebhook(id)}
+        successMessage="Webhook gelöscht."
+      />
     </div>
   );
 }
@@ -270,16 +274,17 @@ export function ApiKeyPanel({
               ) : null}
             </span>
             {!k.revokedAt && (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={pending}
-                onClick={() =>
-                  run(() => revokeApiKey(k.id), "API-Key widerrufen.")
-                }
-              >
-                Widerrufen
-              </Button>
+              <ConfirmDialog
+                trigger={<Button size="sm" variant="outline" disabled={pending} />}
+                triggerLabel="Widerrufen"
+                title="API-Key widerrufen?"
+                description={`„${k.name}“ funktioniert danach nicht mehr. Ein widerrufener Key lässt sich nicht wieder aktivieren.`}
+                confirmLabel="Endgültig widerrufen"
+                pendingLabel="Wird widerrufen …"
+                variant="destructive"
+                action={() => revokeApiKey(k.id)}
+                successMessage="API-Key widerrufen."
+              />
             )}
           </li>
         ))}

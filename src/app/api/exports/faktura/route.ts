@@ -6,6 +6,10 @@ import {
   periodFilenameLabel,
 } from "@/lib/faktura/stundenzettel";
 import { isValidISODate } from "@/lib/faktura/zeitfenster";
+import { UserError } from "@/lib/user-error";
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const preferredRegion = "fra1";
 
@@ -25,6 +29,7 @@ export async function GET(req: Request) {
   const to = url.searchParams.get("bis");
   if (
     !customerId ||
+    !UUID_RE.test(customerId) ||
     !from ||
     !to ||
     !isValidISODate(from) ||
@@ -39,7 +44,15 @@ export async function GET(req: Request) {
       { status: 400 }
     );
 
-  const rows = await getEntriesForExport(customerId, from, to);
+  let rows: Awaited<ReturnType<typeof getEntriesForExport>>;
+  try {
+    rows = await getEntriesForExport(customerId, from, to);
+  } catch (err) {
+    // z. B. "Kunde nicht gefunden." — fachlicher Fehler statt 500
+    if (err instanceof UserError)
+      return NextResponse.json({ fehler: err.message }, { status: 404 });
+    throw err;
+  }
   const csv = buildFakturaCsv(rows);
   const filename = `Faktura_${normalizeForFilename(rows[0]?.customerName ?? "Export")}_${periodFilenameLabel(from, to)}.csv`;
   return new NextResponse(csv, {

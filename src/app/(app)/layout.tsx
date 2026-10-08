@@ -1,12 +1,6 @@
 import { SignOutButton } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
-import {
-  commissionClaims,
-  db,
-  expenseReports,
-  vacationRequests,
-  workationRequests,
-} from "@/db";
+import { listOpenApprovals } from "@/lib/approvals";
 import { fullName, getActiveDeputy, resolveAccess } from "@/lib/auth";
 import { formatDateDE } from "@/lib/dates";
 import { Sidebar } from "@/components/sidebar";
@@ -54,26 +48,7 @@ export default async function AppLayout({
   const isDeputy = deputy?.id === user.id;
   const canApprove = isAdmin || isDeputy;
 
-  let openApprovals = 0;
-  if (canApprove) {
-    const [v, w, e, c] = await Promise.all([
-      db
-        .select({ id: vacationRequests.id, status: vacationRequests.status })
-        .from(vacationRequests),
-      db
-        .select({ id: workationRequests.id, status: workationRequests.status })
-        .from(workationRequests),
-      db
-        .select({ id: expenseReports.id, status: expenseReports.status })
-        .from(expenseReports),
-      db
-        .select({ id: commissionClaims.id, status: commissionClaims.status })
-        .from(commissionClaims),
-    ]);
-    openApprovals = [...v, ...w, ...e, ...c].filter(
-      (r) => r.status === "eingereicht" || r.status === "storno_beantragt"
-    ).length;
-  }
+  const openApprovals = canApprove ? (await listOpenApprovals()).length : 0;
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">

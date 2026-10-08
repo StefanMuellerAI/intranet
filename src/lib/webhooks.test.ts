@@ -52,4 +52,59 @@ describe("assertSafeWebhookUrl", () => {
       expect(() => assertSafeWebhookUrl(url), url).toThrow();
     }
   });
+
+  it("blockt weitere reservierte IPv4-Bereiche", () => {
+    for (const url of [
+      "https://0.0.0.0/hook",
+      "https://172.31.255.1/hook",
+      "https://100.64.0.1/hook", // CGNAT
+      "https://100.127.255.254/hook",
+      "https://sub.localhost/hook",
+    ]) {
+      expect(() => assertSafeWebhookUrl(url), url).toThrow();
+    }
+  });
+
+  it("lässt öffentliche Adressen knapp neben den privaten Bereichen zu", () => {
+    for (const url of [
+      "https://172.15.0.1/hook",
+      "https://172.32.0.1/hook",
+      "https://100.63.0.1/hook",
+      "https://100.128.0.1/hook",
+      "https://192.169.0.1/hook",
+      "https://8.8.8.8/hook",
+    ]) {
+      expect(() => assertSafeWebhookUrl(url), url).not.toThrow();
+    }
+  });
+
+  it("blockt interne IPv6-Adressen in eckigen Klammern", () => {
+    for (const url of [
+      "https://[::1]/hook", // Loopback
+      "https://[::]/hook", // unspezifiziert
+      "https://[fe80::1]/hook", // Link-local
+      "https://[febf::1]/hook",
+      "https://[fc00::1]/hook", // Unique-local
+      "https://[fd12:3456::1]/hook",
+      "https://[::ffff:127.0.0.1]/hook", // IPv4-gemappt → Loopback
+      "https://[::ffff:7f00:1]/hook",
+      "https://[::ffff:a9fe:a9fe]/hook", // IPv4-gemappt → Cloud-Metadaten
+      "https://[::127.0.0.1]/hook", // IPv4-kompatibel
+      "https://[64:ff9b::10.0.0.1]/hook", // NAT64 → RFC1918
+    ]) {
+      expect(() => assertSafeWebhookUrl(url), url).toThrow(
+        "keine internen oder privaten Adressen"
+      );
+    }
+  });
+
+  it("lässt öffentliche IPv6-Adressen zu", () => {
+    for (const url of [
+      "https://[2001:4860:4860::8888]/hook",
+      "https://[::ffff:8.8.8.8]/hook",
+      "https://[fec0::1]/hook", // außerhalb fe80::/10
+    ]) {
+      expect(() => assertSafeWebhookUrl(url), url).not.toThrow();
+    }
+  });
 });

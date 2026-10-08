@@ -18,6 +18,12 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  // Berechtigung vor der Suche prüfen — sonst verrät 404 vs. 403, ob es
+  // eine ID gibt
+  const user = await getCurrentUser();
+  if (user === null || user.role !== "admin")
+    return NextResponse.json({ fehler: "Kein Zugriff." }, { status: 403 });
+
   const doc = await db.query.itEquipmentDocuments.findFirst({
     where: eq(itEquipmentDocuments.id, id),
   });
@@ -26,10 +32,6 @@ export async function GET(
       { fehler: "Protokoll nicht gefunden." },
       { status: 404 }
     );
-
-  const user = await getCurrentUser();
-  if (user === null || user.role !== "admin")
-    return NextResponse.json({ fehler: "Kein Zugriff." }, { status: 403 });
 
   const upstream = await fetch(doc.blobUrl);
   if (!upstream.ok)

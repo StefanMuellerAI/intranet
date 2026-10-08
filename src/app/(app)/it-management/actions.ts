@@ -12,6 +12,7 @@ import {
   users,
   type HandoverProtocolKind,
   type ItEquipment,
+  type ItEquipmentDocument,
   type User,
 } from "@/db";
 import { writeAudit } from "@/lib/audit";
@@ -66,12 +67,17 @@ function extractProtocolFile(formData: FormData): File {
 /**
  * Protokoll serverseitig mit AES-256-GCM verschlüsseln und als unlesbaren
  * Binär-Blob ablegen. Klartext verlässt den Server-Prozess nie.
+ *
+ * Beim Ersetzen wird zuerst die neue Datei gespeichert und erst danach das
+ * bisherige Dokument entfernt (DB-Tausch atomar per Batch). Scheitert der
+ * Upload, bleibt das alte Protokoll vollständig erhalten.
  */
 async function storeEncryptedProtocol(opts: {
   userId: string;
   kind: HandoverProtocolKind;
   file: File;
   admin: User;
+  replace?: ItEquipmentDocument;
 }): Promise<void> {
   const plain = Buffer.from(await opts.file.arrayBuffer());
   const encrypted = encryptDocument(plain);
@@ -87,19 +93,53 @@ async function storeEncryptedProtocol(opts: {
     }
   );
 
-  const [doc] = await db
-    .insert(itEquipmentDocuments)
-    .values({
-      userId: opts.userId,
-      kind: opts.kind,
-      filename: opts.file.name,
-      contentType: opts.file.type,
-      sizeBytes: opts.file.size,
-      blobUrl: blob.url,
-      keyVersion: DOCUMENT_KEY_VERSION,
-      uploadedById: opts.admin.id,
-    })
-    .returning();
+  const values = {
+    userId: opts.userId,
+    kind: opts.kind,
+    filename: opts.file.name,
+    contentType: opts.file.type,
+    sizeBytes: opts.file.size,
+    blobUrl: blob.url,
+    keyVersion: DOCUMENT_KEY_VERSION,
+    uploadedById: opts.admin.id,
+  };
+
+  let doc: ItEquipmentDocument;
+  try {
+    if (opts.replace) {
+      // Eindeutig je Person und Art: alte Zeile im selben Batch entfernen
+      const [, inserted] = await db.batch([
+        db
+          .delete(itEquipmentDocuments)
+          .where(eq(itEquipmentDocuments.id, opts.replace.id)),
+        db.insert(itEquipmentDocuments).values(values).returning(),
+      ]);
+      doc = inserted[0];
+    } else {
+      [doc] = await db.insert(itEquipmentDocuments).values(values).returning();
+    }
+  } catch (err) {
+    // Neue Datei wieder entfernen, damit kein verwaister Blob zurückbleibt
+    await del(blob.url).catch(() => {});
+    throw err;
+  }
+
+  if (opts.replace) {
+    await writeAudit({
+      objectType: "it_dokument",
+      objectId: opts.replace.id,
+      action: "ersetzt",
+      actorUserId: opts.admin.id,
+      actorLabel: fullName(opts.admin),
+      source: "web",
+      details: {
+        userId: opts.userId,
+        kind: opts.kind,
+        filename: opts.replace.filename,
+      },
+    });
+    await deleteBlobQuietly(opts.replace.blobUrl);
+  }
 
   await writeAudit({
     objectType: "it_dokument",
@@ -114,6 +154,19 @@ async function storeEncryptedProtocol(opts: {
       filename: opts.file.name,
     },
   });
+}
+
+/**
+ * Blob nach dem DB-Löschen entfernen. Schlägt das fehl, bleibt nur ein
+ * verwaister Ciphertext zurück — die Datenbank verweist nie auf eine
+ * fehlende Datei.
+ */
+async function deleteBlobQuietly(url: string): Promise<void> {
+  try {
+    await del(url);
+  } catch (err) {
+    console.error("Blob konnte nicht gelöscht werden:", err);
+  }
 }
 
 async function findEquipment(id: string): Promise<ItEquipment> {
@@ -334,32 +387,21 @@ export async function uploadHandoverProtocol(
 
   const file = extractProtocolFile(formData);
 
-  // Das bisherige Dokument zuerst entfernen: sonst verletzt der Insert die
-  // Eindeutigkeit und im Blob-Store bliebe eine verwaiste Datei zurück.
+  // Ein vorhandenes Protokoll derselben Art wird ersetzt
   const existing = await db.query.itEquipmentDocuments.findFirst({
     where: and(
       eq(itEquipmentDocuments.userId, userId),
       eq(itEquipmentDocuments.kind, kind)
     ),
   });
-  if (existing) {
-    await del(existing.blobUrl);
-    await db
-      .delete(itEquipmentDocuments)
-      .where(eq(itEquipmentDocuments.id, existing.id));
 
-    await writeAudit({
-      objectType: "it_dokument",
-      objectId: existing.id,
-      action: "ersetzt",
-      actorUserId: admin.id,
-      actorLabel: fullName(admin),
-      source: "web",
-      details: { userId, kind, filename: existing.filename },
-    });
-  }
-
-  await storeEncryptedProtocol({ userId, kind, file, admin });
+  await storeEncryptedProtocol({
+    userId,
+    kind,
+    file,
+    admin,
+    replace: existing,
+  });
   revalidateEquipment();
 }
 
@@ -369,8 +411,6 @@ export async function deleteHandoverProtocol(documentId: string) {
     where: eq(itEquipmentDocuments.id, documentId),
   });
   if (!doc) throw new Error("Protokoll nicht gefunden.");
-
-  await del(doc.blobUrl);
 
   await writeAudit({
     objectType: "it_dokument",
@@ -385,6 +425,7 @@ export async function deleteHandoverProtocol(documentId: string) {
   await db
     .delete(itEquipmentDocuments)
     .where(eq(itEquipmentDocuments.id, documentId));
+  await deleteBlobQuietly(doc.blobUrl);
 
   revalidateEquipment();
 }

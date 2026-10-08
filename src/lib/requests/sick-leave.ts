@@ -14,12 +14,18 @@ const TYPE_LABELS: Record<string, string> = {
   kind_krank: "Kind krank",
 };
 
-export const sickLeaveInputSchema = z.object({
-  startDate: z.string().min(1, "Bitte ersten Tag der Arbeitsunfähigkeit angeben."),
-  endDate: z.string().optional(),
-  type: z.enum(["eigene_erkrankung", "kind_krank"]),
-  note: z.string().optional(),
-});
+export const sickLeaveInputSchema = z
+  .object({
+    startDate: z
+      .string()
+      .min(1, "Bitte ersten Tag der Arbeitsunfähigkeit angeben."),
+    endDate: z.string().optional(),
+    type: z.enum(["eigene_erkrankung", "kind_krank"]),
+    note: z.string().optional(),
+  })
+  .refine((v) => !v.endDate || v.endDate >= v.startDate, {
+    message: "Das Enddatum darf nicht vor dem ersten Tag liegen.",
+  });
 
 export type SickLeaveInput = z.infer<typeof sickLeaveInputSchema>;
 
@@ -80,6 +86,8 @@ export async function closeSickLeaveForUser(
   });
   if (!leave || leave.userId !== user.id)
     throw new Error("Krankmeldung nicht gefunden.");
+  if (leave.status !== "gemeldet")
+    throw new Error("Die Krankmeldung ist bereits abgeschlossen.");
 
   if (!endDate) throw new Error("Bitte das tatsächliche Enddatum angeben.");
   if (endDate < leave.startDate)

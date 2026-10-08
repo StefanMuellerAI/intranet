@@ -15,7 +15,13 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/**/*.{ts,tsx}"],
-      exclude: ["src/**/*.test.ts", "src/components/ui/**"],
+      exclude: [
+        "src/**/*.test.{ts,tsx}",
+        "src/components/ui/**",
+        // reine Typen/Konstanten bzw. Framework-Glue ohne eigene Logik
+        "src/db/schema.ts",
+        "src/db/seed.ts",
+      ],
     },
     projects: [
       {
@@ -28,9 +34,22 @@ export default defineConfig({
       {
         resolve: { alias },
         test: {
+          name: "component",
+          include: ["src/**/*.test.tsx"],
+          environment: "happy-dom",
+          setupFiles: ["tests/component/setup.ts"],
+        },
+      },
+      {
+        resolve: { alias },
+        test: {
           name: "integration",
           include: ["tests/integration/**/*.test.ts"],
-          setupFiles: ["tests/integration/setup.ts"],
+          setupFiles: [
+            "tests/integration/setup.ts",
+            "tests/integration/framework-mocks.ts",
+          ],
+          globalSetup: ["tests/integration/global-setup.ts"],
           testTimeout: 30_000,
           hookTimeout: 60_000,
         },

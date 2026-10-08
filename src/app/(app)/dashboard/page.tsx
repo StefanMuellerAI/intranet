@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, asc, desc, eq, gte, inArray, isNull, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, lte } from "drizzle-orm";
 import {
   db,
   expenseReports,
@@ -13,6 +13,7 @@ import {
   workationRequests,
 } from "@/db";
 import { getCalendarAbsences } from "@/lib/absences";
+import { listOpenApprovals } from "@/lib/approvals";
 import { getActiveDeputy, requireUser } from "@/lib/auth";
 import { salesNewsDashboardCutoff } from "@/lib/content";
 import { formatDateDE, toISODate } from "@/lib/dates";
@@ -164,41 +165,13 @@ export default async function DashboardPage() {
     }),
   }));
 
-  let openApprovals: { label: string; href: string; status: string }[] = [];
-  if (canApprove) {
-    const OPEN = ["eingereicht", "storno_beantragt"] as const;
-    const [v, w, e] = await Promise.all([
-      db
-        .select()
-        .from(vacationRequests)
-        .where(inArray(vacationRequests.status, [...OPEN])),
-      db
-        .select()
-        .from(workationRequests)
-        .where(inArray(workationRequests.status, [...OPEN])),
-      db
-        .select()
-        .from(expenseReports)
-        .where(inArray(expenseReports.status, [...OPEN])),
-    ]);
-    openApprovals = [
-      ...v.map((r) => ({
-        label: `Urlaub · ${formatDateDE(r.startDate)} – ${formatDateDE(r.endDate)}`,
-        href: `/freigaben/urlaub/${r.id}`,
+  const openApprovals = canApprove
+    ? (await listOpenApprovals()).map((r) => ({
+        label: `${r.typeLabel} · ${r.user} · ${r.summary}`,
+        href: r.href,
         status: r.status,
-      })),
-      ...w.map((r) => ({
-        label: `Workation · ${r.city}, ${r.country}`,
-        href: `/freigaben/workation/${r.id}`,
-        status: r.status,
-      })),
-      ...e.map((r) => ({
-        label: `Reisekosten · ${r.destination} (${formatEuro(r.totalCents)})`,
-        href: `/freigaben/reisekosten/${r.id}`,
-        status: r.status,
-      })),
-    ];
-  }
+      }))
+    : [];
 
   const myRequests = [
     ...myVacations.map((r) => ({

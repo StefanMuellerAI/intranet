@@ -36,6 +36,23 @@ function assertOnOrAfterEntryDate(user: User, startDate: string): void {
     );
 }
 
+/**
+ * Der Antrag darf den Resturlaub des Kalenderjahres nicht übersteigen.
+ * Gilt für neue und für korrigierte Anträge (der korrigierte Antrag selbst
+ * zählt dabei nicht mit, da er beanstandet oder zurückgezogen ist).
+ */
+async function assertWithinRemainingVacation(
+  user: User,
+  startDate: string,
+  days: number
+): Promise<void> {
+  const account = await getVacationAccount(user, Number(startDate.slice(0, 4)));
+  if (account.remaining - days < 0)
+    throw new Error(
+      `Der Antrag über ${days} Tage übersteigt Ihren Resturlaub von ${account.remaining} Tagen.`
+    );
+}
+
 export async function createVacationRequest(
   user: User,
   raw: VacationInput,
@@ -54,13 +71,7 @@ export async function createVacationRequest(
     );
 
   assertOnOrAfterEntryDate(user, data.startDate);
-
-  const year = Number(data.startDate.slice(0, 4));
-  const account = await getVacationAccount(user, year);
-  if (account.remaining - days < 0)
-    throw new Error(
-      `Der Antrag über ${days} Tage übersteigt Ihren Resturlaub von ${account.remaining} Tagen.`
-    );
+  await assertWithinRemainingVacation(user, data.startDate, days);
 
   const [request] = await db
     .insert(vacationRequests)
@@ -128,6 +139,7 @@ export async function resubmitVacationRequestForUser(
     throw new Error("Der gewählte Zeitraum enthält keine Arbeitstage.");
 
   assertOnOrAfterEntryDate(user, data.startDate);
+  await assertWithinRemainingVacation(user, data.startDate, days);
 
   await saveHistorySnapshot("urlaub", id, existing.version, { ...existing });
 

@@ -96,7 +96,11 @@ function useRun() {
   const [pending, startTransition] = useTransition();
   // Actions liefern Fehler als Ergebnis (statt throw), damit die Meldung
   // auch im Production-Build lesbar ankommt.
-  const run = (fn: () => Promise<ActionResult<unknown>>, msg?: string) =>
+  const run = (
+    fn: () => Promise<ActionResult<unknown>>,
+    msg?: string,
+    onSuccess?: () => void
+  ) =>
     startTransition(async () => {
       const result = await fn();
       if (!result.ok) {
@@ -104,6 +108,7 @@ function useRun() {
         return;
       }
       if (msg) toast.success(msg);
+      onSuccess?.();
     });
   return { pending, run };
 }
@@ -158,14 +163,16 @@ function AdminEntryDialog({
             const fd = new FormData(e.currentTarget);
             fd.set("projectId", projectId);
             if (!entry) fd.set("userId", userId);
+            // Dialog erst nach Erfolg schließen — bei einem Fehler bleiben
+            // die Eingaben zum Korrigieren erhalten
             run(
               () =>
                 entry
                   ? adminUpdateEntryAction(entry.id, fd)
                   : adminCreateEntryAction(fd),
-              entry ? "Buchung angepasst." : "Buchung angelegt."
+              entry ? "Buchung angepasst." : "Buchung angelegt.",
+              () => setOpen(false)
             );
-            setOpen(false);
           }}
         >
           {!entry && (

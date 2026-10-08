@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { neon } from "@neondatabase/serverless";
+import { neon, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import * as schema from "../../src/db/schema";
 import type { ApiKeyScope } from "../../src/lib/api-scopes";
@@ -20,6 +20,8 @@ function createTestDb() {
         "Die Test-Helfer leeren die Datenbank und dürfen nur gegen einen " +
         "Neon-Test-Branch laufen (.env.test)."
     );
+  if (process.env.NEON_FETCH_ENDPOINT)
+    neonConfig.fetchEndpoint = process.env.NEON_FETCH_ENDPOINT;
   return drizzle(neon(url), { schema });
 }
 
@@ -34,6 +36,12 @@ export async function resetDb(): Promise<void> {
   const db = testDb();
   await db.execute(`
     TRUNCATE TABLE
+      it_equipment_documents,
+      it_equipment,
+      it_equipment_types,
+      sales_news_dismissals,
+      sales_news,
+      team_events,
       seminar_report_quotes,
       seminar_reports,
       faktura_timesheets,
@@ -76,6 +84,12 @@ export interface SeedResult {
 export async function seedTestData(): Promise<SeedResult> {
   const db = testDb();
   await db.insert(schema.settings).values({ id: 1 });
+  // Startwerte der Ausstattungsarten wie in Migration 0010
+  await db.insert(schema.itEquipmentTypes).values(
+    ["Laptop", "Maus", "Kopfhörer", "Peripherie", "Rucksack", "Koffer"].map(
+      (name, i) => ({ name, sortOrder: (i + 1) * 10 })
+    )
+  );
 
   const [admin] = await db
     .insert(schema.users)

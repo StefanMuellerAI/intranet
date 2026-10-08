@@ -18,20 +18,19 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const user = await getCurrentUser();
+  if (user === null)
+    return NextResponse.json({ fehler: "Kein Zugriff." }, { status: 403 });
+
   const doc = await db.query.employeeDocuments.findFirst({
     where: eq(employeeDocuments.id, id),
   });
-  if (!doc)
+  // Fremde Dokumente wie nicht vorhandene behandeln — verrät keine IDs
+  if (!doc || (user.id !== doc.userId && user.role !== "admin"))
     return NextResponse.json(
       { fehler: "Dokument nicht gefunden." },
       { status: 404 }
     );
-
-  const user = await getCurrentUser();
-  const authorized =
-    user !== null && (user.id === doc.userId || user.role === "admin");
-  if (!authorized)
-    return NextResponse.json({ fehler: "Kein Zugriff." }, { status: 403 });
 
   const upstream = await fetch(doc.blobUrl);
   if (!upstream.ok)

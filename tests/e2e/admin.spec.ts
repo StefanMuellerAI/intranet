@@ -55,6 +55,7 @@ test.describe("Administration", () => {
       .locator("li", { hasText: "E2E-Testkey" })
       .getByRole("button", { name: "Widerrufen" })
       .click();
+    await admin.getByRole("button", { name: "Endgültig widerrufen" }).click();
     await expect(admin.getByText("API-Key widerrufen.")).toBeVisible();
 
     const revokedRes = await admin.request.get("/api/v1/requests", {

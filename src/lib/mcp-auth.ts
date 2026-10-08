@@ -30,13 +30,3 @@ export async function resolveUserFromMcpAuth(
     );
   return user;
 }
-
-/** Stellt sicher, dass ein Datensatz dem authentifizierten User gehört. */
-export function assertOwnResource(
-  ownerUserId: string,
-  currentUser: User,
-  label = "Datensatz"
-): void {
-  if (ownerUserId !== currentUser.id)
-    throw new Error(`${label} nicht gefunden.`);
-}

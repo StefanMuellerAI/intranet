@@ -19,16 +19,35 @@ export function signPayload(payload: string, secret: string): string {
 }
 
 /** Interne/private Hosts, die ein Webhook nie ansprechen darf (SSRF). */
-function isPrivateHost(host: string): boolean {
+function isPrivateHost(rawHost: string): boolean {
+  // URL.hostname liefert IPv6-Adressen in eckigen Klammern ("[::1]")
+  const host = rawHost.replace(/^\[(.*)\]$/, "$1");
   if (
     host === "localhost" ||
     host.endsWith(".localhost") ||
     host.endsWith(".local")
   )
     return true;
-  // IPv6: Loopback, Link-local (fe80::/10), Unique-local (fc00::/7)
-  if (host === "::1" || host.startsWith("fe80:") || /^f[cd]/.test(host))
-    return true;
+  if (host.includes(":")) {
+    // Eingebettete IPv4-Adressen wie IPv4 prüfen: IPv4-gemappt (::ffff:),
+    // IPv4-kompatibel (::) und NAT64 (64:ff9b::) — URL normalisiert sie zu
+    // zwei Hex-Gruppen, z. B. ::ffff:127.0.0.1 → ::ffff:7f00:1
+    const embedded = host.match(
+      /^(?:::ffff:|::|64:ff9b::)([0-9a-f]{1,4}):([0-9a-f]{1,4})$/
+    );
+    if (embedded) {
+      const hi = parseInt(embedded[1], 16);
+      const lo = parseInt(embedded[2], 16);
+      return isPrivateHost(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`);
+    }
+    // Unspezifiziert, Loopback, Link-local (fe80::/10), Unique-local (fc00::/7)
+    return (
+      host === "::" ||
+      host === "::1" ||
+      /^fe[89ab][0-9a-f]:/.test(host) ||
+      /^f[cd][0-9a-f]{2}:/.test(host)
+    );
+  }
   const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.\d{1,3}$/);
   if (ipv4) {
     const a = Number(ipv4[1]);

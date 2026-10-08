@@ -181,8 +181,6 @@ export async function deleteEmployeeDocument(documentId: string) {
   });
   if (!doc) throw new Error("Dokument nicht gefunden.");
 
-  await del(doc.blobUrl);
-
   // Audit vor dem Löschen schreiben (Audit-Log hat keinen Fremdschlüssel)
   await writeAudit({
     objectType: "dokument",
@@ -199,6 +197,13 @@ export async function deleteEmployeeDocument(documentId: string) {
   });
 
   await db.delete(employeeDocuments).where(eq(employeeDocuments.id, documentId));
+  // Blob erst nach der DB-Zeile entfernen: scheitert das, bleibt nur ein
+  // verwaister Ciphertext, aber kein Verweis auf eine fehlende Datei
+  try {
+    await del(doc.blobUrl);
+  } catch (err) {
+    console.error("Blob konnte nicht gelöscht werden:", err);
+  }
 
   revalidatePath("/mitarbeitende");
   revalidatePath("/dokumente");

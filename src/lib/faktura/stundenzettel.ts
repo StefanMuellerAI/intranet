@@ -65,15 +65,6 @@ export async function markTimesheetsStaleForRange(
     );
 }
 
-/** Kunden-ID zu einem Projekt — für die Veraltet-Markierung nach Mutationen. */
-export async function customerIdOfProject(projectId: string): Promise<string> {
-  const project = await db.query.fakturaProjects.findFirst({
-    where: eq(fakturaProjects.id, projectId),
-  });
-  if (!project) throw new UserError("Projekt nicht gefunden.");
-  return project.customerId;
-}
-
 // ---------------------------------------------------------------------------
 // Dateinamen (FA-6.7, Edge Case 19)
 // ---------------------------------------------------------------------------

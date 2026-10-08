@@ -71,19 +71,3 @@ export async function checkMonthlyLimit(
     overbooked: exceeded,
   };
 }
-
-export interface ProjectMonthSaldo {
-  bookedMinutes: number;
-  limitMinutes: number | null;
-}
-
-/** Monatssaldo „gebucht / Limit" für die Admin-Projektansicht (FA-4.3). */
-export async function getProjectMonthSaldo(
-  project: FakturaProject,
-  month: string
-): Promise<ProjectMonthSaldo> {
-  return {
-    bookedMinutes: await getMonthlyBookedMinutes(project.id, month),
-    limitMinutes: project.monthlyLimitMinutes,
-  };
-}
