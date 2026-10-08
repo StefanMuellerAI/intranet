@@ -18,7 +18,7 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const month = url.searchParams.get("monat"); // YYYY-MM
   const format = url.searchParams.get("format") ?? "csv";
-  if (!month || !/^\d{4}-\d{2}$/.test(month))
+  if (!month || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month))
     return NextResponse.json(
       { fehler: "Parameter 'monat' im Format YYYY-MM erforderlich." },
       { status: 400 }

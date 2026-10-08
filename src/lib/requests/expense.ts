@@ -79,6 +79,27 @@ type ReceiptFileSource = {
   getFile: (index: number) => File | null;
 };
 
+/**
+ * Alle hochgeladenen Belege vorab prüfen — erst danach wird geschrieben.
+ * Sonst bliebe bei einem unzulässigen Beleg ein halb gespeicherter Bericht
+ * (inkl. bereits hochgeladener Belege) zurück.
+ */
+function assertReceiptFilesAllowed(
+  data: ExpenseReportInput,
+  receiptSource: ReceiptFileSource | null
+): void {
+  if (!receiptSource) return;
+  for (const item of [...data.transport, ...data.lodging, ...data.incidentals]) {
+    if (item.existingReceiptId || item.fileIndex === undefined) continue;
+    const file = receiptSource.getFile(item.fileIndex);
+    if (!(file instanceof File) || file.size === 0) continue;
+    if (!ALLOWED_RECEIPT_TYPES.includes(file.type))
+      throw new Error(
+        `Beleg "${file.name}": Nur PDF, JPG oder PNG sind zulässig.`
+      );
+  }
+}
+
 async function persistReport(
   userId: string,
   data: ExpenseReportInput,
@@ -221,10 +242,7 @@ async function persistReport(
         if (item.fileIndex === undefined) continue;
         const file = receiptSource.getFile(item.fileIndex);
         if (!(file instanceof File) || file.size === 0) continue;
-        if (!ALLOWED_RECEIPT_TYPES.includes(file.type))
-          throw new Error(
-            `Beleg "${file.name}": Nur PDF, JPG oder PNG sind zulässig.`
-          );
+        // Typ bereits in assertReceiptFilesAllowed() geprüft
         // Belege AES-256-GCM-verschlüsselt ablegen (wie Personaldokumente):
         // der Blob-Store ist öffentlich, Klartext dürfte bei einem Leak der
         // Roh-URL nicht abgreifbar sein. Entschlüsselt wird nur im Proxy
@@ -262,6 +280,7 @@ export async function createExpenseReport(
   receiptSource: ReceiptFileSource | null = null
 ) {
   const data = expenseReportInputSchema.parse(raw);
+  assertReceiptFilesAllowed(data, receiptSource);
   const reportId = await persistReport(user.id, data, receiptSource);
 
   const report = await db.query.expenseReports.findFirst({
@@ -308,6 +327,10 @@ export async function resubmitExpenseReportForUser(
       "Nur beanstandete oder zurückgezogene Abrechnungen können korrigiert werden."
     );
 
+  // Erst vollständig validieren, dann Historie sichern und überschreiben
+  const data = expenseReportInputSchema.parse(raw);
+  assertReceiptFilesAllowed(data, receiptSource);
+
   const oldItems = await db
     .select()
     .from(expenseItems)
@@ -317,7 +340,6 @@ export async function resubmitExpenseReportForUser(
     items: oldItems,
   });
 
-  const data = expenseReportInputSchema.parse(raw);
   await persistReport(user.id, data, receiptSource, id);
   const [report] = await db
     .update(expenseReports)

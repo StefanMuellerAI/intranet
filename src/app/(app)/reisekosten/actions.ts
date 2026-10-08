@@ -23,7 +23,13 @@ import {
 function parsePayload(formData: FormData) {
   const raw = formData.get("payload");
   if (typeof raw !== "string") throw new Error("Ungültige Formulardaten.");
-  return expenseReportInputSchema.parse(JSON.parse(raw));
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("Ungültige Formulardaten.");
+  }
+  return expenseReportInputSchema.parse(parsed);
 }
 
 export async function submitExpenseReport(formData: FormData) {

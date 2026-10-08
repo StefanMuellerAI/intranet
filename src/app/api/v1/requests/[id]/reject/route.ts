@@ -20,8 +20,9 @@ export async function POST(
   const { id } = await params;
   let comment = "";
   try {
-    const body = (await req.json()) as { comment?: string };
-    comment = body.comment ?? "";
+    const body = (await req.json()) as { comment?: unknown } | null;
+    // Nur Text zählt als Kommentar — alles andere wie ein fehlender
+    comment = typeof body?.comment === "string" ? body.comment : "";
   } catch {
     // leerer/ungültiger Body → Pflichtkommentar-Fehler unten
   }
