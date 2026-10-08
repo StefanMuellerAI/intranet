@@ -3,7 +3,11 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { generateTimesheetAction } from "@/app/(app)/faktura/export/actions";
-import { mondayOfIsoWeek, addDaysISO } from "@/lib/faktura/zeitfenster";
+import {
+  addDaysISO,
+  isoWeekOf,
+  mondayOfIsoWeek,
+} from "@/lib/faktura/zeitfenster";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,7 +78,8 @@ export function ExportForm({
     if (mode === "woche") {
       const y = Number(weekYear);
       const w = Number(weekNo);
-      if (!y || !w || w < 1 || w > 53) return null;
+      // KW 53 gibt es nur in manchen Jahren (der 28.12. liegt immer in der letzten KW)
+      if (!y || !w || w < 1 || w > isoWeekOf(`${y}-12-28`).isoWeek) return null;
       const monday = mondayOfIsoWeek(y, w);
       return { fromISO: monday, toISO: addDaysISO(monday, 6) };
     }

@@ -31,6 +31,12 @@ describe("projectInputSchema", () => {
     });
   });
 
+  it("meldet ein nicht numerisches Monatslimit auf Deutsch", () => {
+    expect(errorsOf({ monthlyLimitHours: "abc" })).toEqual([
+      "Das Monatslimit muss eine Zahl sein.",
+    ]);
+  });
+
   it("verlangt Kunde und Projektnamen", () => {
     expect(errorsOf({ customerId: "" })).toEqual([
       "Bitte einen Kunden auswählen.",

@@ -24,6 +24,24 @@ export default defineConfig({
         "src/db/schema.ts",
         "src/db/seed.ts",
       ],
+      // Mindestabdeckung je Bereich (CI: npm run test:coverage). Seiten und
+      // Layouts (Server Components) laufen nur in den E2E-Tests und haben
+      // deshalb keine Schwelle; eine globale Schwelle gibt es bewusst nicht.
+      thresholds: {
+        "src/lib/**": { lines: 95, statements: 95, functions: 95, branches: 90 },
+        "src/app/**/actions.ts": {
+          lines: 98,
+          statements: 98,
+          functions: 100,
+          branches: 80,
+        },
+        "src/app/api/**": {
+          lines: 98,
+          statements: 98,
+          functions: 100,
+          branches: 90,
+        },
+      },
     },
     projects: [
       {

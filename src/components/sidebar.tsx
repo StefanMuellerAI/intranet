@@ -92,6 +92,7 @@ export function Sidebar({
           <Link
             key={item.href}
             href={item.href}
+            aria-current={active ? "page" : undefined}
             onClick={() => setOpen(false)}
             className={cn(
               "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
@@ -142,7 +143,13 @@ export function Sidebar({
           />
           StefanAI Intranet
         </span>
-        <Button variant="ghost" size="icon" onClick={() => setOpen(!open)}>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={open ? "Menü schließen" : "Menü öffnen"}
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+        >
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
       </div>

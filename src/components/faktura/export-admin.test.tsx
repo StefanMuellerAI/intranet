@@ -125,6 +125,24 @@ describe("ExportForm", () => {
     expect(pdfButton()).toBeDisabled();
   });
 
+  it("akzeptiert KW 53 nur in Jahren mit 53 Kalenderwochen", async () => {
+    renderForm();
+    await choose(comboboxes().kunde, "ACME GmbH");
+    await choose(comboboxes().zeitraum, "Kalenderwoche");
+    const jahr = screen.getByLabelText("Jahr");
+    const kw = screen.getByLabelText("KW");
+
+    await userEvent.clear(jahr);
+    await userEvent.type(jahr, "2025"); // 52 Kalenderwochen
+    await userEvent.clear(kw);
+    await userEvent.type(kw, "53");
+    expect(csvButton()).toBeDisabled();
+
+    await userEvent.clear(jahr);
+    await userEvent.type(jahr, "2026"); // 53 Kalenderwochen
+    expect(csvButton()).toBeEnabled();
+  });
+
   it("zeigt im freien Zeitraum Von/Bis und verlangt Bis ≥ Von", async () => {
     renderForm();
     await choose(comboboxes().kunde, "ACME GmbH");

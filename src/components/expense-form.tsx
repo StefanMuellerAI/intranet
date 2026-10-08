@@ -52,6 +52,9 @@ import {
 } from "@/components/form-submit";
 
 interface BelegItem {
+  /** Stabiler React-Key — Datei-Inputs sind unkontrolliert und hingen sonst
+   * nach dem Entfernen einer Zeile an der falschen Position */
+  uid: string;
   date: string;
   description: string;
   amountEuro: string;
@@ -90,6 +93,7 @@ function toBelegItems(defaults?: BelegItemDefault[]): BelegItem[] {
     description: d.description,
     amountEuro: (d.amountCents / 100).toFixed(2).replace(".", ","),
     file: null,
+    uid: crypto.randomUUID(),
     existingReceiptId: d.receiptId,
     existingReceiptName: d.receiptName,
   }));
@@ -203,7 +207,7 @@ export function ExpenseForm({
         <CardContent className="space-y-3">
           {items.map((item, i) => (
             <div
-              key={i}
+              key={item.uid}
               className="grid gap-2 sm:grid-cols-[10rem_1fr_8rem_1fr_auto] items-end"
             >
               <div className="space-y-1">
@@ -290,7 +294,13 @@ export function ExpenseForm({
             onClick={() =>
               setItems((prev) => [
                 ...prev,
-                { date: "", description: "", amountEuro: "", file: null },
+                {
+                  uid: crypto.randomUUID(),
+                  date: "",
+                  description: "",
+                  amountEuro: "",
+                  file: null,
+                },
               ])
             }
           >

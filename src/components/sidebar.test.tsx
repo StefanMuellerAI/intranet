@@ -115,6 +115,25 @@ describe("Sidebar", () => {
     expect(nav.getByText("Administrator")).toBeInTheDocument();
   });
 
+  it("beschriftet den Menü-Button und markiert den aktiven Link für Screenreader", async () => {
+    vi.mocked(usePathname).mockReturnValue("/kalender");
+    renderSidebar();
+    const button = screen.getByRole("button", { name: "Menü öffnen" });
+    expect(button).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(button);
+    expect(screen.getByRole("button", { name: "Menü schließen" })).toHaveAttribute(
+      "aria-expanded",
+      "true"
+    );
+    expect(desktopNav().getByRole("link", { name: "Kalender" })).toHaveAttribute(
+      "aria-current",
+      "page"
+    );
+    expect(desktopNav().getByRole("link", { name: "Urlaub" })).not.toHaveAttribute(
+      "aria-current"
+    );
+  });
+
   it("öffnet und schließt das mobile Menü über den Menü-Button", async () => {
     renderSidebar();
     // Geschlossen: nur die Desktop-Navigation ist gerendert

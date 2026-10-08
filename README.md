@@ -177,8 +177,11 @@ Vorlauf 4/8 Wochen).
   Berichte aller Mitarbeitenden lesbar, mit Filter nach Mitarbeiter/in, Art
   und Zeitraum sowie umschaltbarer Sortierung nach Datum oder Mitarbeiter/in
   (die Auswahl steht in der URL und ist damit teilbar). Fremde Berichte sind
-  ausschließlich lesbar — bearbeiten und löschen darf sie nur, wer sie
-  verfasst hat. Der Reiter *Zitate* bleibt dem Admin vorbehalten.
+  für Mitarbeitende ausschließlich lesbar — bearbeiten und löschen darf sie
+  nur, wer sie verfasst hat. Der Admin darf fremde Berichte und einzelne
+  Zitate nachträglich korrigieren (z. B. eine mit erfasste Punktzahl
+  entfernen), aber nicht löschen. Der Reiter *Zitate* bleibt dem Admin
+  vorbehalten.
 - **Zitate von Teilnehmenden**: Reiter *Zitate* im Menü *Berichte* — je Bericht
   lassen sich bis zu 20 Zitate sammeln. Es wird **ausschließlich der Wortlaut**
   erfasst, bewusst ohne Namensfeld, damit die Zitate anonym bleiben. Dazu hält
@@ -187,9 +190,10 @@ Vorlauf 4/8 Wochen).
   Zitat erfasst ist, und gibt den Zitaten auf der Website ihren Kontext. Der
   Admin gibt einzelne Zitate für die Website frei und lädt die freigegebenen
   als CSV herunter (Semikolon, UTF-8 mit BOM, öffnet direkt in Excel, Spalte
-  *Frage* am Ende); jeder Export wird auditiert. Ändert jemand den Wortlaut
-  eines bereits freigegebenen Zitats, fällt die Freigabe automatisch zurück
-  und muss erneut erteilt werden.
+  *Frage* am Ende); jeder Export wird auditiert. Ändert die verfassende
+  Person den Wortlaut eines bereits freigegebenen Zitats, fällt die Freigabe
+  automatisch zurück und muss erneut erteilt werden; eine Korrektur durch den
+  Admin behält die Freigabe.
   Beim Löschen eines Berichts verschwinden auch seine Zitate — der
   Löschdialog weist vorher aus, wie viele davon freigegeben sind.
 - **Ausstattungsliste als CSV**: Reiter *Export & Import* im IT-Management —

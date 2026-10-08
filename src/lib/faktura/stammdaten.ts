@@ -152,7 +152,7 @@ export const projectInputSchema = z
     validTo: z.string().trim().optional(),
     /** Monatslimit in Stunden — Vielfache von 0,25 */
     monthlyLimitHours: z.coerce
-      .number()
+      .number({ error: "Das Monatslimit muss eine Zahl sein." })
       .positive("Das Monatslimit muss größer als 0 sein.")
       .optional(),
   })
