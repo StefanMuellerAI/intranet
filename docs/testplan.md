@@ -14,17 +14,19 @@ Alle Phasen 0–7 sind umgesetzt (Branch `claude/testplan-abdeckung`).
 
 | Kennzahl | vorher | jetzt |
 |---|---|---|
-| Vitest-Tests (Unit, Komponenten, Integration) | 349 | 1.843 |
+| Vitest-Tests (Unit, Komponenten, Integration) | 349 | 1.929 |
 | E2E-Tests (Playwright) | 41 | 128 (2 nur mit Blob-Token) |
 | Server-Actions mit direktem Test | 0 von 96 | 96 von 96 |
-| Zeilenabdeckung Server-Actions / API-Routen / Lib | – / 3 % / 27 % | 99,5 % / 99,6 % / 97,8 % |
+| Zeilenabdeckung Server-Actions / API-Routen / Lib / Komponenten | – / 3 % / 27 % / – | 99,5 % / 99,6 % / 98,9 % / 99,7 % |
 | Bedienelemente mit fester Beschriftung ohne Test | 61 von 151 | 0 von 147 (Meta-Test) |
 
 **Neue Bausteine:** lokaler Neon-HTTP-Proxy (`scripts/local-neon-proxy.mjs`),
 Test-Doubles für Clerk/Next/Blob/Mail (`tests/helpers/framework-fakes.ts`),
 Komponententests (happy-dom), Meta-Test der Bedienelemente
 (`tests/meta/interaktionen.test.ts`), Coverage-Schwellen je Bereich, CI mit
-Postgres-Service-Container.
+Postgres-Service-Container. Seiten (`page.tsx`, `layout.tsx`) haben bewusst
+keine Vitest-Schwelle, sie deckt die E2E-Suite ab; deshalb weist der
+Vitest-Bericht insgesamt nur rund 79 % aus.
 
 **Einschränkung:** Die neuen E2E-Specs sind statisch geprüft (Auflistung,
 Typen, Lint), konnten in der Entwicklungsumgebung aber nicht laufen, weil die
@@ -44,6 +46,8 @@ Zusätzlich zu F1–F10 (Abschnitt 2; F7 erwies sich als kein Fehler):
 | Einstellungen | Vertretung wurde bei ungültiger Auswahl erst beendet, dann scheiterte das Anlegen; Fristen 0/negativ wurden still ersetzt bzw. übernommen; negative Kontingente; doppelter Key-Widerruf überschrieb den Zeitpunkt |
 | Audit | Bearbeiten/Löschen/Umschalten mit unbekannter ID schrieb trotzdem Audit-Einträge |
 | Mitarbeitende/IT | Einladung blieb bei gescheitertem Dokument-Upload halb angelegt; neue IT-Zuordnungen an deaktivierte Personen/ausgeblendete Arten möglich |
+| Urlaub | Überschneidungshinweis ließ Urlaube mit beantragtem Storno weg und zeigte offene Krankmeldungen nur am ersten Tag (bzw. gar nicht, wenn sie vor dem Zeitraum begannen) |
+| Organigramm | Vorgesetzte ohne eigene Vorgesetzte landeten unter „Ohne Zuordnung“, ihre Berichtslinien fehlten |
 | MCP | Fehlerantworten enthielten SQL; Korrektur per MCP löste Belegzuordnungen |
 | Faktura | „Abbrechen“ im Lösch-Prompt löschte offene Buchungen; Verschieben in freigegebene Woche ohne Begründung; KW 53 in 52-Wochen-Jahren |
 | Oberfläche | Auswahlfelder zeigten interne Werte/UUIDs; Formulare verloren bei Fehlern alle Eingaben; Geräte-ID-Muster im Browser wirkungslos; Resturlaub-Hinweis bei Korrektur zu hoch; Berichte-Filter „Zurücksetzen“ unvollständig; Kalender-Absturz bei „2026.5“; Kopieren ohne Fehlermeldung; Datumsformate, Mail-Grammatik, Barrierefreiheit Menü-Button |

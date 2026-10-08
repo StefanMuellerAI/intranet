@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, gte, lte, ne, or } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lte, ne, or } from "drizzle-orm";
 import {
   db,
   sickLeaves,
@@ -84,7 +84,8 @@ export async function getOverlappingAbsences(
       .from(vacationRequests)
       .where(
         and(
-          eq(vacationRequests.status, "genehmigt"),
+          // Storno beantragt: bis zur Entscheidung gilt der Urlaub weiter
+          inArray(vacationRequests.status, ["genehmigt", "storno_beantragt"]),
           ne(vacationRequests.userId, excludeUserId),
           lte(vacationRequests.startDate, toISO),
           gte(vacationRequests.endDate, fromISO)
@@ -116,7 +117,10 @@ export async function getOverlappingAbsences(
         and(
           ne(sickLeaves.userId, excludeUserId),
           lte(sickLeaves.startDate, toISO),
-          or(gte(sickLeaves.endDate, fromISO), eq(sickLeaves.status, "gemeldet"))
+          or(
+            gte(sickLeaves.endDate, fromISO),
+            and(isNull(sickLeaves.endDate), eq(sickLeaves.status, "gemeldet"))
+          )
         )
       ),
   ]);
@@ -145,7 +149,8 @@ export async function getOverlappingAbsences(
       name: nameOf(s.userId),
       type: "abwesend",
       from: s.from,
-      to: s.to ?? s.from,
+      // Offene Krankmeldung: abwesend bis auf Weiteres
+      to: s.to ?? toISO,
     })),
   ];
 }

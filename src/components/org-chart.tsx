@@ -71,8 +71,15 @@ function buildLayout(
     });
   }
 
+  // Wer selbst Vorgesetzte/r ist, bleibt als Wurzel im Diagramm
+  const supervisorIds = new Set<string>();
+  for (const r of resolved.values()) {
+    if (r.technical) supervisorIds.add(r.technical);
+    if (r.disciplinary) supervisorIds.add(r.disciplinary);
+  }
+
   const unassigned = nodes.filter((n) => {
-    if (n.isManagingDirector) return false;
+    if (n.isManagingDirector || supervisorIds.has(n.id)) return false;
     const r = resolved.get(n.id)!;
     return !r.technical && !r.disciplinary;
   });

@@ -41,6 +41,12 @@ export default defineConfig({
           functions: 100,
           branches: 90,
         },
+        "src/components/**": {
+          lines: 97,
+          statements: 97,
+          functions: 98,
+          branches: 92,
+        },
       },
     },
     projects: [
