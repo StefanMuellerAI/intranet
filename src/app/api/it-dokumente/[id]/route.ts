@@ -4,6 +4,7 @@ import { db, itEquipmentDocuments } from "@/db";
 import { writeAudit } from "@/lib/audit";
 import { fullName, getCurrentUser } from "@/lib/auth";
 import { decryptDocument } from "@/lib/document-crypto";
+import { attachmentDisposition, isUuid } from "@/lib/http";
 
 export const preferredRegion = "fra1";
 
@@ -24,9 +25,11 @@ export async function GET(
   if (user === null || user.role !== "admin")
     return NextResponse.json({ fehler: "Kein Zugriff." }, { status: 403 });
 
-  const doc = await db.query.itEquipmentDocuments.findFirst({
-    where: eq(itEquipmentDocuments.id, id),
-  });
+  const doc = isUuid(id)
+    ? await db.query.itEquipmentDocuments.findFirst({
+        where: eq(itEquipmentDocuments.id, id),
+      })
+    : undefined;
   if (!doc)
     return NextResponse.json(
       { fehler: "Protokoll nicht gefunden." },
@@ -67,7 +70,7 @@ export async function GET(
       "content-type": doc.contentType,
       // attachment + nosniff: hochgeladene Inhalte nie inline im App-Origin
       // rendern lassen (verhindert Stored-XSS über getarnte Uploads).
-      "content-disposition": `attachment; filename="${doc.filename.replaceAll('"', "")}"`,
+      "content-disposition": attachmentDisposition(doc.filename),
       "x-content-type-options": "nosniff",
       "cache-control": "private, no-store",
     },

@@ -7,9 +7,8 @@ import {
 } from "@/lib/faktura/stundenzettel";
 import { isValidISODate } from "@/lib/faktura/zeitfenster";
 import { UserError } from "@/lib/user-error";
+import { isUuid } from "@/lib/http";
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const preferredRegion = "fra1";
 
@@ -29,7 +28,7 @@ export async function GET(req: Request) {
   const to = url.searchParams.get("bis");
   if (
     !customerId ||
-    !UUID_RE.test(customerId) ||
+    !isUuid(customerId) ||
     !from ||
     !to ||
     !isValidISODate(from) ||

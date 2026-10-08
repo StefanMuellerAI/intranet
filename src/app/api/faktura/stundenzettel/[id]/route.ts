@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db, fakturaTimesheets } from "@/db";
 import { getCurrentUser } from "@/lib/auth";
+import { isUuid } from "@/lib/http";
 
 export const preferredRegion = "fra1";
 
@@ -18,9 +19,11 @@ export async function GET(
     return NextResponse.json({ fehler: "Nur für den Admin." }, { status: 403 });
 
   const { id } = await params;
-  const timesheet = await db.query.fakturaTimesheets.findFirst({
-    where: eq(fakturaTimesheets.id, id),
-  });
+  const timesheet = isUuid(id)
+    ? await db.query.fakturaTimesheets.findFirst({
+        where: eq(fakturaTimesheets.id, id),
+      })
+    : undefined;
   if (!timesheet)
     return NextResponse.json(
       { fehler: "Stundenzettel nicht gefunden." },

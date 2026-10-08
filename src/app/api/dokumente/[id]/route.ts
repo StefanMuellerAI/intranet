@@ -4,6 +4,7 @@ import { db, employeeDocuments } from "@/db";
 import { writeAudit } from "@/lib/audit";
 import { fullName, getCurrentUser } from "@/lib/auth";
 import { decryptDocument } from "@/lib/document-crypto";
+import { attachmentDisposition, isUuid } from "@/lib/http";
 
 export const preferredRegion = "fra1";
 
@@ -22,9 +23,11 @@ export async function GET(
   if (user === null)
     return NextResponse.json({ fehler: "Kein Zugriff." }, { status: 403 });
 
-  const doc = await db.query.employeeDocuments.findFirst({
-    where: eq(employeeDocuments.id, id),
-  });
+  const doc = isUuid(id)
+    ? await db.query.employeeDocuments.findFirst({
+        where: eq(employeeDocuments.id, id),
+      })
+    : undefined;
   // Fremde Dokumente wie nicht vorhandene behandeln — verrät keine IDs
   if (!doc || (user.id !== doc.userId && user.role !== "admin"))
     return NextResponse.json(
@@ -66,7 +69,7 @@ export async function GET(
       "content-type": doc.contentType,
       // attachment + nosniff: hochgeladene Inhalte nie inline im App-Origin
       // rendern lassen (verhindert Stored-XSS über getarnte Uploads).
-      "content-disposition": `attachment; filename="${doc.filename.replaceAll('"', "")}"`,
+      "content-disposition": attachmentDisposition(doc.filename),
       "x-content-type-options": "nosniff",
       "cache-control": "private, no-store",
     },

@@ -63,10 +63,12 @@ export async function updateHelpfulLink(formData: FormData) {
     String(formData.get("description") ?? "").trim() || null;
   const sortOrder = parseSortOrder(String(formData.get("sortOrder") ?? "0"));
 
-  await db
+  const updated = await db
     .update(helpfulLinks)
     .set({ title, url, description, sortOrder, updatedAt: new Date() })
-    .where(eq(helpfulLinks.id, id));
+    .where(eq(helpfulLinks.id, id))
+    .returning({ id: helpfulLinks.id });
+  if (updated.length === 0) throw new Error("Link nicht gefunden.");
 
   await writeAudit({
     objectType: "hilfreicher_link",
@@ -107,7 +109,11 @@ export async function toggleHelpfulLink(id: string) {
 
 export async function deleteHelpfulLink(id: string) {
   const admin = await requireAdmin();
-  await db.delete(helpfulLinks).where(eq(helpfulLinks.id, id));
+  const deleted = await db
+    .delete(helpfulLinks)
+    .where(eq(helpfulLinks.id, id))
+    .returning({ id: helpfulLinks.id });
+  if (deleted.length === 0) throw new Error("Link nicht gefunden.");
 
   await writeAudit({
     objectType: "hilfreicher_link",
@@ -152,10 +158,12 @@ export async function updateNewsItem(formData: FormData) {
   const title = requireNonEmpty(String(formData.get("title") ?? ""), "Titel");
   const body = requireNonEmpty(String(formData.get("body") ?? ""), "Nachricht");
 
-  await db
+  const updated = await db
     .update(newsItems)
     .set({ title, body, updatedAt: new Date() })
-    .where(eq(newsItems.id, id));
+    .where(eq(newsItems.id, id))
+    .returning({ id: newsItems.id });
+  if (updated.length === 0) throw new Error("Neuigkeit nicht gefunden.");
 
   await writeAudit({
     objectType: "neuigkeit",
@@ -196,7 +204,11 @@ export async function toggleNewsItem(id: string) {
 
 export async function deleteNewsItem(id: string) {
   const admin = await requireAdmin();
-  await db.delete(newsItems).where(eq(newsItems.id, id));
+  const deleted = await db
+    .delete(newsItems)
+    .where(eq(newsItems.id, id))
+    .returning({ id: newsItems.id });
+  if (deleted.length === 0) throw new Error("Neuigkeit nicht gefunden.");
 
   await writeAudit({
     objectType: "neuigkeit",
@@ -247,10 +259,12 @@ export async function updateTeamEvent(formData: FormData) {
     String(formData.get("endDate") ?? "")
   );
 
-  await db
+  const updated = await db
     .update(teamEvents)
     .set({ title, startDate, endDate, updatedAt: new Date() })
-    .where(eq(teamEvents.id, id));
+    .where(eq(teamEvents.id, id))
+    .returning({ id: teamEvents.id });
+  if (updated.length === 0) throw new Error("Teamevent nicht gefunden.");
 
   await writeAudit({
     objectType: "teamevent",
@@ -291,7 +305,11 @@ export async function toggleTeamEvent(id: string) {
 
 export async function deleteTeamEvent(id: string) {
   const admin = await requireAdmin();
-  await db.delete(teamEvents).where(eq(teamEvents.id, id));
+  const deleted = await db
+    .delete(teamEvents)
+    .where(eq(teamEvents.id, id))
+    .returning({ id: teamEvents.id });
+  if (deleted.length === 0) throw new Error("Teamevent nicht gefunden.");
 
   await writeAudit({
     objectType: "teamevent",
@@ -365,10 +383,12 @@ export async function updateSalesNews(formData: FormData) {
   const input = parseSalesNewsInput(formData);
   const seller = await requireSeller(input.soldById);
 
-  await db
+  const updated = await db
     .update(salesNews)
     .set({ ...input, updatedAt: new Date() })
-    .where(eq(salesNews.id, id));
+    .where(eq(salesNews.id, id))
+    .returning({ id: salesNews.id });
+  if (updated.length === 0) throw new Error("Sales-Nachricht nicht gefunden.");
 
   await writeAudit({
     objectType: "sales_nachricht",
@@ -413,7 +433,11 @@ export async function toggleSalesNews(id: string) {
 
 export async function deleteSalesNews(id: string) {
   const admin = await requireAdmin();
-  await db.delete(salesNews).where(eq(salesNews.id, id));
+  const deleted = await db
+    .delete(salesNews)
+    .where(eq(salesNews.id, id))
+    .returning({ id: salesNews.id });
+  if (deleted.length === 0) throw new Error("Sales-Nachricht nicht gefunden.");
 
   await writeAudit({
     objectType: "sales_nachricht",

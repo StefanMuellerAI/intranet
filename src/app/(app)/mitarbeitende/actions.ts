@@ -272,15 +272,28 @@ export async function inviteUser(formData: FormData) {
     })
     .returning();
 
-  // Mitgelieferte Dokumente verschlüsselt ablegen
-  for (const file of documentFiles) {
-    await storeEncryptedDocument({
-      userId: user.id,
-      file,
-      category: documentCategory,
-      title: null,
-      admin,
-    });
+  // Mitgelieferte Dokumente verschlüsselt ablegen. Scheitert ein Upload,
+  // wird das Konto wieder entfernt — sonst bliebe ein User ohne
+  // Einladungsmail zurück, und ein erneuter Versuch schlüge mit
+  // "existiert bereits" fehl (die Clerk-Einladung ist idempotent).
+  try {
+    for (const file of documentFiles) {
+      await storeEncryptedDocument({
+        userId: user.id,
+        file,
+        category: documentCategory,
+        title: null,
+        admin,
+      });
+    }
+  } catch (err) {
+    const stored = await db
+      .delete(employeeDocuments)
+      .where(eq(employeeDocuments.userId, user.id))
+      .returning({ blobUrl: employeeDocuments.blobUrl });
+    for (const doc of stored) await del(doc.blobUrl).catch(() => {});
+    await db.delete(users).where(eq(users.id, user.id));
+    throw err;
   }
 
   await writeAudit({
@@ -350,14 +363,16 @@ export async function updateUserVacation(userId: string, formData: FormData) {
   if (!Number.isFinite(annual) || annual < 0)
     throw new Error("Ungültiger Jahresurlaubsanspruch.");
 
-  await db
+  const updated = await db
     .update(users)
     .set({
       annualVacationDays: annual,
       vacationCarryoverDays: Number.isFinite(carryover) ? carryover : 0,
       updatedAt: new Date(),
     })
-    .where(eq(users.id, userId));
+    .where(eq(users.id, userId))
+    .returning({ id: users.id });
+  if (updated.length === 0) throw new Error("User nicht gefunden.");
 
   await writeAudit({
     objectType: "user",

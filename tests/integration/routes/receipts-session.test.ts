@@ -9,6 +9,7 @@ import * as schema from "../../../src/db/schema";
 import { actAs, auditFor, createUser, makeDeputy } from "../../helpers/actions";
 import { resetDb, seedTestData, testDb, type SeedResult } from "../../helpers/db";
 import { blobStore, failingBlobUrls, storeBlob } from "../../helpers/framework-fakes";
+import { attachmentDisposition } from "@/lib/http";
 
 let seed: SeedResult;
 
@@ -97,9 +98,7 @@ describe("GET /api/receipts/{id} — Session-Pfad", () => {
     expect(res.status).toBe(200);
     expect(await res.text()).toBe(PLAINTEXT);
     expect(res.headers.get("content-type")).toBe("application/pdf");
-    expect(res.headers.get("content-disposition")).toBe(
-      'attachment; filename="hotel.pdf"'
-    );
+    expect(res.headers.get("content-disposition")).toBe(attachmentDisposition("hotel.pdf"));
     expect(res.headers.get("x-content-type-options")).toBe("nosniff");
     expect(res.headers.get("cache-control")).toBe("private, no-store");
   });
@@ -112,9 +111,7 @@ describe("GET /api/receipts/{id} — Session-Pfad", () => {
     await actAs(seed.employee);
     const res = await fetchReceipt(receipt.id);
     expect(res.headers.get("content-type")).toBe("image/png");
-    expect(res.headers.get("content-disposition")).toBe(
-      'attachment; filename="Taxi Nacht.png"'
-    );
+    expect(res.headers.get("content-disposition")).toBe(attachmentDisposition("Taxi Nacht.png"));
   });
 
   it("protokolliert den Abruf als Beleg-Zugriff", async () => {

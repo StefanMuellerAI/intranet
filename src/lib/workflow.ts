@@ -31,6 +31,7 @@ import {
 } from "@/lib/notifications";
 import { signReceiptUrl } from "@/lib/signed-url";
 import { dispatchWebhookEvent } from "@/lib/webhooks";
+import { isUuid } from "@/lib/http";
 
 export type WorkflowType = "urlaub" | "workation" | "reisekosten" | "provision";
 
@@ -57,6 +58,9 @@ export async function loadRequest(
   type: WorkflowType,
   id: string
 ): Promise<AnyRequest | null> {
+  // Nicht-UUIDs (z. B. aus API-Pfaden) sind nie ein Vorgang — ohne Prüfung
+  // endete die Abfrage mit einem Datenbankfehler (500)
+  if (!isUuid(id)) return null;
   if (type === "urlaub")
     return (
       (await db.query.vacationRequests.findFirst({

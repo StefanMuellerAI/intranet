@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, users, workationRequests } from "@/db";
 import { fullName, getCurrentUser } from "@/lib/auth";
 import { renderWorkationPdf } from "@/lib/workation/pdf";
+import { isUuid } from "@/lib/http";
 
 export async function GET(
   _req: Request,
@@ -13,9 +14,11 @@ export async function GET(
   if (!user)
     return NextResponse.json({ error: "Nicht angemeldet." }, { status: 401 });
 
-  const request = await db.query.workationRequests.findFirst({
-    where: eq(workationRequests.id, id),
-  });
+  const request = isUuid(id)
+    ? await db.query.workationRequests.findFirst({
+        where: eq(workationRequests.id, id),
+      })
+    : undefined;
   // PDF nur für Admin und die betroffene Person
   if (!request || (request.userId !== user.id && user.role !== "admin"))
     return NextResponse.json({ error: "Nicht gefunden." }, { status: 404 });

@@ -2,12 +2,13 @@
 
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import {
   apiKeys,
   db,
   deputyAssignments,
   settings,
+  users,
   webhookConfigs,
   WEBHOOK_CATEGORIES,
   WEBHOOK_EVENTS,
@@ -17,6 +18,7 @@ import { isApiKeyScope } from "@/lib/api-scopes";
 import { writeAudit } from "@/lib/audit";
 import { fullName, requireAdmin } from "@/lib/auth";
 import { parseEuroToCents } from "@/lib/form-patterns";
+import { isUuid } from "@/lib/http";
 import { assertSafeWebhookUrl } from "@/lib/webhooks";
 
 // ---------------------------------------------------------------------------
@@ -94,13 +96,18 @@ export async function updateCommissionRates(formData: FormData) {
 
 export async function updateQuotas(formData: FormData) {
   const admin = await requireAdmin();
+  // Leere Felder zählen bewusst als 0 (Number("") === 0)
   const defaultVacation = Number(formData.get("defaultAnnualVacationDays"));
   const yearly = Number(formData.get("workationYearlyLimitDays"));
   const consecutive = Number(formData.get("workationConsecutiveLimitDays"));
   if (
     !Number.isFinite(defaultVacation) ||
-    !Number.isFinite(yearly) ||
-    !Number.isFinite(consecutive)
+    defaultVacation < 0 ||
+    // Workation-Grenzen sind ganze Arbeitstage (Integer-Spalten)
+    !Number.isInteger(yearly) ||
+    yearly < 0 ||
+    !Number.isInteger(consecutive) ||
+    consecutive < 0
   )
     throw new Error("Ungültige Werte.");
 
@@ -126,13 +133,25 @@ export async function updateQuotas(formData: FormData) {
 
 export async function updateRetention(formData: FormData) {
   const admin = await requireAdmin();
+  // Ganze Jahre ab 1 — eine Frist von 0 oder weniger würde aktuelle
+  // Datensätze als löschbar ausweisen
+  const years = (name: string) => {
+    const raw = String(formData.get(name) ?? "").trim();
+    const n = Number(raw);
+    if (!raw || !Number.isInteger(n) || n < 1)
+      throw new Error("Aufbewahrungsfristen müssen ganze Jahre ab 1 sein.");
+    return n;
+  };
+  const retentionExpenseYears = years("retentionExpenseYears");
+  const retentionSickLeaveYears = years("retentionSickLeaveYears");
+  const retentionRequestYears = years("retentionRequestYears");
+
   await db
     .update(settings)
     .set({
-      retentionExpenseYears: Number(formData.get("retentionExpenseYears")) || 8,
-      retentionSickLeaveYears:
-        Number(formData.get("retentionSickLeaveYears")) || 5,
-      retentionRequestYears: Number(formData.get("retentionRequestYears")) || 3,
+      retentionExpenseYears,
+      retentionSickLeaveYears,
+      retentionRequestYears,
       updatedAt: new Date(),
     })
     .where(eq(settings.id, 1));
@@ -156,7 +175,17 @@ export async function setDeputy(formData: FormData) {
   const userId = String(formData.get("userId") ?? "");
   const startsOn = String(formData.get("startsOn") ?? "") || null;
   const endsOn = String(formData.get("endsOn") ?? "") || null;
-  if (!userId) throw new Error("Bitte eine/n Mitarbeiter/in auswählen.");
+  if (!userId || !isUuid(userId))
+    throw new Error("Bitte eine/n Mitarbeiter/in auswählen.");
+  // Erst vollständig prüfen — sonst wäre die bisherige Vertretung schon
+  // beendet, wenn das Anlegen der neuen scheitert
+  const deputy = await db.query.users.findFirst({ where: eq(users.id, userId) });
+  if (!deputy || deputy.status !== "aktiv")
+    throw new Error("Die ausgewählte Person ist nicht aktiv.");
+  if (deputy.id === admin.id)
+    throw new Error("Der Admin kann nicht die eigene Vertretung sein.");
+  if (startsOn && endsOn && endsOn < startsOn)
+    throw new Error("Das Enddatum darf nicht vor dem Startdatum liegen.");
 
   // Bestehende Vertretungen beenden, dann neue aktivieren
   await db
@@ -237,7 +266,11 @@ export async function addWebhook(formData: FormData) {
 
 export async function deleteWebhook(id: string) {
   const admin = await requireAdmin();
-  await db.delete(webhookConfigs).where(eq(webhookConfigs.id, id));
+  const deleted = await db
+    .delete(webhookConfigs)
+    .where(eq(webhookConfigs.id, id))
+    .returning({ id: webhookConfigs.id });
+  if (deleted.length === 0) throw new Error("Webhook nicht gefunden.");
   await writeAudit({
     objectType: "webhook",
     objectId: id,
@@ -251,10 +284,12 @@ export async function deleteWebhook(id: string) {
 
 export async function toggleWebhook(id: string, active: boolean) {
   const admin = await requireAdmin();
-  await db
+  const updated = await db
     .update(webhookConfigs)
     .set({ active })
-    .where(eq(webhookConfigs.id, id));
+    .where(eq(webhookConfigs.id, id))
+    .returning({ id: webhookConfigs.id });
+  if (updated.length === 0) throw new Error("Webhook nicht gefunden.");
   await writeAudit({
     objectType: "webhook",
     objectId: id,
@@ -304,10 +339,14 @@ export async function createApiKey(formData: FormData): Promise<string> {
 
 export async function revokeApiKey(id: string) {
   const admin = await requireAdmin();
-  await db
+  // Nur noch nicht widerrufene Keys — der ursprüngliche Zeitpunkt bleibt
+  const revoked = await db
     .update(apiKeys)
     .set({ revokedAt: new Date() })
-    .where(eq(apiKeys.id, id));
+    .where(and(eq(apiKeys.id, id), isNull(apiKeys.revokedAt)))
+    .returning({ id: apiKeys.id });
+  if (revoked.length === 0)
+    throw new Error("API-Key nicht gefunden oder bereits widerrufen.");
   await writeAudit({
     objectType: "api_key",
     objectId: id,

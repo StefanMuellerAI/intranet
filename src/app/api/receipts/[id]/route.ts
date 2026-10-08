@@ -5,6 +5,7 @@ import { writeAudit } from "@/lib/audit";
 import { fullName, getCurrentUser, isApprover } from "@/lib/auth";
 import { decryptDocument } from "@/lib/document-crypto";
 import { verifyReceiptSignature } from "@/lib/signed-url";
+import { attachmentDisposition, isUuid } from "@/lib/http";
 
 export const preferredRegion = "fra1";
 
@@ -24,9 +25,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const receipt = await db.query.receipts.findFirst({
-    where: eq(receipts.id, id),
-  });
+  const receipt = isUuid(id)
+    ? await db.query.receipts.findFirst({ where: eq(receipts.id, id) })
+    : undefined;
   if (!receipt)
     return NextResponse.json({ fehler: "Beleg nicht gefunden." }, { status: 404 });
 
@@ -98,7 +99,7 @@ export async function GET(
       "content-type": receipt.contentType,
       // attachment + nosniff: hochgeladene Inhalte nie inline im App-Origin
       // rendern lassen (verhindert Stored-XSS über getarnte Uploads).
-      "content-disposition": `attachment; filename="${receipt.filename.replaceAll('"', "")}"`,
+      "content-disposition": attachmentDisposition(receipt.filename),
       "x-content-type-options": "nosniff",
       "cache-control": "private, no-store",
     },

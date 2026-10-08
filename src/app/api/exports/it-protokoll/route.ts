@@ -15,12 +15,9 @@ import {
   handoverProtocolFilename,
   renderHandoverProtocolPdf,
 } from "@/lib/it-equipment-pdf";
+import { isUuid } from "@/lib/http";
 
 export const preferredRegion = "fra1";
-
-/** Früh prüfen — sonst quittiert Postgres eine Nicht-UUID mit einem Fehler. */
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Ausgefüllte Protokoll-Vorlage als PDF mit Briefkopf — Übergabe mit der
@@ -45,7 +42,8 @@ export async function GET(req: Request) {
     );
   const kind = kindParam as HandoverProtocolKind;
 
-  const employee = UUID_PATTERN.test(employeeId)
+  // Früh prüfen — sonst quittiert Postgres eine Nicht-UUID mit einem Fehler
+  const employee = isUuid(employeeId)
     ? await db.query.users.findFirst({ where: eq(users.id, employeeId) })
     : undefined;
   if (!employee)

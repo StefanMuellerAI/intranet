@@ -177,14 +177,30 @@ async function findEquipment(id: string): Promise<ItEquipment> {
   return row;
 }
 
-/** Prüft, dass Mitarbeiter/in und Ausstattungsart tatsächlich existieren. */
-async function assertReferences(userId: string, typeId: string) {
+/**
+ * Prüft, dass Mitarbeiter/in und Ausstattungsart existieren. Wie beim
+ * CSV-Import sind deaktivierte Zugänge und ausgeblendete Arten nur für
+ * bestehende Zuordnungen erlaubt (`previous`), nicht für neue.
+ */
+async function assertReferences(
+  userId: string,
+  typeId: string,
+  previous?: { userId: string; typeId: string }
+) {
   const [user, type] = await Promise.all([
     db.query.users.findFirst({ where: eq(users.id, userId) }),
     db.query.itEquipmentTypes.findFirst({ where: eq(itEquipmentTypes.id, typeId) }),
   ]);
   if (!user) throw new Error("Mitarbeiter/in nicht gefunden.");
   if (!type) throw new Error("Ausstattungsart nicht gefunden.");
+  if (user.status === "deaktiviert" && previous?.userId !== userId)
+    throw new Error(
+      `„${user.email}“ ist deaktiviert und kann keine weitere Ausstattung übernehmen.`
+    );
+  if (!type.active && previous?.typeId !== typeId)
+    throw new Error(
+      `Die Ausstattungsart „${type.name}“ ist ausgeblendet und für neue Zuordnungen nicht verfügbar.`
+    );
 }
 
 /**
@@ -252,7 +268,7 @@ export async function updateEquipment(formData: FormData) {
     handoverDate: String(formData.get("handoverDate") ?? ""),
     returnDate: String(formData.get("returnDate") ?? ""),
   });
-  await assertReferences(input.userId, input.typeId);
+  await assertReferences(input.userId, input.typeId, existing);
   await assertUniqueDeviceId(input.deviceId, id);
 
   await db
@@ -605,10 +621,12 @@ export async function updateEquipmentType(formData: FormData) {
   const sortOrder = parseSortOrder(String(formData.get("sortOrder") ?? "0"));
   await assertUniqueTypeName(name, id);
 
-  await db
+  const updated = await db
     .update(itEquipmentTypes)
     .set({ name, sortOrder, updatedAt: new Date() })
-    .where(eq(itEquipmentTypes.id, id));
+    .where(eq(itEquipmentTypes.id, id))
+    .returning({ id: itEquipmentTypes.id });
+  if (updated.length === 0) throw new Error("Ausstattungsart nicht gefunden.");
 
   await writeAudit({
     objectType: "it_ausstattungsart",
