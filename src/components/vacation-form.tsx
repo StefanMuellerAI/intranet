@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { countVacationDays } from "@/lib/dates";
+import { countVacationDays, formatDateDE } from "@/lib/dates";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,6 +16,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  preHydrationFallback,
+  submitWithoutReset,
+} from "@/components/form-submit";
 
 export interface AbsenceRange {
   name: string;
@@ -32,6 +36,11 @@ export interface VacationFormDefaults {
   substituteUserId?: string;
   substituteText?: string;
   note?: string;
+}
+
+/** Halbe Tage mit deutschem Komma ("4,5") */
+function formatDays(value: number): string {
+  return value.toLocaleString("de-DE");
 }
 
 export function VacationForm({
@@ -102,7 +111,8 @@ export function VacationForm({
   }
 
   return (
-    <form action={handleSubmit} className="space-y-6 max-w-xl">
+    <form
+        {...preHydrationFallback} onSubmit={submitWithoutReset(handleSubmit)} className="space-y-6 max-w-xl">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="startDate">Von</Label>
@@ -149,13 +159,13 @@ export function VacationForm({
       {days !== null && (
         <Alert>
           <AlertTitle>
-            {days} Urlaubstag{days === 1 ? "" : "e"} (ohne Wochenenden und
-            Feiertage NRW)
+            {formatDays(days)} Urlaubstag{days === 1 ? "" : "e"} (ohne
+            Wochenenden und Feiertage NRW)
           </AlertTitle>
           <AlertDescription>
             {remainingAfter !== null && remainingAfter >= 0
-              ? `Verbleibender Resturlaub nach diesem Antrag: ${remainingAfter} Tage.`
-              : `Achtung: Dieser Antrag übersteigt Ihren Resturlaub von ${remainingForYear} Tagen.`}
+              ? `Verbleibender Resturlaub nach diesem Antrag: ${formatDays(remainingAfter)} Tage.`
+              : `Achtung: Dieser Antrag übersteigt Ihren Resturlaub von ${formatDays(remainingForYear)} Tagen.`}
           </AlertDescription>
         </Alert>
       )}
@@ -167,7 +177,8 @@ export function VacationForm({
             <ul className="list-disc pl-4">
               {overlaps.map((o, i) => (
                 <li key={i}>
-                  {o.name}: {o.type} ({o.from} bis {o.to})
+                  {o.name}: {o.type} ({formatDateDE(o.from)} bis{" "}
+                  {formatDateDE(o.to)})
                 </li>
               ))}
             </ul>
@@ -178,6 +189,10 @@ export function VacationForm({
       <div className="space-y-2">
         <Label>Vertretung während der Abwesenheit</Label>
         <Select
+          items={[
+            { value: "keine", label: "Keine / Freitext" },
+            ...users.map((u) => ({ value: u.id, label: u.name })),
+          ]}
           value={substituteUserId || "keine"}
           onValueChange={(v) =>
             setSubstituteUserId(!v || v === "keine" ? "" : String(v))

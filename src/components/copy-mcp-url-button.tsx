@@ -10,8 +10,15 @@ export function CopyMcpUrlButton({ url }: { url: string }) {
       variant="outline"
       size="sm"
       onClick={async () => {
-        await navigator.clipboard.writeText(url);
-        toast.success("MCP-URL in die Zwischenablage kopiert.");
+        try {
+          // Ohne HTTPS oder ohne Berechtigung fehlt die Clipboard-API bzw. sie wirft
+          await navigator.clipboard.writeText(url);
+          toast.success("MCP-URL in die Zwischenablage kopiert.");
+        } catch {
+          toast.error(
+            "URL konnte nicht kopiert werden — bitte manuell markieren und kopieren."
+          );
+        }
       }}
     >
       URL kopieren

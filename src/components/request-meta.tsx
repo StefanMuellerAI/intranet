@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 const SOURCE_LABELS: Record<string, string> = {
   web: "Web-Oberfläche",
   api: "API (KI)",
+  mcp: "MCP (KI-Assistent)",
   system: "System",
 };
 

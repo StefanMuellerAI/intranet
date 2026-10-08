@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { FileText, Mail, Pencil, Plus, UserCheck, UserX } from "lucide-react";
 import {
@@ -38,6 +38,10 @@ import {
   updateUserVacation,
   uploadEmployeeDocuments,
 } from "@/app/(app)/mitarbeitende/actions";
+import {
+  preHydrationFallback,
+  submitWithoutReset,
+} from "@/components/form-submit";
 
 export interface SupervisorOption {
   id: string;
@@ -220,7 +224,8 @@ export function VacationEntitlementForm({
 
   return (
     <form
-      action={(fd) =>
+        {...preHydrationFallback}
+      onSubmit={submitWithoutReset((fd) =>
         startTransition(async () => {
           try {
             await updateWithId(fd);
@@ -229,7 +234,7 @@ export function VacationEntitlementForm({
             toast.error(err instanceof Error ? err.message : "Fehler");
           }
         })
-      }
+      )}
       className="flex flex-wrap items-end gap-2"
     >
       <div className="space-y-1">
@@ -280,7 +285,8 @@ export function EntryForm({
 
   return (
     <form
-      action={(fd) =>
+        {...preHydrationFallback}
+      onSubmit={submitWithoutReset((fd) =>
         startTransition(async () => {
           try {
             await updateWithId(fd);
@@ -289,7 +295,7 @@ export function EntryForm({
             toast.error(err instanceof Error ? err.message : "Fehler");
           }
         })
-      }
+      )}
       className="space-y-2"
     >
       <div className="flex flex-wrap items-end gap-2">
@@ -348,7 +354,8 @@ export function BirthdayForm({
 
   return (
     <form
-      action={(fd) =>
+        {...preHydrationFallback}
+      onSubmit={submitWithoutReset((fd) =>
         startTransition(async () => {
           try {
             await updateWithId(fd);
@@ -357,7 +364,7 @@ export function BirthdayForm({
             toast.error(err instanceof Error ? err.message : "Fehler");
           }
         })
-      }
+      )}
       className="flex flex-wrap items-end gap-2"
     >
       <div className="space-y-1">
@@ -398,7 +405,8 @@ export function SupervisorsForm({
 
   return (
     <form
-      action={(fd) =>
+        {...preHydrationFallback}
+      onSubmit={submitWithoutReset((fd) =>
         startTransition(async () => {
           try {
             await updateWithId(fd);
@@ -407,7 +415,7 @@ export function SupervisorsForm({
             toast.error(err instanceof Error ? err.message : "Fehler");
           }
         })
-      }
+      )}
       className="flex flex-wrap items-end gap-x-4 gap-y-2"
     >
       <div className="flex h-9 items-center gap-2">
@@ -472,7 +480,6 @@ export function EmployeeDocumentsPanel({
   documents: EmployeeDocumentItem[];
 }) {
   const [pending, startTransition] = useTransition();
-  const formRef = useRef<HTMLFormElement>(null);
   const uploadWithId = uploadEmployeeDocuments.bind(null, userId);
 
   return (
@@ -512,18 +519,22 @@ export function EmployeeDocumentsPanel({
       )}
 
       <form
-        ref={formRef}
-        action={(fd) =>
+        {...preHydrationFallback}
+        onSubmit={(e) => {
+          // Eingaben bei Fehlern behalten, nach Erfolg leeren
+          e.preventDefault();
+          const form = e.currentTarget;
+          const fd = new FormData(form);
           startTransition(async () => {
             try {
               await uploadWithId(fd);
-              formRef.current?.reset();
+              form.reset();
               toast.success("Dokument(e) verschlüsselt gespeichert.");
             } catch (err) {
               toast.error(err instanceof Error ? err.message : "Fehler");
             }
-          })
-        }
+          });
+        }}
         className="grid items-end gap-3 border-t pt-4 sm:grid-cols-2"
       >
         <div className="space-y-1">

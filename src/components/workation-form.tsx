@@ -18,10 +18,15 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import type { WorkationRequest } from "@/db/schema";
+import {
+  preHydrationFallback,
+  submitWithoutReset,
+} from "@/components/form-submit";
 
 export function WorkationForm({
   action,
   usedWorkDaysThisYear,
+  usedWorkDaysByYear,
   yearlyLimitDays,
   consecutiveLimitDays,
   defaults,
@@ -29,6 +34,8 @@ export function WorkationForm({
 }: {
   action: (formData: FormData) => Promise<void>;
   usedWorkDaysThisYear: number;
+  /** Bereits verplante Arbeitstage je Kalenderjahr (z. B. laufendes und Folgejahr) */
+  usedWorkDaysByYear?: Record<number, number>;
   yearlyLimitDays: number;
   consecutiveLimitDays: number;
   defaults?: Partial<WorkationRequest>;
@@ -76,11 +83,15 @@ export function WorkationForm({
       workDays: Number(workDays),
       daysInCountryThisYear: Number(daysInCountry) || 0,
       countryCategory: category,
-      usedWorkDaysThisYear,
+      // Das Kontingent gilt je Kalenderjahr des Antrags
+      usedWorkDaysThisYear:
+        usedWorkDaysByYear?.[Number(startDate.slice(0, 4))] ??
+        usedWorkDaysThisYear,
       yearlyLimitDays,
       consecutiveLimitDays,
     });
   }, [
+    usedWorkDaysByYear,
     startDate,
     endDate,
     workDays,
@@ -109,7 +120,8 @@ export function WorkationForm({
   }
 
   return (
-    <form action={handleSubmit} className="space-y-8 max-w-2xl">
+    <form
+        {...preHydrationFallback} onSubmit={submitWithoutReset(handleSubmit)} className="space-y-8 max-w-2xl">
       <section className="space-y-4">
         <h2 className="font-medium">Angaben zur Person und zum Aufenthalt</h2>
         <div className="grid gap-4 sm:grid-cols-2">

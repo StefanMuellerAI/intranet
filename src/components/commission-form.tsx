@@ -29,6 +29,10 @@ import {
   DECIMAL_TITLE,
   parseEuroToCents,
 } from "@/lib/form-patterns";
+import {
+  preHydrationFallback,
+  submitWithoutReset,
+} from "@/components/form-submit";
 
 export interface CommissionFormDefaults {
   businessType?: BusinessType;
@@ -112,11 +116,16 @@ export function CommissionForm({
   }
 
   return (
-    <form action={handleSubmit} className="space-y-6 max-w-xl">
+    <form
+        {...preHydrationFallback} onSubmit={submitWithoutReset(handleSubmit)} className="space-y-6 max-w-xl">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label>Art des Folgegeschäfts</Label>
           <Select
+            items={[
+              { value: "schulung", label: "Schulung (Folge-Training)" },
+              { value: "beratung", label: "Beratung (Folgeberatung)" },
+            ]}
             value={businessType}
             onValueChange={(v) => setBusinessType(v as BusinessType)}
           >
@@ -133,6 +142,10 @@ export function CommissionForm({
         <div className="space-y-2">
           <Label>Kundenart</Label>
           <Select
+            items={[
+              { value: "bestandskunde", label: "Bestandskunde / über Partner" },
+              { value: "neukunde", label: "Komplett neuer Kunde" },
+            ]}
             value={customerType}
             onValueChange={(v) => setCustomerType(v as CustomerType)}
           >
@@ -177,6 +190,10 @@ export function CommissionForm({
         <div className="space-y-2">
           <Label>Einheit</Label>
           <Select
+            items={[
+              { value: "tage", label: "Tage" },
+              { value: "liefergegenstaende", label: "Liefergegenstände" },
+            ]}
             value={unit}
             onValueChange={(v) => setUnit(v as CommissionUnit)}
           >
@@ -213,7 +230,10 @@ export function CommissionForm({
           <div className="space-y-2">
             <Label>Trainingsformat</Label>
             <Select
-              value={trainingFormat || undefined}
+              items={Object.entries(TRAINING_FORMAT_LABELS).map(
+                ([value, label]) => ({ value, label })
+              )}
+              value={trainingFormat || null}
               onValueChange={(v) => setTrainingFormat(v as TrainingFormat)}
             >
               <SelectTrigger>

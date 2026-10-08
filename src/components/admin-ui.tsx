@@ -22,6 +22,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  preHydrationFallback,
+  submitWithoutReset,
+} from "@/components/form-submit";
 
 // ---------------------------------------------------------------------------
 // Gemeinsame Bausteine der Admin-Oberflächen (Inhalte, Mitarbeitende, …):
@@ -85,9 +89,10 @@ export function FormDialog({
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
         <form
-          action={async (formData) => {
+        {...preHydrationFallback}
+          onSubmit={submitWithoutReset(async (formData) => {
             if (await run(() => action(formData), successMessage)) setOpen(false);
-          }}
+          })}
           aria-busy={pending}
           className="grid gap-4"
         >

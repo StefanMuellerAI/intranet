@@ -178,10 +178,12 @@ export default async function UrlaubDetailPage({
                 id: c.id,
                 name: fullName(c),
               }))}
-              remainingDays={editProps.account.remaining + request.days}
+              // Beanstandete und zurückgezogene Anträge zählen nicht als
+              // verbraucht — ihre Tage sind im Resturlaub bereits enthalten
+              // (wie bei der serverseitigen Prüfung)
+              remainingDays={editProps.account.remaining}
               remainingByYear={{
-                // Die Tage dieses Antrags stehen für eine Korrektur wieder bereit
-                [editProps.year]: editProps.account.remaining + request.days,
+                [editProps.year]: editProps.account.remaining,
                 [editProps.year + 1]: editProps.nextYearAccount.remaining,
               }}
               minDate={user.entryDate ?? undefined}

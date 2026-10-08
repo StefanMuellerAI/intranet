@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Download } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { listQuotesForAdmin } from "@/lib/seminar-reports-store";
@@ -29,7 +28,9 @@ export default async function ZitatePage() {
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <Button
           variant="outline"
-          render={<Link href="/api/exports/berichte-zitate" prefetch={false} />}
+          // Normaler Link statt next/link: ein Route-Handler soll nicht als
+          // RSC vorgeladen werden (jeder Abruf schreibt einen Audit-Eintrag)
+          render={<a href="/api/exports/berichte-zitate" download />}
         >
           <Download className="mr-2 h-4 w-4" /> Freigegebene als CSV
         </Button>

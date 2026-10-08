@@ -106,7 +106,10 @@ export default async function AlleBerichtePage({
       />
       <BerichteNav isAdmin={user.role === "admin"} />
 
+      {/* key: neue Werte aus der URL (z. B. nach "Zurücksetzen") setzen auch
+          den Zustand der Auswahlfelder zurück */}
       <BerichteFilter
+        key={JSON.stringify([params.mitarbeiter, kind, from, to, sort])}
         employees={employees}
         values={{
           mitarbeiter: params.mitarbeiter ?? "",

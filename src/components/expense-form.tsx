@@ -46,6 +46,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  preHydrationFallback,
+  submitWithoutReset,
+} from "@/components/form-submit";
 
 interface BelegItem {
   date: string;
@@ -394,13 +398,15 @@ export function ExpenseForm({
 
   return (
     <form
-      action={handleSubmit}
+        {...preHydrationFallback}
       className="space-y-6"
       onSubmit={(e) => {
         if (!datesComplete) {
           e.preventDefault();
           toast.error("Bitte Abreise und Rückkehr vollständig angeben.");
+          return;
         }
+        submitWithoutReset(handleSubmit)(e);
       }}
     >
       {/* Block 1 */}
@@ -550,6 +556,9 @@ export function ExpenseForm({
                       </TableCell>
                       <TableCell>
                         <Select
+                          items={Object.entries(ABSENCE_LABELS).map(
+                            ([value, label]) => ({ value, label })
+                          )}
                           value={row.absenceType}
                           onValueChange={(v) =>
                             updateMealDay(i, {

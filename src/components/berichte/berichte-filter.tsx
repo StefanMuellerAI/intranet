@@ -52,6 +52,10 @@ export function BerichteFilter({
       <div className="space-y-2">
         <Label>Mitarbeiter/in</Label>
         <Select
+          items={[
+            { value: ALL, label: "Alle" },
+            ...employees.map((e) => ({ value: e.id, label: e.name })),
+          ]}
           value={mitarbeiter}
           onValueChange={(value) => setMitarbeiter(String(value))}
         >
@@ -76,7 +80,17 @@ export function BerichteFilter({
 
       <div className="space-y-2">
         <Label>Art</Label>
-        <Select value={art} onValueChange={(value) => setArt(String(value))}>
+        <Select
+          items={[
+            { value: ALL, label: "Alle" },
+            ...SEMINAR_REPORT_KINDS.map((k) => ({
+              value: k,
+              label: SEMINAR_REPORT_KIND_LABELS[k],
+            })),
+          ]}
+          value={art}
+          onValueChange={(value) => setArt(String(value))}
+        >
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>

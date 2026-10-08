@@ -12,6 +12,7 @@ import {
   QUOTES_MAX_COUNT,
   QUOTE_MAX_LENGTH,
   SEMINAR_REPORT_KIND_LABELS,
+  SEMINAR_REPORT_KINDS,
   parseDurationDays,
   type FeedbackRating,
   type SeminarReportKind,
@@ -28,6 +29,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  preHydrationFallback,
+  submitWithoutReset,
+} from "@/components/form-submit";
 
 export interface BerichtFormDefaults {
   kind?: SeminarReportKind;
@@ -154,11 +159,16 @@ export function BerichtForm({
   }
 
   return (
-    <form action={handleSubmit} className="space-y-6 max-w-2xl">
+    <form
+        {...preHydrationFallback} onSubmit={submitWithoutReset(handleSubmit)} className="space-y-6 max-w-2xl">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label>Art der Veranstaltung</Label>
           <Select
+            items={SEMINAR_REPORT_KINDS.map((k) => ({
+              value: k,
+              label: SEMINAR_REPORT_KIND_LABELS[k],
+            }))}
             value={kind}
             onValueChange={(value) => setKind(String(value) as SeminarReportKind)}
           >
@@ -237,7 +247,11 @@ export function BerichtForm({
         <div className="space-y-2">
           <Label>Feedback der Teilnehmenden</Label>
           <Select
-            value={feedbackRating === "" ? undefined : String(feedbackRating)}
+            items={FEEDBACK_RATINGS.map((rating) => ({
+              value: String(rating),
+              label: FEEDBACK_RATING_LABELS[rating],
+            }))}
+            value={feedbackRating === "" ? null : String(feedbackRating)}
             onValueChange={(value) =>
               setFeedbackRating(Number(value) as FeedbackRating)
             }

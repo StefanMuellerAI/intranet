@@ -154,7 +154,12 @@ export default async function KalenderPage({
   const user = await requireUser();
   const params = await searchParams;
   const now = new Date();
-  const year = Number(params.jahr) || now.getFullYear();
+  // Nur ganze, plausible Jahre — "2026.5" oder "-1" ergäben ungültige Daten
+  const parsedYear = Number(params.jahr);
+  const year =
+    Number.isInteger(parsedYear) && parsedYear >= 1900 && parsedYear <= 2200
+      ? parsedYear
+      : now.getFullYear();
   const yearView = params.ansicht === "jahr";
   const parsedMonth = Number(params.monat);
   const month =

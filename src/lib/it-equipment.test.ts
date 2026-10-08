@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEVICE_ID_PATTERN,
   equipmentStatus,
   parseDeviceId,
   parseEquipmentDates,
@@ -66,6 +67,14 @@ describe("parseEquipmentDates", () => {
 });
 
 describe("parseDeviceId", () => {
+  it("liefert ein Muster, das Browser mit dem v-Flag übersetzen können", () => {
+    // HTML-pattern wird mit dem v-Flag kompiliert; ungültige Muster ignoriert
+    // der Browser stillschweigend
+    expect(() => new RegExp(`^(?:${DEVICE_ID_PATTERN})$`, "v")).not.toThrow();
+    expect(new RegExp(`^(?:${DEVICE_ID_PATTERN})$`, "v").test("SA-IT-2026-01")).toBe(true);
+    expect(new RegExp(`^(?:${DEVICE_ID_PATTERN})$`, "v").test("SA IT")).toBe(false);
+  });
+
   it("trimmt die Eingabe", () => {
     expect(parseDeviceId("  IT-0042 ")).toBe("IT-0042");
   });

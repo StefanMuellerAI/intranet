@@ -52,8 +52,11 @@ export default async function WorkationDetailPage({
   if (canEdit) {
     const settings = await getSettings();
     const year = Number(request.startDate.slice(0, 4));
-    const used = await getUsedWorkationDays(user.id, year, id);
-    editProps = { settings, used };
+    const [used, usedNextYear] = await Promise.all([
+      getUsedWorkationDays(user.id, year, id),
+      getUsedWorkationDays(user.id, year + 1, id),
+    ]);
+    editProps = { settings, year, used, usedNextYear };
   }
 
   const resubmitWithId = resubmitWorkationRequest.bind(null, id);
@@ -125,6 +128,10 @@ export default async function WorkationDetailPage({
             <WorkationForm
               action={resubmitWithId}
               usedWorkDaysThisYear={editProps.used}
+              usedWorkDaysByYear={{
+                [editProps.year]: editProps.used,
+                [editProps.year + 1]: editProps.usedNextYear,
+              }}
               yearlyLimitDays={editProps.settings.workationYearlyLimitDays}
               consecutiveLimitDays={
                 editProps.settings.workationConsecutiveLimitDays

@@ -27,7 +27,10 @@ export function equipmentStatus(returnDate: string | null): EquipmentStatus {
  * Erlaubte Zeichen der Geräte-ID — dient auch als HTML-pattern im Formular,
  * damit der Browser abweichende Eingaben schon vor dem Absenden blockiert.
  */
-export const DEVICE_ID_PATTERN = "[A-Za-z0-9-]+";
+// Bindestrich escapen: Browser kompilieren pattern mit dem v-Flag, dort ist
+// ein unescapter "-" am Klassenende ein Syntaxfehler — das Muster würde
+// sonst stillschweigend ignoriert.
+export const DEVICE_ID_PATTERN = "[A-Za-z0-9\\-]+";
 
 export const DEVICE_ID_MAX_LENGTH = 40;
 

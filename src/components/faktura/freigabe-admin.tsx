@@ -342,14 +342,15 @@ function DeleteEntryButton({
             ? prompt(
                 "Begründung für die Löschung (Pflicht, Buchung ist freigegeben):"
               )
-            : prompt("Begründung (optional):") ?? "";
-        if (entry.status === "freigegeben" && !reason?.trim()) {
-          if (reason !== null) toast.error("Begründung erforderlich.");
+            : prompt("Begründung (optional):");
+        // Abbrechen bricht immer ab — auch bei offenen Buchungen
+        if (reason === null) return;
+        if (entry.status === "freigegeben" && !reason.trim()) {
+          toast.error("Begründung erforderlich.");
           return;
         }
-        if (reason === null) return;
         run(
-          () => adminDeleteEntryAction(entry.id, reason ?? ""),
+          () => adminDeleteEntryAction(entry.id, reason),
           "Buchung gelöscht (Soft-Delete)."
         );
       }}

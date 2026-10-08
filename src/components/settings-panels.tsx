@@ -20,6 +20,10 @@ import {
   API_KEY_SCOPES,
   type ApiKeyScope,
 } from "@/lib/api-scopes";
+import {
+  preHydrationFallback,
+  submitWithoutReset,
+} from "@/components/form-submit";
 
 function useAction() {
   const [pending, startTransition] = useTransition();
@@ -50,7 +54,8 @@ export function ActionForm({
   const { pending, run } = useAction();
   return (
     <form
-      action={(fd) => run(() => action(fd), successMessage)}
+        {...preHydrationFallback}
+      onSubmit={submitWithoutReset((fd) => run(() => action(fd), successMessage))}
       className={className}
       aria-busy={pending}
     >
@@ -191,12 +196,13 @@ export function ApiKeyPanel({
   return (
     <div className="space-y-4">
       <form
-        action={(fd) =>
+        {...preHydrationFallback}
+        onSubmit={submitWithoutReset((fd) =>
           run(async () => {
             const key = await createApiKey(fd);
             setNewKey(key);
           }, "API-Key erstellt.")
-        }
+        )}
         className="flex flex-wrap items-end gap-2"
       >
         <div className="space-y-1">

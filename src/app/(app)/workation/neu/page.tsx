@@ -11,7 +11,10 @@ export default async function NeueWorkationPage() {
   const user = await requireUser();
   const settings = await getSettings();
   const year = new Date().getFullYear();
-  const used = await getUsedWorkationDays(user.id, year);
+  const [used, usedNextYear] = await Promise.all([
+    getUsedWorkationDays(user.id, year),
+    getUsedWorkationDays(user.id, year + 1),
+  ]);
 
   return (
     <div>
@@ -22,6 +25,7 @@ export default async function NeueWorkationPage() {
       <WorkationForm
         action={submitWorkationRequest}
         usedWorkDaysThisYear={used}
+        usedWorkDaysByYear={{ [year]: used, [year + 1]: usedNextYear }}
         yearlyLimitDays={settings.workationYearlyLimitDays}
         consecutiveLimitDays={settings.workationConsecutiveLimitDays}
         submitLabel="Antrag einreichen"
